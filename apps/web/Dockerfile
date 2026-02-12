@@ -35,7 +35,7 @@ COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
 COPY packages/shared ./packages/shared
 COPY packages/typescript-config ./packages/typescript-config
 COPY apps/web ./apps/web
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.json ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 
 # Build shared package
 RUN cd packages/shared && pnpm build

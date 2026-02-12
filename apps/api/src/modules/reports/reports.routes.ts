@@ -4,7 +4,7 @@ import { authMiddleware } from '../../middleware/auth.middleware';
 import { requirePermission } from '../../middleware/rbac.middleware';
 import { sendSuccess } from '../../shared/utils/response';
 
-const router = Router();
+const router: Router = Router();
 
 router.use(authMiddleware);
 

@@ -1,0 +1,218 @@
+# Guia de Instalacion - Sistema de Gestion de Construccion
+
+## Prerequisitos
+
+- **Docker Desktop** (incluye Docker Compose)
+  - [Mac / Windows](https://www.docker.com/products/docker-desktop)
+  - [Linux](https://docs.docker.com/engine/install/)
+- **Git** (para clonar el repositorio)
+- **Puertos disponibles:** 3000, 3001, 5432
+
+---
+
+## Instalacion rapida
+
+```bash
+git clone <url-del-repositorio>
+cd construccion-app
+./setup.sh
+```
+
+El script automaticamente:
+1. Verifica que Docker este instalado y corriendo
+2. Verifica que los puertos necesarios esten disponibles
+3. Construye las imagenes Docker (3-8 min la primera vez)
+4. Levanta PostgreSQL, API y Frontend
+5. Ejecuta migraciones de base de datos
+6. Carga datos de demo (4 proyectos completos)
+7. Muestra las URLs y credenciales de acceso
+
+---
+
+## Acceso al sistema
+
+| URL | Servicio |
+|-----|----------|
+| http://localhost:3000 | Aplicacion web |
+| http://localhost:3001/api/v1 | API REST |
+
+### Credenciales de demo
+
+| Rol | Email | Password |
+|-----|-------|----------|
+| Administrador | admin@constructorademo.com.ar | password123 |
+| Jefe de Obra | jefe@constructorademo.com.ar | password123 |
+| Project Manager | andres.pm@constructorademo.com.ar | password123 |
+| Supervisor | supervisor@constructorademo.com.ar | password123 |
+| Contable | admin.contable@constructorademo.com.ar | password123 |
+| Cliente (Solo lectura) | cliente@ejemplo.com.ar | password123 |
+
+### Proyectos de demo
+
+1. **Casa Familia Rodriguez - Nordelta** - En progreso (65%)
+2. **Edificio Mirador del Parque** - En progreso (28%)
+3. **Remodelacion Local Comercial - Florida** - En planificacion
+4. **Duplex Familia Lopez - Escobar** - Completado (100%)
+
+---
+
+## Comandos utiles
+
+```bash
+# Ver estado de los servicios
+docker compose ps
+
+# Ver logs en tiempo real
+docker compose logs -f
+
+# Ver logs de un servicio especifico
+docker compose logs -f api
+docker compose logs -f web
+docker compose logs -f postgres
+
+# Detener todos los servicios
+docker compose down
+
+# Reiniciar servicios
+docker compose restart
+
+# Reiniciar un servicio especifico
+docker compose restart api
+
+# Reconstruir y reiniciar (despues de cambios en el codigo)
+docker compose up -d --build
+
+# Reset completo (borra la base de datos y vuelve a cargar datos de demo)
+docker compose down -v
+docker compose up -d --build
+```
+
+---
+
+## Configuracion avanzada
+
+### Variables de entorno
+
+Puedes crear un archivo `.env` en la raiz del proyecto para personalizar la configuracion:
+
+```env
+# Base de datos
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres123
+POSTGRES_DB=construccion_db
+
+# JWT
+JWT_SECRET=mi-secreto-seguro
+JWT_REFRESH_SECRET=mi-refresh-secreto
+JWT_EXPIRES_IN=30m
+JWT_REFRESH_EXPIRES_IN=7d
+
+# Seed de datos
+RUN_SEED=true          # true: seed si DB vacia, false: nunca, force: siempre
+
+# URLs (cambiar si usas otros puertos)
+CORS_ORIGIN=http://localhost:3000
+NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
+
+### Control del seed de datos
+
+La variable `RUN_SEED` controla la carga de datos de demo:
+
+| Valor | Comportamiento |
+|-------|---------------|
+| `true` (default) | Carga datos de demo solo si la base de datos esta vacia |
+| `false` | Nunca carga datos de demo |
+| `force` | Siempre re-carga datos de demo al iniciar |
+
+---
+
+## Troubleshooting
+
+### El build falla con error de memoria
+
+Docker necesita al menos **4GB de RAM** asignados. En Docker Desktop:
+- Ir a Settings > Resources > Memory
+- Asignar al menos 4GB
+
+### "Puerto en uso"
+
+Otro servicio esta usando el puerto. Opciones:
+
+```bash
+# Ver que esta usando el puerto
+lsof -i :3000
+lsof -i :3001
+lsof -i :5432
+
+# Si es una instancia anterior de este sistema
+docker compose down
+```
+
+### La API no inicia / errores de base de datos
+
+```bash
+# Ver logs de la API
+docker compose logs api
+
+# Ver logs de PostgreSQL
+docker compose logs postgres
+
+# Reiniciar todo desde cero
+docker compose down -v
+docker compose up -d --build
+```
+
+### El frontend no se conecta a la API
+
+Verificar que la API este healthy:
+
+```bash
+# Verificar estado
+docker compose ps
+
+# Probar la API directamente
+curl http://localhost:3001/api/v1/health
+```
+
+### Limpiar todo y empezar de cero
+
+```bash
+# Detener y borrar todo (incluyendo datos)
+docker compose down -v --rmi all
+
+# Reconstruir desde cero
+docker compose up -d --build
+```
+
+---
+
+## Arquitectura Docker
+
+```
+                    ┌──────────────┐
+                    │   Browser    │
+                    │ :3000        │
+                    └──────┬───────┘
+                           │
+                    ┌──────▼───────┐
+                    │   Frontend   │
+                    │   (Next.js)  │
+                    │   :3000      │
+                    └──────┬───────┘
+                           │
+                    ┌──────▼───────┐
+                    │   Backend    │
+                    │  (Express)   │
+                    │   :3001      │
+                    └──────┬───────┘
+                           │
+                    ┌──────▼───────┐
+                    │  PostgreSQL  │
+                    │   :5432      │
+                    └──────────────┘
+```
+
+Todos los servicios corren en una red Docker interna (`construccion-network`).
+Los datos de PostgreSQL persisten en un volumen Docker (`postgres_data`).

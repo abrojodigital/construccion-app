@@ -8,7 +8,7 @@ import { createTaskSchema, updateTaskSchema, createTaskDependencySchema } from '
 import { NotFoundError } from '../../shared/utils/errors';
 import { projectsService } from '../projects/projects.service';
 
-const router = Router();
+const router: Router = Router();
 
 router.use(authMiddleware);
 

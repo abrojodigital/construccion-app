@@ -8,7 +8,7 @@ import { createEmployeeSchema, updateEmployeeSchema, createAttendanceSchema, bul
 import { NotFoundError } from '../../shared/utils/errors';
 import { generateSimpleCode } from '../../shared/utils/code-generator';
 
-const router = Router();
+const router: Router = Router();
 
 router.use(authMiddleware);
 

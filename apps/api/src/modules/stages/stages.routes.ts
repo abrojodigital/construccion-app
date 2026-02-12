@@ -7,7 +7,7 @@ import { sendSuccess, sendCreated, sendNoContent, sendPaginated } from '../../sh
 import { createStageSchema, updateStageSchema } from '@construccion/shared';
 import { NotFoundError } from '../../shared/utils/errors';
 
-const router = Router();
+const router: Router = Router();
 
 router.use(authMiddleware);
 

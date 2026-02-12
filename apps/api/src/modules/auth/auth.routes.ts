@@ -5,7 +5,7 @@ import { validateBody } from '../../middleware/validation.middleware';
 import { loginSchema, registerSchema } from '@construccion/shared';
 import { z } from 'zod';
 
-const router = Router();
+const router: Router = Router();
 
 // Validation schemas
 const refreshSchema = z.object({

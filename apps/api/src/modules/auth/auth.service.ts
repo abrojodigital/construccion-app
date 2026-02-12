@@ -305,12 +305,12 @@ export class AuthService {
     // Generate access token
     const accessToken = jwt.sign(payload, config.jwt.secret, {
       expiresIn: config.jwt.expiresIn,
-    });
+    } as jwt.SignOptions);
 
     // Generate refresh token
     const refreshToken = jwt.sign(payload, config.jwt.refreshSecret, {
       expiresIn: config.jwt.refreshExpiresIn,
-    });
+    } as jwt.SignOptions);
 
     // Calculate expiration date for refresh token
     const expiresAt = new Date();

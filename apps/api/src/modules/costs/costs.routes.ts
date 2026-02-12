@@ -9,7 +9,7 @@ import { NotFoundError, ValidationError } from '../../shared/utils/errors';
 import { generateCode } from '../../shared/utils/code-generator';
 import { projectsService } from '../projects/projects.service';
 
-const router = Router();
+const router: Router = Router();
 
 router.use(authMiddleware);
 

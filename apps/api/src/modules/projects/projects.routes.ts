@@ -5,7 +5,7 @@ import { requirePermission } from '../../middleware/rbac.middleware';
 import { validateBody, validateQuery, validateId } from '../../middleware/validation.middleware';
 import { createProjectSchema, updateProjectSchema, projectQuerySchema } from '@construccion/shared';
 
-const router = Router();
+const router: Router = Router();
 
 // All routes require authentication
 router.use(authMiddleware);
