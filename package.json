@@ -1,0 +1,36 @@
+{
+  "name": "construccion-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sistema de Gestión de Construcción - Monorepo",
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "dev:api": "turbo dev --filter=@construccion/api",
+    "dev:web": "turbo dev --filter=@construccion/web",
+    "lint": "turbo lint",
+    "lint:fix": "turbo lint:fix",
+    "test": "turbo test",
+    "clean": "turbo clean && rm -rf node_modules",
+    "db:generate": "pnpm --filter @construccion/database db:generate",
+    "db:push": "pnpm --filter @construccion/database db:push",
+    "db:migrate": "pnpm --filter @construccion/database db:migrate",
+    "db:migrate:dev": "pnpm --filter @construccion/database db:migrate:dev",
+    "db:seed": "pnpm --filter @construccion/database db:seed",
+    "db:studio": "pnpm --filter @construccion/database db:studio",
+    "db:reset": "pnpm --filter @construccion/database db:reset",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
+    "typecheck": "turbo typecheck"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "prettier": "^3.2.4",
+    "turbo": "^2.3.0",
+    "typescript": "^5.3.3"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}
