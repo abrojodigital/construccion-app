@@ -68,8 +68,8 @@ async function main() {
     data: {
       email: 'admin@constructorademo.com.ar',
       password: hash,
-      firstName: 'Carlos',
-      lastName: 'Mendoza',
+      firstName: 'Paula Agustina',
+      lastName: 'Bersier Arias',
       phone: '+54 11 4155-2200',
       role: UserRole.ADMIN,
       organizationId: org.id,
