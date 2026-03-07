@@ -25,7 +25,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
       <main
         className="min-h-screen transition-all duration-300"
