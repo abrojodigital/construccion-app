@@ -11,7 +11,33 @@ const router: Router = Router();
 
 router.use(authMiddleware);
 
+// Helper: enriquecer tareas con totales de gastos
+function mapTaskExpenses(tasks: any[]) {
+  return tasks.map((task) => ({
+    ...task,
+    totalExpenses: task.expenses.reduce(
+      (sum: number, exp: any) => sum + Number(exp.totalAmount),
+      0
+    ),
+    expenseCount: task._count.expenses,
+    expenses: undefined,
+  }));
+}
+
+const taskInclude = {
+  where: { deletedAt: null },
+  orderBy: { plannedStartDate: 'asc' as const },
+  include: {
+    _count: { select: { expenses: true } },
+    expenses: {
+      where: { deletedAt: null },
+      select: { totalAmount: true },
+    },
+  },
+};
+
 // GET /api/v1/projects/:projectId/stages
+// Devuelve solo etapas raíz (parentStageId = null) con sus hijos anidados
 router.get(
   '/projects/:projectId/stages',
   requirePermission('stages', 'read'),
@@ -20,41 +46,35 @@ router.get(
       const stages = await prisma.stage.findMany({
         where: {
           projectId: req.params.projectId,
+          parentStageId: null,
           deletedAt: null,
           project: { organizationId: req.user!.organizationId },
         },
         orderBy: { order: 'asc' },
         include: {
-          tasks: {
+          childStages: {
             where: { deletedAt: null },
-            orderBy: { plannedStartDate: 'asc' },
+            orderBy: { order: 'asc' },
             include: {
-              _count: { select: { expenses: true } },
-              expenses: {
-                where: { deletedAt: null },
-                select: { totalAmount: true },
-              },
+              tasks: taskInclude,
+              _count: { select: { tasks: true } },
             },
           },
-          _count: { select: { tasks: true } },
+          tasks: taskInclude,
+          _count: { select: { tasks: true, childStages: true } },
         },
       });
 
-      // Calcular totales de gastos por tarea
-      const stagesWithExpenseTotals = stages.map((stage) => ({
+      const result = stages.map((stage) => ({
         ...stage,
-        tasks: stage.tasks.map((task) => ({
-          ...task,
-          totalExpenses: task.expenses.reduce(
-            (sum, exp) => sum + Number(exp.totalAmount),
-            0
-          ),
-          expenseCount: task._count.expenses,
-          expenses: undefined, // No enviar la lista completa de gastos
+        tasks: mapTaskExpenses(stage.tasks),
+        childStages: stage.childStages.map((child) => ({
+          ...child,
+          tasks: mapTaskExpenses(child.tasks),
         })),
       }));
 
-      sendSuccess(res, stagesWithExpenseTotals);
+      sendSuccess(res, result);
     } catch (error) {
       next(error);
     }
@@ -151,13 +171,37 @@ router.delete(
           deletedAt: null,
           project: { organizationId: req.user!.organizationId },
         },
+        include: {
+          childStages: { where: { deletedAt: null }, select: { id: true } },
+        },
       });
       if (!existing) throw new NotFoundError('Etapa', req.params.id);
 
+      const now = new Date();
+
+      // Soft-delete tasks de hijos y luego los hijos mismos
+      if (existing.childStages.length > 0) {
+        const childIds = existing.childStages.map((c) => c.id);
+        await prisma.task.updateMany({
+          where: { stageId: { in: childIds }, deletedAt: null },
+          data: { deletedAt: now },
+        });
+        await prisma.stage.updateMany({
+          where: { id: { in: childIds } },
+          data: { deletedAt: now },
+        });
+      }
+
+      // Soft-delete tasks directas y el stage mismo
+      await prisma.task.updateMany({
+        where: { stageId: req.params.id, deletedAt: null },
+        data: { deletedAt: now },
+      });
       await prisma.stage.update({
         where: { id: req.params.id },
-        data: { deletedAt: new Date() },
+        data: { deletedAt: now },
       });
+
       sendNoContent(res);
     } catch (error) {
       next(error);

@@ -316,6 +316,107 @@ export const FILE_CONFIG = {
   ],
 } as const;
 
+// Estados de Versión de Presupuesto
+export const BUDGET_VERSION_STATUS = {
+  DRAFT: 'DRAFT',
+  APPROVED: 'APPROVED',
+  SUPERSEDED: 'SUPERSEDED',
+} as const;
+
+export const BUDGET_VERSION_STATUS_LABELS: Record<keyof typeof BUDGET_VERSION_STATUS, string> = {
+  DRAFT: 'Borrador',
+  APPROVED: 'Aprobado',
+  SUPERSEDED: 'Reemplazado',
+};
+
+export const BUDGET_VERSION_STATUS_COLORS: Record<keyof typeof BUDGET_VERSION_STATUS, string> = {
+  DRAFT: 'yellow',
+  APPROVED: 'green',
+  SUPERSEDED: 'gray',
+};
+
+// Unidades de Medida para Presupuesto (extendidas)
+export const BUDGET_UNITS = [
+  { value: 'gl', label: 'Global' },
+  { value: 'un', label: 'Unidad' },
+  { value: 'kg', label: 'Kilogramo' },
+  { value: 'tn', label: 'Tonelada' },
+  { value: 'm', label: 'Metro' },
+  { value: 'ml', label: 'Metro Lineal' },
+  { value: 'm2', label: 'Metro Cuadrado' },
+  { value: 'm3', label: 'Metro Cúbico' },
+  { value: 'l', label: 'Litro' },
+  { value: 'bolsa', label: 'Bolsa' },
+  { value: 'rollo', label: 'Rollo' },
+  { value: 'hs', label: 'Horas' },
+  { value: 'dia', label: 'Día' },
+  { value: 'mes', label: 'Mes' },
+  { value: 'viaje', label: 'Viaje' },
+  { value: 'equipo', label: 'Equipo' },
+] as const;
+
+// Estados de Certificación
+export const CERTIFICATE_STATUS = {
+  DRAFT: 'DRAFT',
+  SUBMITTED: 'SUBMITTED',
+  APPROVED: 'APPROVED',
+  PAID: 'PAID',
+} as const;
+
+export const CERTIFICATE_STATUS_LABELS: Record<keyof typeof CERTIFICATE_STATUS, string> = {
+  DRAFT: 'Borrador',
+  SUBMITTED: 'Enviado',
+  APPROVED: 'Aprobado',
+  PAID: 'Pagado',
+};
+
+export const CERTIFICATE_STATUS_COLORS: Record<keyof typeof CERTIFICATE_STATUS, string> = {
+  DRAFT: 'gray',
+  SUBMITTED: 'yellow',
+  APPROVED: 'green',
+  PAID: 'blue',
+};
+
+// Estados de Subcontrato
+export const SUBCONTRACT_STATUS = {
+  DRAFT: 'DRAFT',
+  ACTIVE: 'ACTIVE',
+  COMPLETED: 'COMPLETED',
+  CANCELLED: 'CANCELLED',
+} as const;
+
+export const SUBCONTRACT_STATUS_LABELS: Record<keyof typeof SUBCONTRACT_STATUS, string> = {
+  DRAFT: 'Borrador',
+  ACTIVE: 'Activo',
+  COMPLETED: 'Completado',
+  CANCELLED: 'Cancelado',
+};
+
+export const SUBCONTRACT_STATUS_COLORS: Record<keyof typeof SUBCONTRACT_STATUS, string> = {
+  DRAFT: 'gray',
+  ACTIVE: 'green',
+  COMPLETED: 'blue',
+  CANCELLED: 'red',
+};
+
+// Categorías de Mano de Obra (APU)
+export const LABOR_CATEGORIES = [
+  'Oficial Especializado',
+  'Oficial',
+  'Medio Oficial',
+  'Ayudante',
+] as const;
+
+// Secciones de APU
+export const APU_SECTIONS = {
+  A: 'Materiales',
+  B: 'Mano de Obra',
+  C: 'Transporte',
+  D: 'Amortización de Equipos',
+  E: 'Reparaciones y Repuestos',
+  F: 'Combustibles y Lubricantes',
+} as const;
+
 // IVA Argentina
 export const IVA_RATES = {
   GENERAL: 21,

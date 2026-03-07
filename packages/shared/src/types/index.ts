@@ -125,7 +125,119 @@ export interface ExpenseSummary {
   monthlyTrend: { month: string; amount: number }[];
 }
 
-// Budget Types
+// Budget Version Types (Presupuesto Versionado)
+export type BudgetVersionStatus = 'DRAFT' | 'APPROVED' | 'SUPERSEDED';
+
+export interface BudgetVersionSummary {
+  id: string;
+  code: string;
+  version: number;
+  name: string;
+  status: BudgetVersionStatus;
+  coeficienteK: number;
+  totalCostoCosto: number;
+  totalPrecio: number;
+  categoriesCount: number;
+  stagesCount: number;
+  itemsCount: number;
+  approvedAt: string | null;
+  createdAt: string;
+}
+
+export interface BudgetCategoryDetail {
+  id: string;
+  number: number;
+  name: string;
+  description: string | null;
+  order: number;
+  subtotalCostoCosto: number;
+  stages: BudgetStageDetail[];
+}
+
+export interface BudgetStageDetail {
+  id: string;
+  number: string;
+  description: string;
+  unit: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  incidencePct: number;
+  items: BudgetItemDetail[];
+}
+
+export interface BudgetItemDetail {
+  id: string;
+  number: string;
+  description: string;
+  unit: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+}
+
+export interface BudgetVersionDetail {
+  id: string;
+  code: string;
+  version: number;
+  name: string;
+  description: string | null;
+  status: BudgetVersionStatus;
+  gastosGeneralesPct: number;
+  beneficioPct: number;
+  gastosFinancierosPct: number;
+  ivaPct: number;
+  coeficienteK: number;
+  totalCostoCosto: number;
+  totalPrecio: number;
+  approvedAt: string | null;
+  approvedById: string | null;
+  projectId: string;
+  categories: BudgetCategoryDetail[];
+}
+
+export interface KCoefficientBreakdown {
+  costoCosto: number;
+  gastosGenerales: number;
+  subtotal1: number;
+  beneficio: number;
+  subtotal2: number;
+  gastosFinancieros: number;
+  subtotal3: number;
+  iva: number;
+  precioFinal: number;
+  coeficienteK: number;
+}
+
+// Certificate Types (Fase 4)
+export type CertificateStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'PAID';
+
+export interface CertificateSummary {
+  id: string;
+  code: string;
+  number: number;
+  status: CertificateStatus;
+  periodStart: string;
+  periodEnd: string;
+  subtotal: number;
+  totalAmount: number;
+  approvedAt: string | null;
+}
+
+// Subcontract Types (Fase 5)
+export type SubcontractStatus = 'DRAFT' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+
+export interface SubcontractSummary {
+  id: string;
+  code: string;
+  name: string;
+  contractorName: string;
+  status: SubcontractStatus;
+  totalAmount: number;
+  certificatedAmount: number;
+}
+
+// Budget Types (Legacy)
 export interface BudgetSummary {
   totalBudget: number;
   totalSpent: number;

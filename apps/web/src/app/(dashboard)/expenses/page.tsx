@@ -205,7 +205,7 @@ export default function ExpensesPage() {
       accessorKey: 'totalAmount',
       header: 'Monto',
       cell: ({ row }: any) => (
-        <div className="font-medium">{formatCurrency(Number(row.original.totalAmount))}</div>
+        <div className="font-medium">{formatCurrency(Number(row.original.totalAmount), { compact: true })}</div>
       ),
     },
     {

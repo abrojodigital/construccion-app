@@ -102,6 +102,26 @@ enum AuditAction {
   RESTORE
 }
 
+enum BudgetVersionStatus {
+  DRAFT
+  APPROVED
+  SUPERSEDED
+}
+
+enum CertificateStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  PAID
+}
+
+enum SubcontractStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
 enum DependencyType {
   FS // Finish-to-Start
   SS // Start-to-Start
@@ -109,34 +129,52 @@ enum DependencyType {
   SF // Start-to-Finish
 }
 
+enum FinancialPlanStatus {
+  DRAFT
+  APPROVED
+  SUPERSEDED
+}
+
 // ============================================
 // ORGANIZATION (Multi-tenancy)
 // ============================================
 
 model Organization {
-  id        String   @id @default(cuid())
-  name      String
-  cuit      String   @unique // CUIT argentino (ej: 30-12345678-9)
-  address   String?
-  city      String?
-  province  String   @default("Buenos Aires")
-  phone     String?
-  email     String?
-  logo      String?
-  isActive  Boolean  @default(true)
+  id       String  @id @default(cuid())
+  name     String
+  cuit     String  @unique // CUIT argentino (ej: 30-12345678-9)
+  address  String?
+  city     String?
+  province String  @default("Buenos Aires")
+  phone    String?
+  email    String?
+  logo     String?
+  isActive Boolean @default(true)
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
   // Relations
-  users             User[]
-  projects          Project[]
-  suppliers         Supplier[]
-  materials         Material[]
-  materialCategories MaterialCategory[]
-  employees         Employee[]
-  expenseCategories ExpenseCategory[]
+  users                   User[]
+  projects                Project[]
+  suppliers               Supplier[]
+  materials               Material[]
+  materialCategories      MaterialCategory[]
+  employees               Employee[]
+  expenseCategories       ExpenseCategory[]
+  budgetVersions          BudgetVersion[]
+  priceAnalyses           PriceAnalysis[]
+  certificates            Certificate[]
+  subcontracts            Subcontract[]
+  priceIndices            PriceIndex[]
+  adjustmentFormulas      AdjustmentFormula[]
+  currencies              Currency[]               @relation("OrganizationCurrencies")
+  exchangeRates           ExchangeRate[]           @relation("OrganizationExchangeRates")
+  subcontractCertificates SubcontractCertificate[] @relation("OrganizationSubcontractCertificates")
+  laborCategories         LaborCategory[]
+  equipmentCatalog        EquipmentCatalogItem[]
+  financialPlans          FinancialPlan[]
 
   @@index([cuit])
   @@map("organizations")
@@ -200,13 +238,13 @@ model RefreshToken {
 // ============================================
 
 model Project {
-  id          String        @id @default(cuid())
-  code        String        @unique // e.g., "OBR-2024-001"
+  id          String  @id @default(cuid())
+  code        String  @unique // e.g., "OBR-2024-001"
   name        String
   description String?
   address     String
   city        String
-  province    String        @default("Buenos Aires")
+  province    String  @default("Buenos Aires")
 
   status           ProjectStatus @default(PLANNING)
   startDate        DateTime?
@@ -233,12 +271,16 @@ model Project {
   // Child relations
   stages              Stage[]
   budgets             Budget[]
+  budgetVersions      BudgetVersion[]
+  certificates        Certificate[]
+  subcontracts        Subcontract[]
   expenses            Expense[]
   purchaseOrders      PurchaseOrder[]
   stockMovements      StockMovement[]
   employeeAssignments EmployeeProjectAssignment[]
   documents           Document[]
   comments            Comment[]
+  financialPlans      FinancialPlan[]
 
   @@index([code])
   @@index([organizationId])
@@ -255,7 +297,7 @@ model Stage {
   id          String  @id @default(cuid())
   name        String
   description String?
-  order       Int     // Para ordenamiento
+  order       Int // Para ordenamiento
 
   plannedStartDate DateTime?
   plannedEndDate   DateTime?
@@ -267,6 +309,19 @@ model Stage {
   projectId String
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
+  // Jerarquía padre/hijo (Categoría→Stage padre, Etapa→Stage hijo)
+  parentStageId String?
+  parentStage   Stage?  @relation("StageHierarchy", fields: [parentStageId], references: [id])
+  childStages   Stage[] @relation("StageHierarchy")
+
+  // Vínculo con presupuesto (generación automática al aprobar)
+  budgetCategoryId String?
+  budgetCategory   BudgetCategory? @relation(fields: [budgetCategoryId], references: [id])
+  budgetStageId    String?
+  budgetStage      BudgetStage?    @relation(fields: [budgetStageId], references: [id])
+  budgetVersionId  String?
+  budgetVersion    BudgetVersion?  @relation(fields: [budgetVersionId], references: [id])
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
@@ -275,11 +330,15 @@ model Stage {
 
   @@index([projectId])
   @@index([order])
+  @@index([parentStageId])
+  @@index([budgetCategoryId])
+  @@index([budgetStageId])
+  @@index([budgetVersionId])
   @@map("stages")
 }
 
 model Task {
-  id          String       @id @default(cuid())
+  id          String  @id @default(cuid())
   name        String
   description String?
 
@@ -303,6 +362,10 @@ model Task {
   parentTask   Task?   @relation("TaskSubtasks", fields: [parentTaskId], references: [id])
   subtasks     Task[]  @relation("TaskSubtasks")
 
+  // Vínculo con presupuesto (generación automática al aprobar)
+  budgetItemId String?
+  budgetItem   BudgetItem? @relation(fields: [budgetItemId], references: [id])
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
@@ -317,6 +380,7 @@ model Task {
   @@index([stageId])
   @@index([status])
   @@index([parentTaskId])
+  @@index([budgetItemId])
   @@map("tasks")
 }
 
@@ -357,6 +421,581 @@ model TaskAssignment {
   @@unique([taskId, userId])
   @@unique([taskId, employeeId])
   @@map("task_assignments")
+}
+
+// ============================================
+// BUDGET VERSIONS (Presupuesto Versionado)
+// ============================================
+
+model BudgetVersion {
+  id           String              @id @default(cuid())
+  code         String              @unique // "PRES-2024-00001-v1"
+  version      Int                 @default(1)
+  name         String
+  description  String?
+  status       BudgetVersionStatus @default(DRAFT)
+  approvedAt   DateTime?
+  approvedById String?
+
+  // Coeficiente K breakdown
+  gastosGeneralesPct   Decimal @default(0) @db.Decimal(6, 4) // ej: 0.1107 = 11.07%
+  beneficioPct         Decimal @default(0) @db.Decimal(6, 4) // ej: 0.10
+  gastosFinancierosPct Decimal @default(0) @db.Decimal(6, 4) // ej: 0.04
+  ivaPct               Decimal @default(0) @db.Decimal(6, 4) // ej: 0.21 o 0.105
+  coeficienteK         Decimal @default(1) @db.Decimal(8, 4) // K calculado
+
+  totalCostoCosto Decimal @default(0) @db.Decimal(15, 2)
+  totalPrecio     Decimal @default(0) @db.Decimal(15, 2)
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id])
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  categories         BudgetCategory[]
+  certificates       Certificate[]
+  adjustmentFormulas AdjustmentFormula[]
+  financialPlans     FinancialPlan[]
+  generatedStages    Stage[]
+
+  @@index([projectId])
+  @@index([organizationId])
+  @@index([status])
+  @@map("budget_versions")
+}
+
+model BudgetCategory {
+  id          String  @id @default(cuid())
+  number      Int // 1, 2, 3...
+  name        String // "Trabajos Preliminares", "Estructura", etc.
+  description String?
+  order       Int
+
+  subtotalCostoCosto Decimal @default(0) @db.Decimal(15, 2)
+
+  budgetVersionId String
+  budgetVersion   BudgetVersion @relation(fields: [budgetVersionId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  stages          BudgetStage[]
+  generatedStages Stage[]
+
+  @@index([budgetVersionId])
+  @@map("budget_categories")
+}
+
+model BudgetStage {
+  id           String  @id @default(cuid())
+  number       String // "1.1", "2.3", etc.
+  description  String // "Replanteo", "Excavación de bases"
+  unit         String // "m2", "m3", "gl", "ml", "kg", "un"
+  quantity     Decimal @db.Decimal(12, 4)
+  unitPrice    Decimal @db.Decimal(15, 2) // Precio unitario costo-costo (suma de items)
+  totalPrice   Decimal @db.Decimal(15, 2) // quantity × unitPrice
+  incidencePct Decimal @default(0) @db.Decimal(6, 4) // % incidencia sobre total
+
+  categoryId String
+  category   BudgetCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items           BudgetItem[]
+  generatedStages Stage[]
+
+  @@index([categoryId])
+  @@map("budget_stages")
+}
+
+model BudgetItem {
+  id          String  @id @default(cuid())
+  number      String // "1.1.1", "2.3.2", etc.
+  description String // Descripción del ítem
+  unit        String // "m2", "m3", "gl", "ml", "kg", "un"
+  quantity    Decimal @db.Decimal(12, 4)
+  unitPrice   Decimal @db.Decimal(15, 2) // Precio unitario costo-costo
+  totalPrice  Decimal @db.Decimal(15, 2) // quantity × unitPrice
+
+  stageId String
+  stage   BudgetStage @relation(fields: [stageId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  priceAnalysis    PriceAnalysis?
+  itemProgress     ItemProgress[]
+  certificateItems CertificateItem[]
+  subcontractItems SubcontractItem[]
+  generatedTasks   Task[]
+
+  @@index([stageId])
+  @@map("budget_items")
+}
+
+// ============================================
+// ANÁLISIS DE PRECIOS UNITARIOS (APU) - Fase 2
+// ============================================
+
+model PriceAnalysis {
+  id   String @id @default(cuid())
+  code String @unique // "APU-001"
+
+  // Subtotales por sección
+  totalMaterials  Decimal @default(0) @db.Decimal(15, 2)
+  totalLabor      Decimal @default(0) @db.Decimal(15, 2)
+  totalTransport  Decimal @default(0) @db.Decimal(15, 2)
+  totalEquipAmort Decimal @default(0) @db.Decimal(15, 2)
+  totalRepairs    Decimal @default(0) @db.Decimal(15, 2)
+  totalFuel       Decimal @default(0) @db.Decimal(15, 2)
+  totalDirect     Decimal @default(0) @db.Decimal(15, 2) // A+B+C+D+E+F
+
+  budgetItemId String     @unique
+  budgetItem   BudgetItem @relation(fields: [budgetItemId], references: [id])
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  materials  AnalysisMaterial[]
+  laborItems AnalysisLabor[]
+  transport  AnalysisTransport[]
+  equipment  AnalysisEquipment[]
+
+  @@index([budgetItemId])
+  @@index([organizationId])
+  @@map("price_analyses")
+}
+
+model AnalysisMaterial {
+  id          String  @id @default(cuid())
+  description String
+  indecCode   String? // Código INDEC para redeterminación
+  unit        String
+  quantity    Decimal @db.Decimal(12, 4)
+  unitCost    Decimal @db.Decimal(15, 2)
+  wastePct    Decimal @default(0) @db.Decimal(6, 4)
+  totalCost   Decimal @db.Decimal(15, 2)
+
+  // Multi-moneda (Fase 7)
+  currencyId   String?
+  exchangeRate Decimal? @db.Decimal(15, 4)
+
+  priceAnalysisId String
+  priceAnalysis   PriceAnalysis @relation(fields: [priceAnalysisId], references: [id], onDelete: Cascade)
+
+  @@map("analysis_materials")
+}
+
+model AnalysisLabor {
+  id         String  @id @default(cuid())
+  category   String // "Oficial Especializado", "Oficial", "Medio Oficial", "Ayudante"
+  quantity   Decimal @db.Decimal(8, 4) // horas/hombre
+  hourlyRate Decimal @db.Decimal(15, 2) // incluye cargas sociales
+  totalCost  Decimal @db.Decimal(15, 2)
+
+  // Desglose opcional
+  baseSalary       Decimal? @db.Decimal(15, 2)
+  attendancePct    Decimal? @db.Decimal(6, 4) // Asistencia 20%
+  socialChargesPct Decimal? @db.Decimal(6, 4) // Cargas sociales ~50-59%
+  artPct           Decimal? @db.Decimal(6, 4) // ART ~7.9%
+
+  // Referencia al catálogo global de categorías MdO
+  laborCategoryId String?
+  laborCategory   LaborCategory? @relation(fields: [laborCategoryId], references: [id])
+
+  priceAnalysisId String
+  priceAnalysis   PriceAnalysis @relation(fields: [priceAnalysisId], references: [id], onDelete: Cascade)
+
+  @@index([laborCategoryId])
+  @@map("analysis_labor")
+}
+
+model AnalysisEquipment {
+  id          String   @id @default(cuid())
+  description String
+  powerHp     Decimal? @db.Decimal(8, 2)
+  newValue    Decimal? @db.Decimal(15, 2)
+  residualPct Decimal? @db.Decimal(6, 4)
+
+  // Componentes de costo horario
+  amortInterest  Decimal @default(0) @db.Decimal(15, 2)
+  repairsCost    Decimal @default(0) @db.Decimal(15, 2)
+  fuelCost       Decimal @default(0) @db.Decimal(15, 2)
+  lubricantsCost Decimal @default(0) @db.Decimal(15, 2)
+  hourlyTotal    Decimal @db.Decimal(15, 2)
+
+  hoursUsed Decimal @db.Decimal(8, 4)
+  totalCost Decimal @db.Decimal(15, 2)
+
+  section String @default("D") // "D", "E", "F" o "DEF"
+
+  // Multi-moneda (Fase 7)
+  currencyId   String?
+  exchangeRate Decimal? @db.Decimal(15, 4)
+
+  // Referencia al catálogo global de equipos
+  equipmentCatalogId String?
+  equipmentCatalog   EquipmentCatalogItem? @relation(fields: [equipmentCatalogId], references: [id])
+
+  priceAnalysisId String
+  priceAnalysis   PriceAnalysis @relation(fields: [priceAnalysisId], references: [id], onDelete: Cascade)
+
+  @@index([equipmentCatalogId])
+  @@map("analysis_equipment")
+}
+
+model AnalysisTransport {
+  id          String  @id @default(cuid())
+  description String
+  unit        String
+  quantity    Decimal @db.Decimal(12, 4)
+  unitCost    Decimal @db.Decimal(15, 2)
+  totalCost   Decimal @db.Decimal(15, 2)
+
+  priceAnalysisId String
+  priceAnalysis   PriceAnalysis @relation(fields: [priceAnalysisId], references: [id], onDelete: Cascade)
+
+  @@map("analysis_transport")
+}
+
+// ============================================
+// AVANCE FÍSICO POR ÍTEM - Fase 3
+// ============================================
+
+model ItemProgress {
+  id      String   @id @default(cuid())
+  date    DateTime @db.Date
+  advance Decimal  @db.Decimal(8, 6) // 0.000000 a 1.000000
+  notes   String?
+
+  budgetItemId String
+  budgetItem   BudgetItem @relation(fields: [budgetItemId], references: [id])
+
+  registeredById String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([budgetItemId, date])
+  @@index([budgetItemId])
+  @@index([date])
+  @@map("item_progress")
+}
+
+// ============================================
+// CERTIFICACIÓN FORMAL - Fase 4
+// ============================================
+
+model Certificate {
+  id          String            @id @default(cuid())
+  code        String            @unique // "CERT-2024-00001"
+  number      Int
+  status      CertificateStatus @default(DRAFT)
+  periodStart DateTime          @db.Date
+  periodEnd   DateTime          @db.Date
+
+  // Totales calculados
+  subtotal          Decimal @default(0) @db.Decimal(15, 2)
+  acopioPct         Decimal @default(0) @db.Decimal(6, 4)
+  acopioAmount      Decimal @default(0) @db.Decimal(15, 2)
+  anticipoPct       Decimal @default(0) @db.Decimal(6, 4)
+  anticipoAmount    Decimal @default(0) @db.Decimal(15, 2)
+  fondoReparoPct    Decimal @default(0) @db.Decimal(6, 4)
+  fondoReparoAmount Decimal @default(0) @db.Decimal(15, 2)
+  adjustmentFactor  Decimal @default(1) @db.Decimal(10, 6)
+  ivaPct            Decimal @default(0) @db.Decimal(6, 4)
+  ivaAmount         Decimal @default(0) @db.Decimal(15, 2)
+  totalAmount       Decimal @default(0) @db.Decimal(15, 2)
+
+  submittedAt  DateTime?
+  approvedAt   DateTime?
+  approvedById String?
+
+  budgetVersionId String
+  budgetVersion   BudgetVersion @relation(fields: [budgetVersionId], references: [id])
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id])
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  items CertificateItem[]
+
+  @@index([budgetVersionId])
+  @@index([projectId])
+  @@index([organizationId])
+  @@index([status])
+  @@map("certificates")
+}
+
+model CertificateItem {
+  id String @id @default(cuid())
+
+  // Snapshot del presupuesto
+  itemNumber  String
+  description String
+  unit        String
+  quantity    Decimal @db.Decimal(12, 4)
+  unitPrice   Decimal @db.Decimal(15, 2)
+
+  // Certificación acumulada anterior
+  previousAdvance Decimal @default(0) @db.Decimal(8, 6)
+  previousAmount  Decimal @default(0) @db.Decimal(15, 2)
+
+  // Certificación este período
+  currentAdvance Decimal @default(0) @db.Decimal(8, 6)
+  currentAmount  Decimal @default(0) @db.Decimal(15, 2)
+
+  // Acumulado
+  totalAdvance Decimal @default(0) @db.Decimal(8, 6)
+  totalAmount  Decimal @default(0) @db.Decimal(15, 2)
+
+  certificateId String
+  certificate   Certificate @relation(fields: [certificateId], references: [id], onDelete: Cascade)
+
+  budgetItemId String
+  budgetItem   BudgetItem @relation(fields: [budgetItemId], references: [id])
+
+  @@index([certificateId])
+  @@index([budgetItemId])
+  @@map("certificate_items")
+}
+
+// ============================================
+// SUBCONTRATACIONES - Fase 5
+// ============================================
+
+model Subcontract {
+  id          String            @id @default(cuid())
+  code        String            @unique // "SUB-2024-00001"
+  name        String
+  description String?
+  status      SubcontractStatus @default(DRAFT)
+
+  contractorName String
+  contractorCuit String
+  contactEmail   String?
+  contactPhone   String?
+
+  startDate   DateTime?
+  endDate     DateTime?
+  totalAmount Decimal   @db.Decimal(15, 2)
+
+  projectId      String
+  project        Project      @relation(fields: [projectId], references: [id])
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  items        SubcontractItem[]
+  certificates SubcontractCertificate[]
+
+  @@index([projectId])
+  @@index([organizationId])
+  @@map("subcontracts")
+}
+
+model SubcontractItem {
+  id          String  @id @default(cuid())
+  description String
+  unit        String
+  quantity    Decimal @db.Decimal(12, 4)
+  unitPrice   Decimal @db.Decimal(15, 2)
+  totalPrice  Decimal @db.Decimal(15, 2)
+
+  budgetItemId String?
+  budgetItem   BudgetItem? @relation(fields: [budgetItemId], references: [id])
+
+  subcontractId String
+  subcontract   Subcontract @relation(fields: [subcontractId], references: [id], onDelete: Cascade)
+
+  certificateItems SubcontractCertificateItem[]
+
+  @@index([subcontractId])
+  @@index([budgetItemId])
+  @@map("subcontract_items")
+}
+
+model SubcontractCertificate {
+  id          String            @id @default(cuid())
+  code        String            @unique // "SUBCERT-2024-00001"
+  number      Int
+  status      CertificateStatus @default(DRAFT)
+  periodStart DateTime          @db.Date
+  periodEnd   DateTime          @db.Date
+
+  subtotal    Decimal @default(0) @db.Decimal(15, 2)
+  totalAmount Decimal @default(0) @db.Decimal(15, 2)
+
+  approvedAt   DateTime?
+  approvedById String?
+
+  subcontractId String
+  subcontract   Subcontract @relation(fields: [subcontractId], references: [id], onDelete: Cascade)
+
+  organizationId String
+  organization   Organization @relation("OrganizationSubcontractCertificates", fields: [organizationId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items SubcontractCertificateItem[]
+
+  @@index([subcontractId])
+  @@index([organizationId])
+  @@map("subcontract_certificates")
+}
+
+model SubcontractCertificateItem {
+  id String @id @default(cuid())
+
+  description     String
+  unit            String
+  quantity        Decimal @db.Decimal(12, 4)
+  unitPrice       Decimal @db.Decimal(15, 2)
+  previousAdvance Decimal @default(0) @db.Decimal(8, 6)
+  currentAdvance  Decimal @default(0) @db.Decimal(8, 6)
+  currentAmount   Decimal @default(0) @db.Decimal(15, 2)
+  totalAdvance    Decimal @default(0) @db.Decimal(8, 6)
+  totalAmount     Decimal @default(0) @db.Decimal(15, 2)
+
+  certificateId String
+  certificate   SubcontractCertificate @relation(fields: [certificateId], references: [id], onDelete: Cascade)
+
+  subcontractItemId String
+  subcontractItem   SubcontractItem @relation(fields: [subcontractItemId], references: [id])
+
+  @@index([certificateId])
+  @@map("subcontract_certificate_items")
+}
+
+// ============================================
+// REDETERMINACIÓN DE PRECIOS - Fase 6
+// ============================================
+
+model PriceIndex {
+  id     String  @id @default(cuid())
+  name   String
+  code   String  @unique // "MO-UOCRA", "MAT-CEM"
+  source String? // "INDEC", "UOCRA", "CAC"
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  values  PriceIndexValue[]
+  weights AdjustmentWeight[]
+
+  @@index([organizationId])
+  @@map("price_indices")
+}
+
+model PriceIndexValue {
+  id    String   @id @default(cuid())
+  date  DateTime @db.Date
+  value Decimal  @db.Decimal(15, 4)
+
+  priceIndexId String
+  priceIndex   PriceIndex @relation(fields: [priceIndexId], references: [id], onDelete: Cascade)
+
+  @@unique([priceIndexId, date])
+  @@index([date])
+  @@map("price_index_values")
+}
+
+model AdjustmentFormula {
+  id   String @id @default(cuid())
+  name String
+
+  budgetVersionId String
+  budgetVersion   BudgetVersion @relation(fields: [budgetVersionId], references: [id])
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  weights AdjustmentWeight[]
+
+  @@index([budgetVersionId])
+  @@index([organizationId])
+  @@map("adjustment_formulas")
+}
+
+model AdjustmentWeight {
+  id        String  @id @default(cuid())
+  component String // "Materiales", "Mano de Obra", "Equipos"
+  weight    Decimal @db.Decimal(6, 4) // 0.45 = 45%
+
+  priceIndexId String
+  priceIndex   PriceIndex @relation(fields: [priceIndexId], references: [id])
+
+  formulaId String
+  formula   AdjustmentFormula @relation(fields: [formulaId], references: [id], onDelete: Cascade)
+
+  @@map("adjustment_weights")
+}
+
+// ============================================
+// MULTI-MONEDA - Fase 7
+// ============================================
+
+model Currency {
+  id     String @id @default(cuid())
+  code   String @unique // "ARS", "USD", "EUR"
+  name   String
+  symbol String // "$", "US$", "€"
+
+  organizationId String
+  organization   Organization @relation("OrganizationCurrencies", fields: [organizationId], references: [id])
+
+  ratesFrom ExchangeRate[] @relation("ExchangeRateFrom")
+  ratesTo   ExchangeRate[] @relation("ExchangeRateTo")
+
+  @@index([organizationId])
+  @@map("currencies")
+}
+
+model ExchangeRate {
+  id   String   @id @default(cuid())
+  date DateTime @db.Date
+  rate Decimal  @db.Decimal(15, 4)
+
+  fromCurrencyId String
+  fromCurrency   Currency @relation("ExchangeRateFrom", fields: [fromCurrencyId], references: [id])
+  toCurrencyId   String
+  toCurrency     Currency @relation("ExchangeRateTo", fields: [toCurrencyId], references: [id])
+  source         String? // "BCRA", "Manual"
+
+  organizationId String
+  organization   Organization @relation("OrganizationExchangeRates", fields: [organizationId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([fromCurrencyId, toCurrencyId, date])
+  @@index([date])
+  @@index([organizationId])
+  @@map("exchange_rates")
 }
 
 // ============================================
@@ -416,9 +1055,9 @@ model Expense {
   reference   String @unique // e.g., "GAS-2024-00001"
   description String
 
-  amount      Decimal       @db.Decimal(15, 2)
-  taxAmount   Decimal       @default(0) @db.Decimal(15, 2) // IVA
-  totalAmount Decimal       @db.Decimal(15, 2)
+  amount      Decimal @db.Decimal(15, 2)
+  taxAmount   Decimal @default(0) @db.Decimal(15, 2) // IVA
+  totalAmount Decimal @db.Decimal(15, 2)
 
   status      ExpenseStatus @default(DRAFT)
   expenseDate DateTime
@@ -511,9 +1150,9 @@ model PurchaseOrder {
 model PurchaseOrderItem {
   id String @id @default(cuid())
 
-  quantity    Decimal @db.Decimal(10, 2)
-  unitPrice   Decimal @db.Decimal(15, 2)
-  totalPrice  Decimal @db.Decimal(15, 2)
+  quantity   Decimal @db.Decimal(10, 2)
+  unitPrice  Decimal @db.Decimal(15, 2)
+  totalPrice Decimal @db.Decimal(15, 2)
 
   deliveredQty Decimal @default(0) @db.Decimal(10, 2)
   notes        String?
@@ -557,7 +1196,7 @@ model Supplier {
   cbu          String? // CBU argentino
   alias        String? // Alias CBU
 
-  rating   Int?    // 1-5 estrellas
+  rating   Int? // 1-5 estrellas
   notes    String?
   isActive Boolean @default(true)
 
@@ -608,6 +1247,7 @@ model Material {
   code        String  @unique
   name        String
   description String?
+  indecCode   String? // Código INDEC para redeterminación de precios
 
   unit String // e.g., "kg", "m3", "m2", "unidad", "bolsa"
 
@@ -675,8 +1315,8 @@ model StockMovement {
   reason       String?
   reference    String? // Reference to PO or other document
 
-  unitCost   Decimal? @db.Decimal(15, 2)
-  totalCost  Decimal? @db.Decimal(15, 2)
+  unitCost  Decimal? @db.Decimal(15, 2)
+  totalCost Decimal? @db.Decimal(15, 2)
 
   materialId String
   material   Material @relation(fields: [materialId], references: [id])
@@ -747,8 +1387,8 @@ model Employee {
 
   firstName String
   lastName  String
-  dni       String @unique
-  cuil      String @unique // CUIL argentino
+  dni       String  @unique
+  cuil      String  @unique // CUIL argentino
   gender    String? // 'M' = Masculino, 'F' = Femenino
 
   email     String?
@@ -805,7 +1445,7 @@ model EmployeeProjectAssignment {
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   role      String? // Role in this project
-  startDate DateTime @default(now())
+  startDate DateTime  @default(now())
   endDate   DateTime?
 
   hourlyRateOverride Decimal? @db.Decimal(10, 2) // Override for this project
@@ -819,7 +1459,7 @@ model EmployeeProjectAssignment {
 model Attendance {
   id String @id @default(cuid())
 
-  date     DateTime @db.Date
+  date     DateTime  @db.Date
   checkIn  DateTime?
   checkOut DateTime?
 
@@ -991,6 +1631,141 @@ model AuditLog {
   @@index([userId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+// ============================================
+// CATÁLOGO GLOBAL - CATEGORÍAS MdO (Mano de Obra)
+// ============================================
+
+model LaborCategory {
+  id          String  @id @default(cuid())
+  code        String  @unique // "OF-ESP", "OF", "MO", "AY"
+  name        String // "Oficial Especializado", "Oficial", "Medio Oficial", "Ayudante"
+  description String?
+
+  // Tarifa base por hora (jornal / 8hs)
+  baseSalaryPerHour Decimal @db.Decimal(15, 2)
+
+  // Cargas y adicionales (almacenados como decimal 0-1)
+  attendancePct    Decimal @default(0.20) @db.Decimal(6, 4) // Presentismo 20%
+  socialChargesPct Decimal @default(0.55) @db.Decimal(6, 4) // Cargas sociales ~55%
+  artPct           Decimal @default(0.079) @db.Decimal(6, 4) // ART ~7.9%
+
+  // Costo horario total calculado (base × (1 + presentismo) × (1 + cargas) × (1 + ART))
+  totalHourlyCost Decimal @db.Decimal(15, 2)
+
+  isActive Boolean @default(true)
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  analysisLabor AnalysisLabor[]
+
+  @@index([organizationId])
+  @@index([code])
+  @@map("labor_categories")
+}
+
+// ============================================
+// CATÁLOGO GLOBAL - EQUIPOS
+// ============================================
+
+model EquipmentCatalogItem {
+  id          String  @id @default(cuid())
+  code        String  @unique // "EQ-RET-01", "EQ-COMP-01"
+  name        String // "Retroexcavadora CAT 416E"
+  description String?
+
+  // Datos técnicos
+  powerHp         Decimal? @db.Decimal(8, 2) // Potencia en HP
+  newValue        Decimal  @db.Decimal(15, 2) // Valor nuevo en ARS
+  residualPct     Decimal  @default(0.10) @db.Decimal(6, 4) // Valor residual %
+  usefulLifeHours Decimal  @default(10000) @db.Decimal(10, 2) // Vida útil en horas
+
+  // Componentes de costo horario estandar
+  amortPerHour      Decimal @default(0) @db.Decimal(15, 2) // Amort + interés por hora
+  repairsPerHour    Decimal @default(0) @db.Decimal(15, 2) // Reparaciones por hora
+  fuelPerHour       Decimal @default(0) @db.Decimal(15, 2) // Combustible por hora
+  lubricantsPerHour Decimal @default(0) @db.Decimal(15, 2) // Lubricantes por hora
+  totalHourlyCost   Decimal @default(0) @db.Decimal(15, 2) // Costo horario total
+
+  isActive Boolean @default(true)
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  analysisEquipment AnalysisEquipment[]
+
+  @@index([organizationId])
+  @@index([code])
+  @@map("equipment_catalog")
+}
+
+// ============================================
+// PLAN FINANCIERO (Cash Flow Mensual)
+// ============================================
+
+model FinancialPlan {
+  id     String              @id @default(cuid())
+  name   String
+  status FinancialPlanStatus @default(DRAFT)
+
+  projectId       String
+  project         Project       @relation(fields: [projectId], references: [id])
+  budgetVersionId String
+  budgetVersion   BudgetVersion @relation(fields: [budgetVersionId], references: [id])
+  organizationId  String
+  organization    Organization  @relation(fields: [organizationId], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  periods FinancialPeriod[]
+
+  @@index([projectId])
+  @@index([budgetVersionId])
+  @@index([organizationId])
+  @@map("financial_plans")
+}
+
+model FinancialPeriod {
+  id    String @id @default(cuid())
+  month Int // 1-12
+  year  Int // 2024, 2025...
+  label String // "Enero 2025", "Febrero 2025"
+
+  // Montos planificados
+  projectedAmount       Decimal @default(0) @db.Decimal(15, 2)
+  projectedMaterials    Decimal @default(0) @db.Decimal(15, 2)
+  projectedLabor        Decimal @default(0) @db.Decimal(15, 2)
+  projectedEquipment    Decimal @default(0) @db.Decimal(15, 2)
+  projectedSubcontracts Decimal @default(0) @db.Decimal(15, 2)
+
+  // Montos ejecutados (vinculados a certificaciones)
+  certifiedAmount Decimal @default(0) @db.Decimal(15, 2)
+  executedAmount  Decimal @default(0) @db.Decimal(15, 2)
+
+  // Avance planificado vs real (%)
+  projectedProgress Decimal @default(0) @db.Decimal(6, 4)
+  actualProgress    Decimal @default(0) @db.Decimal(6, 4)
+
+  notes String?
+
+  financialPlanId String
+  financialPlan   FinancialPlan @relation(fields: [financialPlanId], references: [id], onDelete: Cascade)
+
+  @@unique([financialPlanId, month, year])
+  @@index([financialPlanId])
+  @@map("financial_periods")
 }
 
 // ============================================

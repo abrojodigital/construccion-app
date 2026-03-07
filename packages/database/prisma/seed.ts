@@ -1,4 +1,4 @@
-import { PrismaClient, UserRole, ProjectStatus, TaskStatus, TaskPriority, ExpenseStatus, DependencyType, AttendanceType, PurchaseOrderStatus, AuditAction, NotificationType } from '@prisma/client';
+import { PrismaClient, Prisma, UserRole, ProjectStatus, TaskStatus, TaskPriority, ExpenseStatus, DependencyType, AttendanceType, PurchaseOrderStatus, AuditAction, NotificationType, BudgetVersionStatus, CertificateStatus, SubcontractStatus, FinancialPlanStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -11,6 +11,34 @@ async function main() {
   // CLEANUP
   // ============================================
   console.log('🧹 Cleaning up existing data...');
+  // ERP models (Fases 1-7) - eliminar primero por FK
+  await prisma.financialPeriod.deleteMany();
+  await prisma.financialPlan.deleteMany();
+  await prisma.equipmentCatalogItem.deleteMany();
+  await prisma.laborCategory.deleteMany();
+  await prisma.exchangeRate.deleteMany();
+  await prisma.currency.deleteMany();
+  await prisma.adjustmentWeight.deleteMany();
+  await prisma.adjustmentFormula.deleteMany();
+  await prisma.priceIndexValue.deleteMany();
+  await prisma.priceIndex.deleteMany();
+  await prisma.subcontractCertificateItem.deleteMany();
+  await prisma.subcontractCertificate.deleteMany();
+  await prisma.subcontractItem.deleteMany();
+  await prisma.subcontract.deleteMany();
+  await prisma.certificateItem.deleteMany();
+  await prisma.certificate.deleteMany();
+  await prisma.itemProgress.deleteMany();
+  await prisma.analysisTransport.deleteMany();
+  await prisma.analysisEquipment.deleteMany();
+  await prisma.analysisLabor.deleteMany();
+  await prisma.analysisMaterial.deleteMany();
+  await prisma.priceAnalysis.deleteMany();
+  await prisma.budgetItem.deleteMany();
+  await prisma.budgetStage.deleteMany();
+  await prisma.budgetCategory.deleteMany();
+  await prisma.budgetVersion.deleteMany();
+  // Original models
   await prisma.auditLog.deleteMany();
   await prisma.notification.deleteMany();
   await prisma.attendance.deleteMany();
@@ -1064,6 +1092,47 @@ async function main() {
   });
   console.log('   ✅ 45 expenses (P1: 22, P2: 3, P4: 20 - all states)');
 
+  // Associate expenses with tasks (update taskId by reference)
+  console.log('   🔗 Linking expenses to tasks...');
+  const expenseTaskMap: Record<string, string> = {
+    // ---- Project 1: Casa Familia Rodríguez ----
+    // Cemento 200 bolsas → fue para fundaciones y estructura, asociar con hormigonado columnas PB
+    'GAS-2024-00003': t3_1.id,     // Hierros varios 1er pedido → Armado columnas PB
+    'GAS-2024-00004': t3_2.id,     // Hormigón H21 Fundaciones → Hormigonado columnas PB (fundaciones/estructura)
+    'GAS-2024-00007': t3_5.id,     // Hormigón H21 Losa PB 22m³ → Hormigonado losa PB (match exacto)
+    'GAS-2024-00008': t3_7.id,     // Hierros para estructura PA → Columnas y vigas PA
+    'GAS-2024-00009': t3_8.id,     // Alquiler grúa torre Ago/Sep → Losa PA (la grúa se usó para la losa)
+    'GAS-2024-00010': t3_7.id,     // Ladrillos → se usaron durante etapa estructura PA (mampostería en paralelo)
+    'GAS-2024-00014': t5_1.id,     // Materiales eléctricos → Cañerías embutidas PB
+    'GAS-2024-00017': t6_1.id,     // Caños PPF y PVC sanitaria → Instalación agua fría y caliente PB
+    'GAS-2025-00001': t7_2.id,     // Membrana asfáltica → Colocación de membrana asfáltica (match exacto)
+    'GAS-2025-00004': t8_1.id,     // Cemento para revoques → Revoque grueso exterior
+
+    // ---- Project 4: Duplex Familia López ----
+    'GAS-2023-00001': t4_2_3.id,   // Cemento 120 bolsas inicio → Hormigonado de fundaciones
+    'GAS-2023-00002': t4_2_1.id,   // Arena + Piedra → Excavación de bases (materiales para fundaciones)
+    'GAS-2023-00003': t4_3_1.id,   // Hierros estructura completa → Columnas planta baja
+    'GAS-2023-00004': t4_2_3.id,   // Hormigón H21 Fundaciones 12m³ → Hormigonado de fundaciones
+    'GAS-2023-00005': t4_3_3.id,   // Hormigón H21 Losa entrepiso 16m³ → Hormigonado losa entrepiso (match exacto)
+    'GAS-2023-00006': t4_4_1.id,   // Ladrillos → Paredes exteriores PB
+    'GAS-2023-00008': t4_5_1.id,   // Materiales eléctricos → Cañerías eléctricas embutidas
+    'GAS-2023-00009': t4_5_3.id,   // Caños y accesorios sanitarios → Agua fría y caliente
+    'GAS-2024-00022': t4_6_2.id,   // Tirantería y cubierta tejas → Membrana y cubierta de tejas
+    'GAS-2024-00023': t4_8_1.id,   // Porcelanatos, cerámicos, piso flotante → Porcelanato living/cocina
+    'GAS-2024-00024': t4_9_3.id,   // Carpintería aluminio → Carpintería de aluminio (match exacto)
+    'GAS-2024-00026': t4_9_1.id,   // Pintura interior y exterior → Pintura interior (2 manos)
+    'GAS-2024-00027': t4_9_4.id,   // Mesadas, grifería y artefactos → Mesadas, grifería y artefactos (match exacto)
+    'GAS-2024-00031': t4_10_1.id,  // Vereda perimetral y parquización → Vereda perimetral y garage
+  };
+
+  for (const [reference, taskId] of Object.entries(expenseTaskMap)) {
+    await prisma.expense.update({
+      where: { reference },
+      data: { taskId },
+    });
+  }
+  console.log(`   ✅ ${Object.keys(expenseTaskMap).length} expenses linked to tasks`);
+
   // ============================================
   // PURCHASE ORDERS
   // ============================================
@@ -1278,6 +1347,1070 @@ async function main() {
   console.log('   ✅ 8 audit log entries');
 
   // ============================================
+  // FASE 7: MONEDAS Y TIPOS DE CAMBIO
+  // ============================================
+  console.log('💱 Creating currencies and exchange rates...');
+  const currARS = await prisma.currency.create({
+    data: { code: 'ARS', name: 'Peso Argentino', symbol: '$', organizationId: org.id },
+  });
+  const currUSD = await prisma.currency.create({
+    data: { code: 'USD', name: 'Dólar Estadounidense', symbol: 'US$', organizationId: org.id },
+  });
+  const currEUR = await prisma.currency.create({
+    data: { code: 'EUR', name: 'Euro', symbol: '€', organizationId: org.id },
+  });
+
+  // Tipos de cambio mensuales USD/ARS
+  const exchangeRates = [
+    { date: '2024-06-01', rate: 920.50 },
+    { date: '2024-07-01', rate: 945.00 },
+    { date: '2024-08-01', rate: 965.00 },
+    { date: '2024-09-01', rate: 985.00 },
+    { date: '2024-10-01', rate: 1005.00 },
+    { date: '2024-11-01', rate: 1025.00 },
+    { date: '2024-12-01', rate: 1050.00 },
+    { date: '2025-01-01', rate: 1080.00 },
+  ];
+  for (const er of exchangeRates) {
+    await prisma.exchangeRate.create({
+      data: {
+        date: new Date(er.date),
+        rate: er.rate,
+        fromCurrencyId: currUSD.id,
+        toCurrencyId: currARS.id,
+        source: 'BCRA',
+        organizationId: org.id,
+      },
+    });
+  }
+  // EUR/ARS
+  await prisma.exchangeRate.create({
+    data: { date: new Date('2025-01-01'), rate: 1175.00, fromCurrencyId: currEUR.id, toCurrencyId: currARS.id, source: 'BCRA', organizationId: org.id },
+  });
+  console.log('   ✅ 3 currencies, 9 exchange rates');
+
+  // ============================================
+  // FASE 1: PRESUPUESTO VERSIONADO - Proyecto 1
+  // ============================================
+  console.log('📊 Creating budget versions with chapters and items...');
+
+  // Version 1: SUPERSEDED (presupuesto original)
+  const bv1 = await prisma.budgetVersion.create({
+    data: {
+      code: 'PRES-2024-00001',
+      name: 'Presupuesto Original - Licitación',
+      description: 'Presupuesto base presentado en licitación',
+      version: 1,
+      status: BudgetVersionStatus.SUPERSEDED,
+      gastosGeneralesPct: 0.13,
+      beneficioPct: 0.08,
+      gastosFinancierosPct: 0.015,
+      ivaPct: 0.21,
+      coeficienteK: 1.5138, // (1.13)*(1.08)*(1.015)*(1.21)
+      totalCostoCosto: 95000000,
+      totalPrecio: 143811000,
+      projectId: project1.id,
+      organizationId: org.id,
+    },
+  });
+
+  // Version 2: APPROVED (presupuesto vigente con ajustes)
+  const bv2 = await prisma.budgetVersion.create({
+    data: {
+      code: 'PRES-2024-00002',
+      name: 'Presupuesto Ajustado v2',
+      description: 'Actualización de precios con adicional de pileta y solarium',
+      version: 2,
+      status: BudgetVersionStatus.APPROVED,
+      gastosGeneralesPct: 0.15,
+      beneficioPct: 0.10,
+      gastosFinancierosPct: 0.02,
+      ivaPct: 0.21,
+      coeficienteK: 1.5604, // (1.15)*(1.10)*(1.02)*(1.21)
+      totalCostoCosto: 80125000,
+      totalPrecio: 125027050,
+      projectId: project1.id,
+      organizationId: org.id,
+    },
+  });
+
+  // Categorías y Etapas para BV2 (presupuesto vigente)
+  const ch1 = await prisma.budgetCategory.create({
+    data: { number: 1, name: 'Trabajos Preliminares y Movimiento de Suelos', order: 1, subtotalCostoCosto: 4850000, budgetVersionId: bv2.id },
+  });
+  const st1 = await prisma.budgetStage.create({
+    data: { number: '1', description: 'Trabajos Preliminares', unit: 'gl', quantity: 1, unitPrice: 4850000, totalPrice: 4850000, categoryId: ch1.id },
+  });
+  const ch2 = await prisma.budgetCategory.create({
+    data: { number: 2, name: 'Fundaciones', order: 2, subtotalCostoCosto: 12500000, budgetVersionId: bv2.id },
+  });
+  const st2 = await prisma.budgetStage.create({
+    data: { number: '2', description: 'Fundaciones', unit: 'gl', quantity: 1, unitPrice: 12500000, totalPrice: 12500000, categoryId: ch2.id },
+  });
+  const ch3 = await prisma.budgetCategory.create({
+    data: { number: 3, name: 'Estructura de Hormigón Armado', order: 3, subtotalCostoCosto: 22800000, budgetVersionId: bv2.id },
+  });
+  const st3 = await prisma.budgetStage.create({
+    data: { number: '3', description: 'Estructura H°A°', unit: 'gl', quantity: 1, unitPrice: 22800000, totalPrice: 22800000, categoryId: ch3.id },
+  });
+  const ch4 = await prisma.budgetCategory.create({
+    data: { number: 4, name: 'Mampostería', order: 4, subtotalCostoCosto: 9800000, budgetVersionId: bv2.id },
+  });
+  const st4 = await prisma.budgetStage.create({
+    data: { number: '4', description: 'Mampostería', unit: 'gl', quantity: 1, unitPrice: 9800000, totalPrice: 9800000, categoryId: ch4.id },
+  });
+  const ch5 = await prisma.budgetCategory.create({
+    data: { number: 5, name: 'Instalaciones (Eléctrica, Sanitaria, Gas)', order: 5, subtotalCostoCosto: 11500000, budgetVersionId: bv2.id },
+  });
+  const st5 = await prisma.budgetStage.create({
+    data: { number: '5', description: 'Instalaciones', unit: 'gl', quantity: 1, unitPrice: 11500000, totalPrice: 11500000, categoryId: ch5.id },
+  });
+  const ch6 = await prisma.budgetCategory.create({
+    data: { number: 6, name: 'Techos, Aislaciones e Impermeabilización', order: 6, subtotalCostoCosto: 6200000, budgetVersionId: bv2.id },
+  });
+  const st6 = await prisma.budgetStage.create({
+    data: { number: '6', description: 'Techos e Impermeabilización', unit: 'gl', quantity: 1, unitPrice: 6200000, totalPrice: 6200000, categoryId: ch6.id },
+  });
+  const ch7 = await prisma.budgetCategory.create({
+    data: { number: 7, name: 'Revoques, Contrapisos y Carpetas', order: 7, subtotalCostoCosto: 5475000, budgetVersionId: bv2.id },
+  });
+  const st7 = await prisma.budgetStage.create({
+    data: { number: '7', description: 'Revoques y Terminaciones', unit: 'gl', quantity: 1, unitPrice: 5475000, totalPrice: 5475000, categoryId: ch7.id },
+  });
+  const ch8 = await prisma.budgetCategory.create({
+    data: { number: 8, name: 'Terminaciones y Exterior', order: 8, subtotalCostoCosto: 7000000, budgetVersionId: bv2.id },
+  });
+  const st8 = await prisma.budgetStage.create({
+    data: { number: '8', description: 'Terminaciones', unit: 'gl', quantity: 1, unitPrice: 7000000, totalPrice: 7000000, categoryId: ch8.id },
+  });
+
+  // Items del capitulo 1 - Preliminares
+  const bi1_1 = await prisma.budgetItem.create({
+    data: { number: '1.1', description: 'Limpieza y nivelación del terreno', unit: 'm2', quantity: 450, unitPrice: 2800, totalPrice: 1260000, stageId: st1.id },
+  });
+  const bi1_2 = await prisma.budgetItem.create({
+    data: { number: '1.2', description: 'Cerco perimetral de obra', unit: 'ml', quantity: 120, unitPrice: 8500, totalPrice: 1020000, stageId: st1.id },
+  });
+  const bi1_3 = await prisma.budgetItem.create({
+    data: { number: '1.3', description: 'Obrador y conexiones provisorias', unit: 'gl', quantity: 1, unitPrice: 1850000, totalPrice: 1850000, stageId: st1.id },
+  });
+  const bi1_4 = await prisma.budgetItem.create({
+    data: { number: '1.4', description: 'Replanteo', unit: 'gl', quantity: 1, unitPrice: 720000, totalPrice: 720000, stageId: st1.id },
+  });
+
+  // Items del capitulo 2 - Fundaciones
+  const bi2_1 = await prisma.budgetItem.create({
+    data: { number: '2.1', description: 'Excavación de bases', unit: 'm3', quantity: 85, unitPrice: 32000, totalPrice: 2720000, stageId: st2.id },
+  });
+  const bi2_2 = await prisma.budgetItem.create({
+    data: { number: '2.2', description: 'Hormigón armado de fundación H21', unit: 'm3', quantity: 42, unitPrice: 185000, totalPrice: 7770000, stageId: st2.id },
+  });
+  const bi2_3 = await prisma.budgetItem.create({
+    data: { number: '2.3', description: 'Impermeabilización de cimientos', unit: 'm2', quantity: 180, unitPrice: 11167, totalPrice: 2010060, stageId: st2.id },
+  });
+
+  // Items del capitulo 3 - Estructura
+  const bi3_1 = await prisma.budgetItem.create({
+    data: { number: '3.1', description: 'Columnas de H°A° PB (8 columnas)', unit: 'm3', quantity: 12, unitPrice: 295000, totalPrice: 3540000, stageId: st3.id },
+  });
+  const bi3_2 = await prisma.budgetItem.create({
+    data: { number: '3.2', description: 'Losa de H°A° PB e=12cm', unit: 'm2', quantity: 220, unitPrice: 42000, totalPrice: 9240000, stageId: st3.id },
+  });
+  const bi3_3 = await prisma.budgetItem.create({
+    data: { number: '3.3', description: 'Escalera de H°A°', unit: 'gl', quantity: 1, unitPrice: 2800000, totalPrice: 2800000, stageId: st3.id },
+  });
+  const bi3_4 = await prisma.budgetItem.create({
+    data: { number: '3.4', description: 'Estructura PA (columnas + vigas + losa)', unit: 'm3', quantity: 28, unitPrice: 258000, totalPrice: 7224000, stageId: st3.id },
+  });
+
+  // Items del capitulo 4 - Mampostería
+  const bi4_1 = await prisma.budgetItem.create({
+    data: { number: '4.1', description: 'Pared exterior ladrillo hueco 18cm', unit: 'm2', quantity: 320, unitPrice: 18500, totalPrice: 5920000, stageId: st4.id },
+  });
+  const bi4_2 = await prisma.budgetItem.create({
+    data: { number: '4.2', description: 'Tabique interior ladrillo hueco 12cm', unit: 'm2', quantity: 280, unitPrice: 13857, totalPrice: 3879960, stageId: st4.id },
+  });
+
+  // Items del capitulo 5 - Instalaciones
+  const bi5_1 = await prisma.budgetItem.create({
+    data: { number: '5.1', description: 'Instalación eléctrica completa', unit: 'gl', quantity: 1, unitPrice: 5800000, totalPrice: 5800000, stageId: st5.id },
+  });
+  const bi5_2 = await prisma.budgetItem.create({
+    data: { number: '5.2', description: 'Instalación sanitaria (agua fría/caliente + cloacal)', unit: 'gl', quantity: 1, unitPrice: 4200000, totalPrice: 4200000, stageId: st5.id },
+  });
+  const bi5_3 = await prisma.budgetItem.create({
+    data: { number: '5.3', description: 'Instalación de gas', unit: 'gl', quantity: 1, unitPrice: 1500000, totalPrice: 1500000, stageId: st5.id },
+  });
+
+  // Items del capitulo 6 - Techos
+  const bi6_1 = await prisma.budgetItem.create({
+    data: { number: '6.1', description: 'Estructura de techo (tirantería)', unit: 'm2', quantity: 130, unitPrice: 22000, totalPrice: 2860000, stageId: st6.id },
+  });
+  const bi6_2 = await prisma.budgetItem.create({
+    data: { number: '6.2', description: 'Cubierta con membrana asfáltica', unit: 'm2', quantity: 130, unitPrice: 15000, totalPrice: 1950000, stageId: st6.id },
+  });
+  const bi6_3 = await prisma.budgetItem.create({
+    data: { number: '6.3', description: 'Aislación térmica y canaletas', unit: 'gl', quantity: 1, unitPrice: 1390000, totalPrice: 1390000, stageId: st6.id },
+  });
+
+  // Items del capitulo 7 - Revoques
+  const bi7_1 = await prisma.budgetItem.create({
+    data: { number: '7.1', description: 'Revoque grueso exterior', unit: 'm2', quantity: 350, unitPrice: 6500, totalPrice: 2275000, stageId: st7.id },
+  });
+  const bi7_2 = await prisma.budgetItem.create({
+    data: { number: '7.2', description: 'Revoque grueso y fino interior', unit: 'm2', quantity: 580, unitPrice: 4500, totalPrice: 2610000, stageId: st7.id },
+  });
+  const bi7_3 = await prisma.budgetItem.create({
+    data: { number: '7.3', description: 'Contrapiso H°P° e=10cm', unit: 'm2', quantity: 220, unitPrice: 2680, totalPrice: 589600, stageId: st7.id },
+  });
+
+  // Items del capitulo 8 - Terminaciones
+  const bi8_1 = await prisma.budgetItem.create({
+    data: { number: '8.1', description: 'Pisos y revestimientos cerámicos', unit: 'm2', quantity: 280, unitPrice: 12000, totalPrice: 3360000, stageId: st8.id },
+  });
+  const bi8_2 = await prisma.budgetItem.create({
+    data: { number: '8.2', description: 'Pintura interior y exterior', unit: 'm2', quantity: 700, unitPrice: 3200, totalPrice: 2240000, stageId: st8.id },
+  });
+  const bi8_3 = await prisma.budgetItem.create({
+    data: { number: '8.3', description: 'Pileta de natación y solarium', unit: 'gl', quantity: 1, unitPrice: 1400000, totalPrice: 1400000, stageId: st8.id },
+  });
+
+  console.log('   ✅ 2 budget versions, 8 chapters, 24 items');
+
+  // ============================================
+  // FASE 2: APU - Análisis de Precios Unitarios
+  // ============================================
+  console.log('📐 Creating APU (unit price analyses)...');
+
+  // APU para "Hormigón armado de fundación H21" (item 2.2)
+  const apu1 = await prisma.priceAnalysis.create({
+    data: {
+      code: 'APU-00001',
+      totalMaterials: 128100, totalLabor: 28800, totalTransport: 12750,
+      totalEquipAmort: 4800, totalRepairs: 3200, totalFuel: 7350,
+      totalDirect: 185000,
+      budgetItemId: bi2_2.id, organizationId: org.id,
+    },
+  });
+
+  // Materiales del APU 1 (Hormigón fundación)
+  await prisma.analysisMaterial.createMany({
+    data: [
+      { description: 'Hormigón elaborado H21', unit: 'm3', quantity: 1.05, unitCost: 105000, wastePct: 5, totalCost: 115762.50, priceAnalysisId: apu1.id },
+      { description: 'Hierro ADN420 Ø12mm', unit: 'kg', quantity: 85, unitCost: 120, wastePct: 3, totalCost: 10506, priceAnalysisId: apu1.id },
+      { description: 'Alambre de atar', unit: 'kg', quantity: 2.5, unitCost: 3500, wastePct: 0, totalCost: 8750, priceAnalysisId: apu1.id },
+    ],
+  });
+
+  // Mano de obra del APU 1
+  await prisma.analysisLabor.createMany({
+    data: [
+      { category: 'Oficial Especializado', quantity: 2, hourlyRate: 4800, totalCost: 9600, priceAnalysisId: apu1.id },
+      { category: 'Oficial', quantity: 2, hourlyRate: 4200, totalCost: 8400, priceAnalysisId: apu1.id },
+      { category: 'Ayudante', quantity: 4, hourlyRate: 2700, totalCost: 10800, priceAnalysisId: apu1.id },
+    ],
+  });
+
+  // Equipo del APU 1
+  await prisma.analysisEquipment.createMany({
+    data: [
+      { description: 'Vibrador de inmersión', powerHp: 5, amortInterest: 600, repairsCost: 400, fuelCost: 350, lubricantsCost: 50, hoursUsed: 8, hourlyTotal: 1400, totalCost: 11200, section: 'D', priceAnalysisId: apu1.id },
+      { description: 'Mixer descarga', powerHp: 250, amortInterest: 0, repairsCost: 0, fuelCost: 0, lubricantsCost: 0, hoursUsed: 4, hourlyTotal: 1050, totalCost: 4200, section: 'D', priceAnalysisId: apu1.id },
+    ],
+  });
+
+  // Transporte del APU 1
+  await prisma.analysisTransport.create({
+    data: { description: 'Flete de hierros', unit: 'tn', quantity: 0.5, unitCost: 25500, totalCost: 12750, priceAnalysisId: apu1.id },
+  });
+
+  // APU para "Losa de H°A° PB" (item 3.2)
+  const apu2 = await prisma.priceAnalysis.create({
+    data: {
+      code: 'APU-00002',
+      totalMaterials: 24500, totalLabor: 9800, totalTransport: 2200,
+      totalEquipAmort: 2000, totalRepairs: 1500, totalFuel: 2000,
+      totalDirect: 42000,
+      budgetItemId: bi3_2.id, organizationId: org.id,
+    },
+  });
+  await prisma.analysisMaterial.createMany({
+    data: [
+      { description: 'Hormigón elaborado H21', unit: 'm3', quantity: 0.13, unitCost: 165000, wastePct: 5, totalCost: 22522.50, priceAnalysisId: apu2.id },
+      { description: 'Malla electrosoldada 15x15 Ø4.2', unit: 'm2', quantity: 1.1, unitCost: 1800, wastePct: 0, totalCost: 1980, priceAnalysisId: apu2.id },
+    ],
+  });
+  await prisma.analysisLabor.createMany({
+    data: [
+      { category: 'Oficial', quantity: 1, hourlyRate: 4200, totalCost: 4200, priceAnalysisId: apu2.id },
+      { category: 'Medio Oficial', quantity: 1, hourlyRate: 3200, totalCost: 3200, priceAnalysisId: apu2.id },
+      { category: 'Ayudante', quantity: 1, hourlyRate: 2400, totalCost: 2400, priceAnalysisId: apu2.id },
+    ],
+  });
+
+  // APU para "Pared exterior 18cm" (item 4.1)
+  const apu3 = await prisma.priceAnalysis.create({
+    data: {
+      code: 'APU-00003',
+      totalMaterials: 10200, totalLabor: 7300, totalTransport: 1000,
+      totalEquipAmort: 0, totalRepairs: 0, totalFuel: 0,
+      totalDirect: 18500,
+      budgetItemId: bi4_1.id, organizationId: org.id,
+    },
+  });
+  await prisma.analysisMaterial.createMany({
+    data: [
+      { description: 'Ladrillo hueco 18x18x33', unit: 'u', quantity: 16, unitCost: 280, wastePct: 5, totalCost: 4704, priceAnalysisId: apu3.id },
+      { description: 'Cemento Portland', unit: 'kg', quantity: 12, unitCost: 178, wastePct: 3, totalCost: 2199.12, priceAnalysisId: apu3.id },
+      { description: 'Arena gruesa', unit: 'm3', quantity: 0.022, unitCost: 48000, wastePct: 5, totalCost: 1108.80, priceAnalysisId: apu3.id },
+      { description: 'Cal hidráulica', unit: 'kg', quantity: 6, unitCost: 168, wastePct: 3, totalCost: 1038.24, priceAnalysisId: apu3.id },
+    ],
+  });
+  await prisma.analysisLabor.createMany({
+    data: [
+      { category: 'Oficial', quantity: 1, hourlyRate: 4200, totalCost: 4200, priceAnalysisId: apu3.id },
+      { category: 'Ayudante', quantity: 1, hourlyRate: 3100, totalCost: 3100, priceAnalysisId: apu3.id },
+    ],
+  });
+
+  console.log('   ✅ 3 APUs with materials, labor, equipment, transport');
+
+  // ============================================
+  // FASE 3: AVANCE FÍSICO
+  // ============================================
+  console.log('📈 Creating item progress records...');
+  const progressRecords = [
+    // Cap 1 - Preliminares: 100% completado
+    { budgetItemId: bi1_1.id, date: '2024-06-12', advance: 1.0 },
+    { budgetItemId: bi1_2.id, date: '2024-06-12', advance: 1.0 },
+    { budgetItemId: bi1_3.id, date: '2024-06-12', advance: 1.0 },
+    { budgetItemId: bi1_4.id, date: '2024-06-12', advance: 1.0 },
+    // Cap 2 - Fundaciones: 100%
+    { budgetItemId: bi2_1.id, date: '2024-07-10', advance: 1.0 },
+    { budgetItemId: bi2_2.id, date: '2024-07-10', advance: 1.0 },
+    { budgetItemId: bi2_3.id, date: '2024-07-10', advance: 1.0 },
+    // Cap 3 - Estructura: 100%
+    { budgetItemId: bi3_1.id, date: '2024-09-08', advance: 1.0 },
+    { budgetItemId: bi3_2.id, date: '2024-09-08', advance: 1.0 },
+    { budgetItemId: bi3_3.id, date: '2024-09-08', advance: 1.0 },
+    { budgetItemId: bi3_4.id, date: '2024-09-08', advance: 1.0 },
+    // Cap 4 - Mampostería: 100%
+    { budgetItemId: bi4_1.id, date: '2024-10-25', advance: 1.0 },
+    { budgetItemId: bi4_2.id, date: '2024-10-25', advance: 1.0 },
+    // Cap 5 - Instalaciones: parcial
+    { budgetItemId: bi5_1.id, date: '2024-12-15', advance: 0.85 },
+    { budgetItemId: bi5_2.id, date: '2024-12-15', advance: 0.70 },
+    { budgetItemId: bi5_3.id, date: '2024-12-15', advance: 0.30 },
+    // Cap 6 - Techos: parcial
+    { budgetItemId: bi6_1.id, date: '2025-01-10', advance: 1.0 },
+    { budgetItemId: bi6_2.id, date: '2025-01-10', advance: 0.50 },
+    { budgetItemId: bi6_3.id, date: '2025-01-10', advance: 0.20 },
+    // Cap 7 - Revoques: inicio
+    { budgetItemId: bi7_1.id, date: '2025-01-20', advance: 0.20 },
+    { budgetItemId: bi7_2.id, date: '2025-01-20', advance: 0.0 },
+  ];
+  for (const pr of progressRecords) {
+    await prisma.itemProgress.create({
+      data: {
+        date: new Date(pr.date),
+        advance: pr.advance,
+        budgetItemId: pr.budgetItemId,
+        registeredById: supervisor.id,
+      },
+    });
+  }
+  console.log(`   ✅ ${progressRecords.length} progress records`);
+
+  // ============================================
+  // FASE 4: CERTIFICACIONES
+  // ============================================
+  console.log('📜 Creating certificates...');
+
+  // Certificado 1 - Jun-Jul 2024 (APPROVED)
+  const cert1 = await prisma.certificate.create({
+    data: {
+      code: 'CERT-2024-00001', number: 1, status: CertificateStatus.APPROVED,
+      periodStart: new Date('2024-06-01'), periodEnd: new Date('2024-07-31'),
+      subtotal: 17350000, acopioPct: 0.05, acopioAmount: 867500,
+      anticipoPct: 0.20, anticipoAmount: 3470000,
+      fondoReparoPct: 0.05, fondoReparoAmount: 867500,
+      adjustmentFactor: 1.0, ivaPct: 0.21, ivaAmount: 2550750,
+      totalAmount: 14695750,
+      submittedAt: new Date('2024-08-05'), approvedAt: new Date('2024-08-10'), approvedById: pmMaria.id,
+      budgetVersionId: bv2.id, projectId: project1.id, organizationId: org.id,
+    },
+  });
+
+  // Items del cert 1 (solo items con avance en el período)
+  await prisma.certificateItem.createMany({
+    data: [
+      { itemNumber: '1.1', description: 'Limpieza y nivelación del terreno', unit: 'm2', quantity: 450, unitPrice: 2800, previousAdvance: 0, previousAmount: 0, currentAdvance: 1.0, currentAmount: 1260000, totalAdvance: 1.0, totalAmount: 1260000, certificateId: cert1.id, budgetItemId: bi1_1.id },
+      { itemNumber: '1.2', description: 'Cerco perimetral de obra', unit: 'ml', quantity: 120, unitPrice: 8500, previousAdvance: 0, previousAmount: 0, currentAdvance: 1.0, currentAmount: 1020000, totalAdvance: 1.0, totalAmount: 1020000, certificateId: cert1.id, budgetItemId: bi1_2.id },
+      { itemNumber: '1.3', description: 'Obrador y conexiones provisorias', unit: 'gl', quantity: 1, unitPrice: 1850000, previousAdvance: 0, previousAmount: 0, currentAdvance: 1.0, currentAmount: 1850000, totalAdvance: 1.0, totalAmount: 1850000, certificateId: cert1.id, budgetItemId: bi1_3.id },
+      { itemNumber: '1.4', description: 'Replanteo', unit: 'gl', quantity: 1, unitPrice: 720000, previousAdvance: 0, previousAmount: 0, currentAdvance: 1.0, currentAmount: 720000, totalAdvance: 1.0, totalAmount: 720000, certificateId: cert1.id, budgetItemId: bi1_4.id },
+      { itemNumber: '2.1', description: 'Excavación de bases', unit: 'm3', quantity: 85, unitPrice: 32000, previousAdvance: 0, previousAmount: 0, currentAdvance: 1.0, currentAmount: 2720000, totalAdvance: 1.0, totalAmount: 2720000, certificateId: cert1.id, budgetItemId: bi2_1.id },
+      { itemNumber: '2.2', description: 'Hormigón armado de fundación H21', unit: 'm3', quantity: 42, unitPrice: 185000, previousAdvance: 0, previousAmount: 0, currentAdvance: 1.0, currentAmount: 7770000, totalAdvance: 1.0, totalAmount: 7770000, certificateId: cert1.id, budgetItemId: bi2_2.id },
+      { itemNumber: '2.3', description: 'Impermeabilización de cimientos', unit: 'm2', quantity: 180, unitPrice: 11167, previousAdvance: 0, previousAmount: 0, currentAdvance: 1.0, currentAmount: 2010060, totalAdvance: 1.0, totalAmount: 2010060, certificateId: cert1.id, budgetItemId: bi2_3.id },
+    ],
+  });
+
+  // Certificado 2 - Ago-Sep 2024 (APPROVED)
+  const cert2 = await prisma.certificate.create({
+    data: {
+      code: 'CERT-2024-00002', number: 2, status: CertificateStatus.APPROVED,
+      periodStart: new Date('2024-08-01'), periodEnd: new Date('2024-09-30'),
+      subtotal: 22804000, acopioPct: 0.05, acopioAmount: 1140200,
+      anticipoPct: 0.20, anticipoAmount: 4560800,
+      fondoReparoPct: 0.05, fondoReparoAmount: 1140200,
+      adjustmentFactor: 1.0, ivaPct: 0.21, ivaAmount: 3352788,
+      totalAmount: 19315388,
+      submittedAt: new Date('2024-10-05'), approvedAt: new Date('2024-10-12'), approvedById: pmMaria.id,
+      budgetVersionId: bv2.id, projectId: project1.id, organizationId: org.id,
+    },
+  });
+
+  await prisma.certificateItem.createMany({
+    data: [
+      { itemNumber: '3.1', description: 'Columnas de H°A° PB', unit: 'm3', quantity: 12, unitPrice: 295000, previousAdvance: 0, previousAmount: 0, currentAdvance: 1.0, currentAmount: 3540000, totalAdvance: 1.0, totalAmount: 3540000, certificateId: cert2.id, budgetItemId: bi3_1.id },
+      { itemNumber: '3.2', description: 'Losa de H°A° PB', unit: 'm2', quantity: 220, unitPrice: 42000, previousAdvance: 0, previousAmount: 0, currentAdvance: 1.0, currentAmount: 9240000, totalAdvance: 1.0, totalAmount: 9240000, certificateId: cert2.id, budgetItemId: bi3_2.id },
+      { itemNumber: '3.3', description: 'Escalera de H°A°', unit: 'gl', quantity: 1, unitPrice: 2800000, previousAdvance: 0, previousAmount: 0, currentAdvance: 1.0, currentAmount: 2800000, totalAdvance: 1.0, totalAmount: 2800000, certificateId: cert2.id, budgetItemId: bi3_3.id },
+      { itemNumber: '3.4', description: 'Estructura PA', unit: 'm3', quantity: 28, unitPrice: 258000, previousAdvance: 0, previousAmount: 0, currentAdvance: 1.0, currentAmount: 7224000, totalAdvance: 1.0, totalAmount: 7224000, certificateId: cert2.id, budgetItemId: bi3_4.id },
+    ],
+  });
+
+  // Certificado 3 - Oct-Nov 2024 (DRAFT - en preparación)
+  const cert3 = await prisma.certificate.create({
+    data: {
+      code: 'CERT-2024-00003', number: 3, status: CertificateStatus.DRAFT,
+      periodStart: new Date('2024-10-01'), periodEnd: new Date('2024-11-30'),
+      subtotal: 14730000, acopioPct: 0.05, acopioAmount: 736500,
+      anticipoPct: 0.20, anticipoAmount: 2946000,
+      fondoReparoPct: 0.05, fondoReparoAmount: 736500,
+      adjustmentFactor: 1.045, ivaPct: 0.21, ivaAmount: 2269253,
+      totalAmount: 13080253,
+      budgetVersionId: bv2.id, projectId: project1.id, organizationId: org.id,
+    },
+  });
+
+  await prisma.certificateItem.createMany({
+    data: [
+      { itemNumber: '4.1', description: 'Pared exterior ladrillo hueco 18cm', unit: 'm2', quantity: 320, unitPrice: 18500, previousAdvance: 0, previousAmount: 0, currentAdvance: 1.0, currentAmount: 5920000, totalAdvance: 1.0, totalAmount: 5920000, certificateId: cert3.id, budgetItemId: bi4_1.id },
+      { itemNumber: '4.2', description: 'Tabique interior ladrillo hueco 12cm', unit: 'm2', quantity: 280, unitPrice: 13857, previousAdvance: 0, previousAmount: 0, currentAdvance: 1.0, currentAmount: 3879960, totalAdvance: 1.0, totalAmount: 3879960, certificateId: cert3.id, budgetItemId: bi4_2.id },
+      { itemNumber: '5.1', description: 'Instalación eléctrica completa', unit: 'gl', quantity: 1, unitPrice: 5800000, previousAdvance: 0, previousAmount: 0, currentAdvance: 0.85, currentAmount: 4930000, totalAdvance: 0.85, totalAmount: 4930000, certificateId: cert3.id, budgetItemId: bi5_1.id },
+    ],
+  });
+
+  console.log('   ✅ 3 certificates (2 approved, 1 draft) with 14 items');
+
+  // ============================================
+  // FASE 5: SUBCONTRATACIONES
+  // ============================================
+  console.log('🤝 Creating subcontracts...');
+
+  const sub1 = await prisma.subcontract.create({
+    data: {
+      code: 'SUB-2024-00001',
+      name: 'Instalación de Ascensor',
+      description: 'Provisión e instalación de ascensor para 4 personas, recorrido PB-PA',
+      status: SubcontractStatus.ACTIVE,
+      contractorName: 'Ascensores Roca S.A.',
+      contractorCuit: '30-61234567-8',
+      contactEmail: 'comercial@ascensoresroca.com.ar',
+      contactPhone: '+54 11 4555-1200',
+      startDate: new Date('2025-01-15'),
+      endDate: new Date('2025-04-15'),
+      totalAmount: 18500000,
+      projectId: project1.id,
+      organizationId: org.id,
+    },
+  });
+
+  const subItem1 = await prisma.subcontractItem.create({
+    data: {
+      description: 'Cabina de ascensor con puerta automática',
+      unit: 'gl', quantity: 1, unitPrice: 12000000, totalPrice: 12000000,
+      subcontractId: sub1.id,
+    },
+  });
+  const subItem2 = await prisma.subcontractItem.create({
+    data: {
+      description: 'Instalación electromecánica completa',
+      unit: 'gl', quantity: 1, unitPrice: 4500000, totalPrice: 4500000,
+      subcontractId: sub1.id,
+    },
+  });
+  const subItem3 = await prisma.subcontractItem.create({
+    data: {
+      description: 'Puertas de piso (2 paradas)',
+      unit: 'u', quantity: 2, unitPrice: 1000000, totalPrice: 2000000,
+      subcontractId: sub1.id,
+    },
+  });
+
+  // Certificado del subcontratista - APPROVED
+  const subCert1 = await prisma.subcontractCertificate.create({
+    data: {
+      code: 'SUBCERT-2025-00001', number: 1, status: CertificateStatus.APPROVED,
+      periodStart: new Date('2025-01-15'), periodEnd: new Date('2025-02-15'),
+      subtotal: 3600000, totalAmount: 3600000,
+      approvedAt: new Date('2025-02-20'), approvedById: pmMaria.id,
+      subcontractId: sub1.id, organizationId: org.id,
+    },
+  });
+  await prisma.subcontractCertificateItem.createMany({
+    data: [
+      { description: 'Cabina de ascensor', unit: 'gl', quantity: 1, unitPrice: 12000000, previousAdvance: 0, currentAdvance: 0.20, currentAmount: 2400000, totalAdvance: 0.20, totalAmount: 2400000, certificateId: subCert1.id, subcontractItemId: subItem1.id },
+      { description: 'Instalación electromecánica', unit: 'gl', quantity: 1, unitPrice: 4500000, previousAdvance: 0, currentAdvance: 0.15, currentAmount: 675000, totalAdvance: 0.15, totalAmount: 675000, certificateId: subCert1.id, subcontractItemId: subItem2.id },
+      { description: 'Puertas de piso', unit: 'u', quantity: 2, unitPrice: 1000000, previousAdvance: 0, currentAdvance: 0.25, currentAmount: 500000, totalAdvance: 0.25, totalAmount: 500000, certificateId: subCert1.id, subcontractItemId: subItem3.id },
+    ],
+  });
+
+  // Segunda subcontratación - Carpintería
+  const sub2 = await prisma.subcontract.create({
+    data: {
+      code: 'SUB-2024-00002',
+      name: 'Carpintería de Aluminio',
+      description: 'Provisión y colocación de aberturas de aluminio línea Modena',
+      status: SubcontractStatus.DRAFT,
+      contractorName: 'Aluminios del Plata S.R.L.',
+      contractorCuit: '30-71234567-9',
+      contactEmail: 'info@aluminiosdelplata.com.ar',
+      startDate: new Date('2025-03-01'),
+      endDate: new Date('2025-04-30'),
+      totalAmount: 8200000,
+      projectId: project1.id,
+      organizationId: org.id,
+    },
+  });
+
+  await prisma.subcontractItem.createMany({
+    data: [
+      { description: 'Ventana corrediza 1.50x1.20m DVH', unit: 'u', quantity: 8, unitPrice: 450000, totalPrice: 3600000, subcontractId: sub2.id },
+      { description: 'Puerta balcón corrediza 2.00x2.10m DVH', unit: 'u', quantity: 3, unitPrice: 850000, totalPrice: 2550000, subcontractId: sub2.id },
+      { description: 'Ventana banderola 0.60x0.40m', unit: 'u', quantity: 4, unitPrice: 185000, totalPrice: 740000, subcontractId: sub2.id },
+      { description: 'Puerta de entrada aluminio reforzado', unit: 'u', quantity: 1, unitPrice: 1310000, totalPrice: 1310000, subcontractId: sub2.id },
+    ],
+  });
+
+  console.log('   ✅ 2 subcontracts (1 active + 1 draft), 7 items, 1 certificate');
+
+  // ============================================
+  // FASE 6: REDETERMINACIÓN DE PRECIOS
+  // ============================================
+  console.log('📊 Creating price indices and adjustment formulas...');
+
+  const idxMO = await prisma.priceIndex.create({
+    data: { name: 'Mano de Obra UOCRA', code: 'MO-UOCRA', source: 'INDEC / UOCRA', organizationId: org.id },
+  });
+  const idxMAT = await prisma.priceIndex.create({
+    data: { name: 'Materiales de Construcción', code: 'MAT-ICC', source: 'INDEC - ICC', organizationId: org.id },
+  });
+  const idxEQ = await prisma.priceIndex.create({
+    data: { name: 'Equipos Viales y Construcción', code: 'EQ-VIAL', source: 'CAC', organizationId: org.id },
+  });
+  const idxCOMB = await prisma.priceIndex.create({
+    data: { name: 'Combustibles Gasoil', code: 'COMB-GO', source: 'Sec. Energía', organizationId: org.id },
+  });
+
+  // Valores de índices: base junio 2024 = 1000 con evolución mensual
+  const indexValuesData = [
+    { idx: idxMO.id,   values: [{ d: '2024-06-01', v: 1000 }, { d: '2024-07-01', v: 1025 }, { d: '2024-08-01', v: 1055 }, { d: '2024-09-01', v: 1090 }, { d: '2024-10-01', v: 1130 }, { d: '2024-11-01', v: 1175 }, { d: '2024-12-01', v: 1220 }, { d: '2025-01-01', v: 1270 }] },
+    { idx: idxMAT.id,  values: [{ d: '2024-06-01', v: 1000 }, { d: '2024-07-01', v: 1018 }, { d: '2024-08-01', v: 1040 }, { d: '2024-09-01', v: 1065 }, { d: '2024-10-01', v: 1085 }, { d: '2024-11-01', v: 1105 }, { d: '2024-12-01', v: 1128 }, { d: '2025-01-01', v: 1155 }] },
+    { idx: idxEQ.id,   values: [{ d: '2024-06-01', v: 1000 }, { d: '2024-07-01', v: 1010 }, { d: '2024-08-01', v: 1022 }, { d: '2024-09-01', v: 1038 }, { d: '2024-10-01', v: 1055 }, { d: '2024-11-01', v: 1070 }, { d: '2024-12-01', v: 1088 }, { d: '2025-01-01', v: 1110 }] },
+    { idx: idxCOMB.id, values: [{ d: '2024-06-01', v: 1000 }, { d: '2024-07-01', v: 1035 }, { d: '2024-08-01', v: 1065 }, { d: '2024-09-01', v: 1100 }, { d: '2024-10-01', v: 1140 }, { d: '2024-11-01', v: 1180 }, { d: '2024-12-01', v: 1225 }, { d: '2025-01-01', v: 1275 }] },
+  ];
+  for (const idx of indexValuesData) {
+    for (const v of idx.values) {
+      await prisma.priceIndexValue.create({
+        data: { date: new Date(v.d), value: v.v, priceIndexId: idx.idx },
+      });
+    }
+  }
+
+  // Fórmula polinómica para el proyecto
+  const formula1 = await prisma.adjustmentFormula.create({
+    data: {
+      name: 'Fórmula Tipo - Vivienda Unifamiliar',
+      budgetVersionId: bv2.id,
+      organizationId: org.id,
+      weights: {
+        create: [
+          { component: 'Mano de Obra', weight: 0.35, priceIndexId: idxMO.id },
+          { component: 'Materiales', weight: 0.30, priceIndexId: idxMAT.id },
+          { component: 'Equipos', weight: 0.20, priceIndexId: idxEQ.id },
+          { component: 'Combustibles', weight: 0.15, priceIndexId: idxCOMB.id },
+        ],
+      },
+    },
+  });
+
+  console.log('   ✅ 4 price indices with 32 monthly values, 1 adjustment formula');
+
+  // ============================================
+  // PROYECTO RED CLOACAL ZONA 1 (datos reales)
+  // ============================================
+  console.log('🚰 Creating Red Cloacal Zona 1 project...');
+
+  const projectCloacal = await prisma.project.create({
+    data: {
+      name: 'Red Cloacal Zona 1 - Barrio San Martín',
+      code: 'OBR-2025-00005',
+      description: 'Construcción de red cloacal colector principal DN630 PEAD con bocas de registro, cruce de arroyo y empalmes. Licitación pública Provincia de Buenos Aires.',
+      status: ProjectStatus.IN_PROGRESS,
+      startDate: new Date('2025-03-01'),
+      estimatedEndDate: new Date('2025-09-30'),
+      address: 'Barrio San Martín, Partido de Quilmes',
+      city: 'Quilmes',
+      province: 'Buenos Aires',
+      estimatedBudget: new Prisma.Decimal('2704649382.79'),
+      currentSpent: new Prisma.Decimal('17895972.18'),
+      progress: 1,
+      managerId: pmMaria.id,
+      organizationId: org.id,
+    },
+  });
+
+  console.log('   ✅ Proyecto Red Cloacal creado');
+
+  // --- BudgetVersion Red Cloacal ---
+  console.log('📐 Creating budget version Red Cloacal (K=1.5863)...');
+
+  const bvCloacal = await prisma.budgetVersion.create({
+    data: {
+      code: 'PRES-2025-00003',
+      name: 'Presupuesto Oferta Zona 1 - Red Cloacal',
+      description: 'Presupuesto de oferta licitación pública - Colector cloacal DN630 PEAD',
+      version: 1,
+      status: BudgetVersionStatus.APPROVED,
+      approvedAt: new Date('2025-02-20'),
+      approvedById: pmMaria.id,
+      gastosGeneralesPct: 0.15,     // 15%
+      beneficioPct: 0.10,           // 10% sobre C
+      gastosFinancierosPct: 0.04,   // 4% sobre C
+      ivaPct: 0.21,                 // 21% sobre W
+      coeficienteK: 1.5863,
+      totalCostoCosto: 1705004969.30,
+      totalPrecio: 2704649382.79,
+      projectId: projectCloacal.id,
+      organizationId: org.id,
+    },
+  });
+
+  // --- Categorías (Rubros) ---
+  const catA = await prisma.budgetCategory.create({
+    data: {
+      number: 1, name: 'Trabajos Preliminares', description: 'Rubro A: Cartel, proyecto ejecutivo, replanteo',
+      order: 1, subtotalCostoCosto: 17895972.18, budgetVersionId: bvCloacal.id,
+    },
+  });
+  const stA = await prisma.budgetStage.create({
+    data: { number: 'A', description: 'Trabajos Preliminares', unit: 'gl', quantity: 1, unitPrice: 17895972.18, totalPrice: 17895972.18, categoryId: catA.id },
+  });
+
+  const catB = await prisma.budgetCategory.create({
+    data: {
+      number: 2, name: 'Colector Cloacal', description: 'Rubro B: Excavación, cañerías PEAD, bocas de registro, empalmes, cruce arroyo',
+      order: 2, subtotalCostoCosto: 1664108852.13, budgetVersionId: bvCloacal.id,
+    },
+  });
+  const stB1 = await prisma.budgetStage.create({
+    data: { number: 'B.1', description: 'Excavación', unit: 'gl', quantity: 1, unitPrice: 679441206.27, totalPrice: 679441206.27, categoryId: catB.id },
+  });
+  const stB2 = await prisma.budgetStage.create({
+    data: { number: 'B.2', description: 'Cañería PEAD DN630 PN6', unit: 'ml', quantity: 2773.02, unitPrice: 266395.53, totalPrice: 738720133.93, categoryId: catB.id },
+  });
+  const stB3 = await prisma.budgetStage.create({
+    data: { number: 'B.3', description: 'Bocas de Registro', unit: 'gl', quantity: 1, unitPrice: 171656820.80, totalPrice: 171656820.80, categoryId: catB.id },
+  });
+  const stB4 = await prisma.budgetStage.create({
+    data: { number: 'B.4', description: 'Empalmes', unit: 'ud', quantity: 2, unitPrice: 246553.33, totalPrice: 493106.66, categoryId: catB.id },
+  });
+  const stB5 = await prisma.budgetStage.create({
+    data: { number: 'B.5', description: 'Cruce Especial Arroyo', unit: 'gl', quantity: 1, unitPrice: 73797584.47, totalPrice: 73797584.47, categoryId: catB.id },
+  });
+
+  const catC = await prisma.budgetCategory.create({
+    data: {
+      number: 3, name: 'Higiene y Seguridad', description: 'Rubro C: EPP, señalización, profesional SyH',
+      order: 3, subtotalCostoCosto: 23000144.99, budgetVersionId: bvCloacal.id,
+    },
+  });
+  const stC = await prisma.budgetStage.create({
+    data: { number: 'C', description: 'Higiene y Seguridad', unit: 'gl', quantity: 1, unitPrice: 23000144.99, totalPrice: 23000144.99, categoryId: catC.id },
+  });
+
+  // --- Items Rubro A ---
+  const biA1 = await prisma.budgetItem.create({
+    data: { number: 'A.1', description: 'Cartel de obra', unit: 'gl', quantity: 1, unitPrice: 2074341.00, totalPrice: 2074341.00, stageId: stA.id },
+  });
+  const biA2 = await prisma.budgetItem.create({
+    data: { number: 'A.2', description: 'Proyecto Ejecutivo', unit: 'gl', quantity: 1, unitPrice: 8820055.60, totalPrice: 8820055.60, stageId: stA.id },
+  });
+  const biA3 = await prisma.budgetItem.create({
+    data: { number: 'A.3', description: 'Replanteo de obra', unit: 'gl', quantity: 1, unitPrice: 7001575.58, totalPrice: 7001575.58, stageId: stA.id },
+  });
+
+  // --- Items Rubro B ---
+  const biB11 = await prisma.budgetItem.create({
+    data: { number: 'B.1.1', description: 'Excavación a cielo abierto hasta 2,5m con depresión', unit: 'm3', quantity: 2429.53, unitPrice: 69226.39, totalPrice: 168187587.53, stageId: stB1.id },
+  });
+  const biB12 = await prisma.budgetItem.create({
+    data: { number: 'B.1.2', description: 'Excavación a cielo abierto entre 2,50m y 4,00m con depresión', unit: 'm3', quantity: 5711.75, unitPrice: 89509.10, totalPrice: 511253618.74, stageId: stB1.id },
+  });
+  const biB21 = await prisma.budgetItem.create({
+    data: { number: 'B.2.1', description: 'Provisión y colocación cañería PEAD DN630 PN6', unit: 'ml', quantity: 2773.02, unitPrice: 266395.53, totalPrice: 738720133.93, stageId: stB2.id },
+  });
+  const biB31 = await prisma.budgetItem.create({
+    data: { number: 'B.3.1', description: 'Bocas de registro (BR) hasta 2,50m', unit: 'ud', quantity: 9, unitPrice: 5355437.87, totalPrice: 48198940.87, stageId: stB3.id },
+  });
+  const biB32 = await prisma.budgetItem.create({
+    data: { number: 'B.3.2', description: 'Bocas de registro (BR) entre 2,50m y 4,00m', unit: 'ud', quantity: 18, unitPrice: 5677575.52, totalPrice: 102196359.28, stageId: stB3.id },
+  });
+  const biB33 = await prisma.budgetItem.create({
+    data: { number: 'B.3.3', description: 'Boca de Registro especial cañería DN630 en Av. Yrigoyen', unit: 'ud', quantity: 1, unitPrice: 21261520.65, totalPrice: 21261520.65, stageId: stB3.id },
+  });
+  const biB41 = await prisma.budgetItem.create({
+    data: { number: 'B.4.1', description: 'Empalme DN160 a colector DN630', unit: 'ud', quantity: 2, unitPrice: 246553.33, totalPrice: 493106.66, stageId: stB4.id },
+  });
+  const biB51 = await prisma.budgetItem.create({
+    data: { number: 'B.5.1', description: 'Cruce especial Arroyo Seco', unit: 'gl', quantity: 1, unitPrice: 73797584.47, totalPrice: 73797584.47, stageId: stB5.id },
+  });
+
+  // --- Items Rubro C ---
+  const biC1 = await prisma.budgetItem.create({
+    data: { number: 'C.1', description: 'Higiene y Seguridad', unit: 'gl', quantity: 1, unitPrice: 23000144.99, totalPrice: 23000144.99, stageId: stC.id },
+  });
+
+  console.log('   ✅ 1 budget version, 3 categories, 8 stages, 12 items');
+
+  // --- APU para items clave ---
+  console.log('🔬 Creating APUs Red Cloacal...');
+
+  // APU A.3 - Replanteo
+  const apuA3 = await prisma.priceAnalysis.create({
+    data: {
+      code: 'APU-RC-001',
+      totalMaterials: 5574400.00, totalLabor: 1427131.44, totalTransport: 0,
+      totalEquipAmort: 0, totalRepairs: 0, totalFuel: 0,
+      totalDirect: 7001531.44,
+      budgetItemId: biA3.id, organizationId: org.id,
+    },
+  });
+  await prisma.analysisMaterial.createMany({
+    data: [
+      { description: 'Estacas de madera 5×5×50cm', unit: 'ud', quantity: 300, unitCost: 850, wastePct: 0, totalCost: 255000, priceAnalysisId: apuA3.id },
+      { description: 'Mojones de hormigón 15×15×60cm', unit: 'ud', quantity: 30, unitCost: 3500, wastePct: 0, totalCost: 105000, priceAnalysisId: apuA3.id },
+      { description: 'Agrimensor', unit: 'gl', quantity: 1, unitCost: 2500000, wastePct: 0, totalCost: 2500000, priceAnalysisId: apuA3.id },
+      { description: 'Equipo topográfico', unit: 'gl', quantity: 1, unitCost: 2500000, wastePct: 0, totalCost: 2500000, priceAnalysisId: apuA3.id },
+    ],
+  });
+  await prisma.analysisLabor.createMany({
+    data: [
+      { category: 'Oficial Especializado', quantity: 40, hourlyRate: 11710.37, totalCost: 468414.80, priceAnalysisId: apuA3.id },
+      { category: 'Ayudante', quantity: 112, hourlyRate: 8559.97, totalCost: 958716.64, priceAnalysisId: apuA3.id },
+    ],
+  });
+
+  // APU B.1.1 - Excavación ≤2.5m
+  const apuB11 = await prisma.priceAnalysis.create({
+    data: {
+      code: 'APU-RC-002',
+      totalMaterials: 24750.00, totalLabor: 9189.49, totalTransport: 0,
+      totalEquipAmort: 14288.60, totalRepairs: 6508.53, totalFuel: 16343.60,
+      totalDirect: 71080.22,
+      budgetItemId: biB11.id, organizationId: org.id,
+    },
+  });
+  await prisma.analysisMaterial.createMany({
+    data: [
+      { description: 'Granza 6/19 (cama asiento caño)', unit: 'm³', quantity: 0.110, unitCost: 25000, wastePct: 0, totalCost: 2750, priceAnalysisId: apuB11.id },
+      { description: 'Suelo seleccionado cantera (50% recambio)', unit: 'm³', quantity: 1.100, unitCost: 20000, wastePct: 0, totalCost: 22000, priceAnalysisId: apuB11.id },
+    ],
+  });
+  await prisma.analysisLabor.createMany({
+    data: [
+      { category: 'Oficial Especializado', quantity: 0.16, hourlyRate: 11710.37, totalCost: 1873.66, priceAnalysisId: apuB11.id },
+      { category: 'Oficial', quantity: 0.32, hourlyRate: 10022.01, totalCost: 3207.04, priceAnalysisId: apuB11.id },
+      { category: 'Ayudante', quantity: 0.48, hourlyRate: 8559.97, totalCost: 4108.79, priceAnalysisId: apuB11.id },
+    ],
+  });
+  await prisma.analysisEquipment.createMany({
+    data: [
+      { description: 'Retroexcavadora A', powerHp: 120, amortInterest: 28224, repairsCost: 21168, fuelCost: 31928.89, lubricantsCost: 7982.22, hoursUsed: 0.16, hourlyTotal: 89303.11, totalCost: 4515.84, section: 'D', priceAnalysisId: apuB11.id },
+      { description: 'Camión volcador A', powerHp: 150, amortInterest: 8624, repairsCost: 6468, fuelCost: 39911.11, lubricantsCost: 9977.78, hoursUsed: 0.13, hourlyTotal: 64980.89, totalCost: 1121.12, section: 'D', priceAnalysisId: apuB11.id },
+      { description: 'Motoniveladora A', powerHp: 120, amortInterest: 23520, repairsCost: 17640, fuelCost: 31928.89, lubricantsCost: 7982.22, hoursUsed: 0.08, hourlyTotal: 81071.11, totalCost: 1881.60, section: 'D', priceAnalysisId: apuB11.id },
+      { description: 'Compactador manual', powerHp: 7, amortInterest: 1128.96, repairsCost: 846.72, fuelCost: 1862.52, lubricantsCost: 465.63, hoursUsed: 0.12, hourlyTotal: 4303.83, totalCost: 135.48, section: 'D', priceAnalysisId: apuB11.id },
+      { description: 'Sistema depresión napas WELL-POINT', amortInterest: 4266.67, repairsCost: 3200, fuelCost: 0, lubricantsCost: 0, hoursUsed: 0.24, hourlyTotal: 7466.67, totalCost: 1024.00, section: 'D', priceAnalysisId: apuB11.id },
+      { description: 'Sistema entibado (alquiler)', amortInterest: 28052.81, repairsCost: 0, fuelCost: 0, lubricantsCost: 0, hoursUsed: 0.20, hourlyTotal: 28052.81, totalCost: 5610.56, section: 'D', priceAnalysisId: apuB11.id },
+    ],
+  });
+
+  // APU B.2.1 - Cañería PEAD DN630
+  const apuB21 = await prisma.priceAnalysis.create({
+    data: {
+      code: 'APU-RC-003',
+      totalMaterials: 188951.24, totalLabor: 8090.03, totalTransport: 0,
+      totalEquipAmort: 8953.62, totalRepairs: 3348.88, totalFuel: 1862.52,
+      totalDirect: 211206.29,
+      budgetItemId: biB21.id, organizationId: org.id,
+    },
+  });
+  await prisma.analysisMaterial.createMany({
+    data: [
+      { description: 'Caño PEAD DN 630 PN 6', unit: 'ml', quantity: 1.000, unitCost: 239396.85, wastePct: 0, totalCost: 239396.85, priceAnalysisId: apuB21.id },
+      { description: 'Arena fina cama asiento (10cm)', unit: 'm³', quantity: 0.110, unitCost: 25000, wastePct: 0, totalCost: 2750, priceAnalysisId: apuB21.id },
+      { description: 'Arena fina cobertura (20cm)', unit: 'm³', quantity: 0.220, unitCost: 25000, wastePct: 0, totalCost: 5500, priceAnalysisId: apuB21.id },
+      { description: 'Film polietileno (protección)', unit: 'm²', quantity: 1.200, unitCost: 850, wastePct: 0, totalCost: 1020, priceAnalysisId: apuB21.id },
+      { description: 'Manguito empotramiento DN630', unit: 'ud', quantity: 0.022, unitCost: 95000, wastePct: 0, totalCost: 2128, priceAnalysisId: apuB21.id },
+    ],
+  });
+  await prisma.analysisLabor.createMany({
+    data: [
+      { category: 'Oficial Especializado', quantity: 0.320, hourlyRate: 11710.37, totalCost: 3747.32, priceAnalysisId: apuB21.id },
+      { category: 'Oficial', quantity: 0.160, hourlyRate: 10022.01, totalCost: 1603.52, priceAnalysisId: apuB21.id },
+      { category: 'Ayudante', quantity: 0.320, hourlyRate: 8559.97, totalCost: 2739.19, priceAnalysisId: apuB21.id },
+    ],
+  });
+  await prisma.analysisEquipment.createMany({
+    data: [
+      { description: 'Equipo termofusión a tope', amortInterest: 3371.20, repairsCost: 2528.40, fuelCost: 0, lubricantsCost: 0, hoursUsed: 1.0, hourlyTotal: 5899.60, totalCost: 3371.20, section: 'D', priceAnalysisId: apuB21.id },
+      { description: 'Generador', powerHp: 35, amortInterest: 2133.33, repairsCost: 1600, fuelCost: 9312.59, lubricantsCost: 2328.15, hoursUsed: 0.16, hourlyTotal: 15374.07, totalCost: 341.33, section: 'D', priceAnalysisId: apuB21.id },
+      { description: 'Debeader automático DN630', amortInterest: 4704, repairsCost: 3528, fuelCost: 0, lubricantsCost: 0, hoursUsed: 0.16, hourlyTotal: 8232, totalCost: 752.64, section: 'D', priceAnalysisId: apuB21.id },
+      { description: 'Sistema entibado (alquiler)', amortInterest: 28052.81, repairsCost: 0, fuelCost: 0, lubricantsCost: 0, hoursUsed: 0.16, hourlyTotal: 28052.81, totalCost: 4488.45, section: 'D', priceAnalysisId: apuB21.id },
+    ],
+  });
+
+  // APU B.3.1 - Bocas de registro ≤2.5m
+  const apuB31 = await prisma.priceAnalysis.create({
+    data: {
+      code: 'APU-RC-004',
+      totalMaterials: 1986907.00, totalLabor: 918948.80, totalTransport: 0,
+      totalEquipAmort: 1254071.68, totalRepairs: 501088.00, totalFuel: 851436.96,
+      totalDirect: 5498852.44,
+      budgetItemId: biB31.id, organizationId: org.id,
+    },
+  });
+  await prisma.analysisMaterial.createMany({
+    data: [
+      { description: 'Bocas de registro prefabricada hasta 2,50m', unit: 'ud', quantity: 1, unitCost: 1974407, wastePct: 0, totalCost: 1974407, priceAnalysisId: apuB31.id },
+      { description: 'Arena fina base', unit: 'm³', quantity: 0.5, unitCost: 25000, wastePct: 0, totalCost: 12500, priceAnalysisId: apuB31.id },
+    ],
+  });
+  await prisma.analysisLabor.createMany({
+    data: [
+      { category: 'Oficial Especializado', quantity: 16, hourlyRate: 11710.37, totalCost: 187365.92, priceAnalysisId: apuB31.id },
+      { category: 'Oficial', quantity: 32, hourlyRate: 10022.01, totalCost: 320704.32, priceAnalysisId: apuB31.id },
+      { category: 'Ayudante', quantity: 48, hourlyRate: 8559.97, totalCost: 410878.56, priceAnalysisId: apuB31.id },
+    ],
+  });
+  await prisma.analysisEquipment.createMany({
+    data: [
+      { description: 'Camión con Grúa', powerHp: 200, amortInterest: 20384, repairsCost: 15288, fuelCost: 53214.81, lubricantsCost: 13303.70, hoursUsed: 10, hourlyTotal: 102190.51, totalCost: 203840, section: 'D', priceAnalysisId: apuB31.id },
+      { description: 'Retroexcavadora A', powerHp: 120, amortInterest: 28224, repairsCost: 21168, fuelCost: 31928.89, lubricantsCost: 7982.22, hoursUsed: 10, hourlyTotal: 89303.11, totalCost: 282240, section: 'D', priceAnalysisId: apuB31.id },
+      { description: 'Sistema depresión napas WELL-POINT', amortInterest: 4266.67, repairsCost: 3200, fuelCost: 0, lubricantsCost: 0, hoursUsed: 16, hourlyTotal: 7466.67, totalCost: 68266.72, section: 'D', priceAnalysisId: apuB31.id },
+      { description: 'Equipos menores y herramientas', amortInterest: 15680, repairsCost: 11760, fuelCost: 0, lubricantsCost: 0, hoursUsed: 16, hourlyTotal: 27440, totalCost: 250880, section: 'D', priceAnalysisId: apuB31.id },
+      { description: 'Sistema entibado (alquiler)', amortInterest: 28052.81, repairsCost: 0, fuelCost: 0, lubricantsCost: 0, hoursUsed: 16, hourlyTotal: 28052.81, totalCost: 448844.96, section: 'D', priceAnalysisId: apuB31.id },
+    ],
+  });
+
+  console.log('   ✅ 4 APUs (replanteo, excavación, cañería PEAD, bocas de registro)');
+
+  // --- Certificado Nº1 Red Cloacal (Rubro A completo) ---
+  console.log('📜 Creating certificate Red Cloacal...');
+
+  const certCloacal1 = await prisma.certificate.create({
+    data: {
+      code: 'CERT-2025-00004', number: 1, status: CertificateStatus.APPROVED,
+      periodStart: new Date('2025-03-01'), periodEnd: new Date('2025-03-31'),
+      subtotal: 17895972.18,
+      acopioPct: 0.00, acopioAmount: 0,
+      anticipoPct: 0.10, anticipoAmount: 1789597.22,
+      fondoReparoPct: 0.05, fondoReparoAmount: 894798.61,
+      adjustmentFactor: 1.0,
+      ivaPct: 0.21, ivaAmount: 3194431.28,
+      totalAmount: 18406007.63,
+      submittedAt: new Date('2025-04-05'), approvedAt: new Date('2025-04-10'), approvedById: pmMaria.id,
+      budgetVersionId: bvCloacal.id, projectId: projectCloacal.id, organizationId: org.id,
+    },
+  });
+  await prisma.certificateItem.createMany({
+    data: [
+      { itemNumber: 'A.1', description: 'Cartel de obra', unit: 'gl', quantity: 1, unitPrice: 2074341.00,
+        previousAdvance: 0, previousAmount: 0, currentAdvance: 1.0, currentAmount: 2074341.00,
+        totalAdvance: 1.0, totalAmount: 2074341.00,
+        certificateId: certCloacal1.id, budgetItemId: biA1.id },
+      { itemNumber: 'A.2', description: 'Proyecto Ejecutivo', unit: 'gl', quantity: 1, unitPrice: 8820055.60,
+        previousAdvance: 0, previousAmount: 0, currentAdvance: 1.0, currentAmount: 8820055.60,
+        totalAdvance: 1.0, totalAmount: 8820055.60,
+        certificateId: certCloacal1.id, budgetItemId: biA2.id },
+      { itemNumber: 'A.3', description: 'Replanteo de obra', unit: 'gl', quantity: 1, unitPrice: 7001575.58,
+        previousAdvance: 0, previousAmount: 0, currentAdvance: 1.0, currentAmount: 7001575.58,
+        totalAdvance: 1.0, totalAmount: 7001575.58,
+        certificateId: certCloacal1.id, budgetItemId: biA3.id },
+    ],
+  });
+
+  // Certificado Nº2 - Inicio excavaciones (DRAFT)
+  const certCloacal2 = await prisma.certificate.create({
+    data: {
+      code: 'CERT-2025-00005', number: 2, status: CertificateStatus.DRAFT,
+      periodStart: new Date('2025-04-01'), periodEnd: new Date('2025-04-30'),
+      subtotal: 37259754.20,
+      acopioPct: 0.00, acopioAmount: 0,
+      anticipoPct: 0.10, anticipoAmount: 3725975.42,
+      fondoReparoPct: 0.05, fondoReparoAmount: 1862987.71,
+      adjustmentFactor: 1.0,
+      ivaPct: 0.21, ivaAmount: 6650365.93,
+      totalAmount: 38321156.00,
+      budgetVersionId: bvCloacal.id, projectId: projectCloacal.id, organizationId: org.id,
+    },
+  });
+  await prisma.certificateItem.createMany({
+    data: [
+      { itemNumber: 'B.1.1', description: 'Excavación a cielo abierto hasta 2,5m', unit: 'm3', quantity: 2429.53, unitPrice: 69226.39,
+        previousAdvance: 0, previousAmount: 0, currentAdvance: 0.10, currentAmount: 16818758.75,
+        totalAdvance: 0.10, totalAmount: 16818758.75,
+        certificateId: certCloacal2.id, budgetItemId: biB11.id },
+      { itemNumber: 'B.1.2', description: 'Excavación a cielo abierto 2,5-4m', unit: 'm3', quantity: 5711.75, unitPrice: 89509.10,
+        previousAdvance: 0, previousAmount: 0, currentAdvance: 0.04, currentAmount: 20440995.45,
+        totalAdvance: 0.04, totalAmount: 20440995.45,
+        certificateId: certCloacal2.id, budgetItemId: biB12.id },
+    ],
+  });
+
+  // Avance físico para items completados del Rubro A
+  for (const bi of [biA1, biA2, biA3]) {
+    await prisma.itemProgress.create({
+      data: { date: new Date('2025-03-31'), advance: 1.0, budgetItemId: bi.id, registeredById: supervisor.id },
+    });
+  }
+  // Avance parcial excavaciones
+  await prisma.itemProgress.create({
+    data: { date: new Date('2025-04-30'), advance: 0.10, budgetItemId: biB11.id, registeredById: supervisor.id },
+  });
+  await prisma.itemProgress.create({
+    data: { date: new Date('2025-04-30'), advance: 0.04, budgetItemId: biB12.id, registeredById: supervisor.id },
+  });
+
+  console.log('   ✅ 2 certificates (1 APPROVED + 1 DRAFT), 5 items, 5 progress records');
+  console.log('   ✅ Red Cloacal Zona 1 complete');
+
+  // ============================================
+  // CATÁLOGOS GLOBALES: Categorías MdO + Equipos
+  // ============================================
+  console.log('');
+  console.log('📋 Creating global catalogs (Labor Categories + Equipment)...');
+
+  // --- Categorías de Mano de Obra ---
+  const laborCategories = [
+    { code: 'OF-ESP', name: 'Oficial Especializado', baseSalaryPerHour: 3200, attendancePct: 0.20, socialChargesPct: 0.55, artPct: 0.079 },
+    { code: 'OF', name: 'Oficial', baseSalaryPerHour: 2800, attendancePct: 0.20, socialChargesPct: 0.55, artPct: 0.079 },
+    { code: 'MO', name: 'Medio Oficial', baseSalaryPerHour: 2400, attendancePct: 0.20, socialChargesPct: 0.55, artPct: 0.079 },
+    { code: 'AY', name: 'Ayudante', baseSalaryPerHour: 2000, attendancePct: 0.20, socialChargesPct: 0.55, artPct: 0.079 },
+  ];
+
+  for (const lc of laborCategories) {
+    const totalHourlyCost = parseFloat(
+      (lc.baseSalaryPerHour * (1 + lc.attendancePct) * (1 + lc.socialChargesPct) * (1 + lc.artPct)).toFixed(2)
+    );
+    await prisma.laborCategory.create({
+      data: {
+        code: lc.code,
+        name: lc.name,
+        baseSalaryPerHour: lc.baseSalaryPerHour,
+        attendancePct: lc.attendancePct,
+        socialChargesPct: lc.socialChargesPct,
+        artPct: lc.artPct,
+        totalHourlyCost,
+        organizationId: org.id,
+      },
+    });
+  }
+  console.log('   ✅ 4 Labor categories (OF-ESP, OF, MO, AY)');
+
+  // --- Catálogo de Equipos ---
+  const equipmentItems = [
+    { code: 'EQ-RET-01', name: 'Retroexcavadora CAT 416E', powerHp: 87, newValue: 45000000, residualPct: 0.10, usefulLifeHours: 10000, fuelPerHour: 4500, lubricantsPerHour: 450 },
+    { code: 'EQ-COMP-01', name: 'Compactador vibratorio BOMAG BW120', powerHp: 25, newValue: 18000000, residualPct: 0.10, usefulLifeHours: 8000, fuelPerHour: 2800, lubricantsPerHour: 280 },
+    { code: 'EQ-HOR-01', name: 'Hormigonera 350L', powerHp: 7, newValue: 2500000, residualPct: 0.15, usefulLifeHours: 6000, fuelPerHour: 800, lubricantsPerHour: 80 },
+    { code: 'EQ-CAM-01', name: 'Camión volcador 6m³', powerHp: 200, newValue: 35000000, residualPct: 0.12, usefulLifeHours: 12000, fuelPerHour: 6000, lubricantsPerHour: 600 },
+    { code: 'EQ-GRU-01', name: 'Grúa torre Liebherr 65K', powerHp: 45, newValue: 120000000, residualPct: 0.08, usefulLifeHours: 15000, fuelPerHour: 3500, lubricantsPerHour: 350 },
+  ];
+
+  for (const eq of equipmentItems) {
+    const amortPerHour = parseFloat(((eq.newValue * (1 - eq.residualPct)) / eq.usefulLifeHours).toFixed(2));
+    const repairsPerHour = parseFloat((amortPerHour * 0.75).toFixed(2));
+    const totalHourlyCost = parseFloat((amortPerHour + repairsPerHour + eq.fuelPerHour + eq.lubricantsPerHour).toFixed(2));
+    await prisma.equipmentCatalogItem.create({
+      data: {
+        code: eq.code,
+        name: eq.name,
+        powerHp: eq.powerHp,
+        newValue: eq.newValue,
+        residualPct: eq.residualPct,
+        usefulLifeHours: eq.usefulLifeHours,
+        fuelPerHour: eq.fuelPerHour,
+        lubricantsPerHour: eq.lubricantsPerHour,
+        amortPerHour,
+        repairsPerHour,
+        totalHourlyCost,
+        organizationId: org.id,
+      },
+    });
+  }
+  console.log('   ✅ 5 Equipment catalog items (retroexcavadora, compactador, hormigonera, camión, grúa)');
+
+  // --- Plan Financiero para Red Cloacal ---
+  console.log('📅 Creating financial plan for Red Cloacal...');
+  const financialPlan = await prisma.financialPlan.create({
+    data: {
+      name: 'Plan Financiero 2025 - Red Cloacal Zona 1',
+      status: 'DRAFT',
+      projectId: projectCloacal.id,
+      budgetVersionId: bvCloacal.id,
+      organizationId: org.id,
+    },
+  });
+
+  const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  // 12 meses de plan financiero para 2025
+  const monthlyPlans = [
+    { month: 1, projected: 120000000, materials: 60000000, labor: 35000000, equipment: 15000000, subcontracts: 10000000, progress: 0.03 },
+    { month: 2, projected: 180000000, materials: 90000000, labor: 52000000, equipment: 22000000, subcontracts: 16000000, progress: 0.08 },
+    { month: 3, projected: 250000000, materials: 125000000, labor: 72000000, equipment: 31000000, subcontracts: 22000000, progress: 0.17 },
+    { month: 4, projected: 320000000, materials: 160000000, labor: 92000000, equipment: 40000000, subcontracts: 28000000, progress: 0.29 },
+    { month: 5, projected: 350000000, materials: 175000000, labor: 101000000, equipment: 44000000, subcontracts: 30000000, progress: 0.42 },
+    { month: 6, projected: 350000000, materials: 175000000, labor: 101000000, equipment: 44000000, subcontracts: 30000000, progress: 0.55 },
+    { month: 7, projected: 300000000, materials: 150000000, labor: 87000000, equipment: 38000000, subcontracts: 25000000, progress: 0.66 },
+    { month: 8, projected: 280000000, materials: 140000000, labor: 81000000, equipment: 35000000, subcontracts: 24000000, progress: 0.77 },
+    { month: 9, projected: 220000000, materials: 110000000, labor: 64000000, equipment: 28000000, subcontracts: 18000000, progress: 0.85 },
+    { month: 10, projected: 160000000, materials: 80000000, labor: 46000000, equipment: 20000000, subcontracts: 14000000, progress: 0.91 },
+    { month: 11, projected: 100000000, materials: 50000000, labor: 29000000, equipment: 13000000, subcontracts: 8000000, progress: 0.96 },
+    { month: 12, projected: 74000000, materials: 37000000, labor: 21000000, equipment: 10000000, subcontracts: 6000000, progress: 1.0 },
+  ];
+
+  for (const mp of monthlyPlans) {
+    await prisma.financialPeriod.create({
+      data: {
+        month: mp.month,
+        year: 2025,
+        label: `${monthNames[mp.month - 1]} 2025`,
+        projectedAmount: mp.projected,
+        projectedMaterials: mp.materials,
+        projectedLabor: mp.labor,
+        projectedEquipment: mp.equipment,
+        projectedSubcontracts: mp.subcontracts,
+        projectedProgress: mp.progress,
+        certifiedAmount: mp.month <= 3 ? Math.round(mp.projected * 0.85) : 0,
+        executedAmount: mp.month <= 3 ? Math.round(mp.projected * 0.90) : 0,
+        actualProgress: mp.month === 1 ? 0.025 : mp.month === 2 ? 0.07 : mp.month === 3 ? 0.15 : 0,
+        financialPlanId: financialPlan.id,
+      },
+    });
+  }
+  console.log('   ✅ 1 Financial plan with 12 monthly periods');
+
+  // ============================================
   // SUMMARY
   // ============================================
   console.log('');
@@ -1286,18 +2419,21 @@ async function main() {
   console.log('================================================');
   console.log('');
   console.log('📊 Summary:');
+  console.log('');
+  console.log('   --- Datos base ---');
   console.log('   🏢 1 Organization: Constructora Patagonia S.A.');
   console.log('   👥 6 Users (admin, 2 PM, supervisor, admin contable, cliente)');
   console.log('   📁 7 Expense categories + 8 Material categories');
   console.log('   🧱 27 Materials with supplier links');
   console.log('   🏪 6 Suppliers with contact & banking info');
   console.log('   👷 8 Employees (capataz, albañiles, electricista, plomero, ayudantes, pintor)');
-  console.log('   🏗️ 4 Projects:');
+  console.log('   🏗️ 5 Projects:');
   console.log('      • Casa Rodríguez (IN_PROGRESS 65%) - 11 stages, 35+ tasks, Gantt completo');
   console.log('      • Edificio Mirador (IN_PROGRESS 28%) - 7 stages');
   console.log('      • Remodelación Florida (PLANNING 0%)');
   console.log('      • Duplex López (COMPLETED 100%) - 10 stages, 38 tasks, Gantt completo, 20 gastos');
-  console.log('   💰 3 Budgets with category breakdown');
+  console.log('      • Red Cloacal Zona 1 (IN_PROGRESS 1%) - datos reales de licitación pública');
+  console.log('   💰 3 Budgets (legacy) with category breakdown');
   console.log('   💸 45 Expenses (paid, approved, pending, draft, rejected)');
   console.log('   📋 3 Purchase orders (completed, confirmed, sent)');
   console.log('   📦 15 Stock movements (IN, OUT, ADJUSTMENT)');
@@ -1305,6 +2441,30 @@ async function main() {
   console.log('   💬 13 Comments on projects and tasks');
   console.log('   🔔 10 Notifications');
   console.log('   📝 8 Audit log entries');
+  console.log('');
+  console.log('   --- ERP Obra Pública ---');
+  console.log('   💱 3 Currencies (ARS, USD, EUR) + 9 exchange rates');
+  console.log('   📐 2 Budget versions (v1 SUPERSEDED, v2 APPROVED)');
+  console.log('   📑 8 Chapters + 24 Budget items');
+  console.log('   🔬 3 APUs (hormigón, losa, pared) con materiales, MO, equipos, transporte');
+  console.log('   📈 21 Progress records (avance físico por ítem)');
+  console.log('   📜 3 Certificates (2 APPROVED + 1 DRAFT) con 14 certificate items');
+  console.log('   🤝 2 Subcontracts (ascensor ACTIVE, carpintería DRAFT) + 7 items');
+  console.log('   📊 4 Price indices (MO, MAT, EQ, COMB) con 32 valores mensuales');
+  console.log('   🧮 1 Adjustment formula polinómica (4 pesos)');
+  console.log('');
+  console.log('   --- Catálogos Globales ---');
+  console.log('   👷 4 Categorías de MdO (OF-ESP, OF, MO, AY) con cargas sociales');
+  console.log('   🚜 5 Equipos en catálogo (retroexcavadora, compactador, hormigonera, camión, grúa)');
+  console.log('   📅 1 Plan financiero + 12 períodos mensuales (Red Cloacal 2025)');
+  console.log('');
+  console.log('   --- Red Cloacal Zona 1 (datos reales) ---');
+  console.log('   🚰 1 Proyecto Red Cloacal ($2,704M ARS)');
+  console.log('   📐 1 Budget version (K=1.5863, APPROVED)');
+  console.log('   📑 3 Chapters (Preliminares, Colector, HyS) + 12 items');
+  console.log('   🔬 4 APUs (replanteo, excavación, cañería PEAD, bocas de registro)');
+  console.log('   📜 2 Certificates (1 APPROVED Rubro A + 1 DRAFT excavaciones)');
+  console.log('   📈 5 Progress records');
   console.log('');
   console.log('🔐 Test credentials (all passwords: password123):');
   console.log('   Admin:          admin@constructorademo.com.ar');

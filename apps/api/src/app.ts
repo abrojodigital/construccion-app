@@ -17,6 +17,16 @@ import { materialsRoutes } from './modules/materials/materials.routes';
 import { employeesRoutes } from './modules/employees/employees.routes';
 import { reportsRoutes } from './modules/reports/reports.routes';
 import { usersRoutes } from './modules/users/users.routes';
+import { budgetVersionsRoutes } from './modules/budget-versions/budget-versions.routes';
+import { priceAnalysisRoutes } from './modules/price-analysis/price-analysis.routes';
+import { progressRoutes } from './modules/progress/progress.routes';
+import { certificatesRoutes } from './modules/certificates/certificates.routes';
+import { subcontractsRoutes } from './modules/subcontracts/subcontracts.routes';
+import { adjustmentsRoutes } from './modules/adjustments/adjustments.routes';
+import { currenciesRoutes } from './modules/currencies/currencies.routes';
+import { laborCategoriesRoutes } from './modules/labor-categories/labor-categories.routes';
+import { equipmentCatalogRoutes } from './modules/equipment-catalog/equipment-catalog.routes';
+import { financialPlansRoutes } from './modules/financial-plans/financial-plans.routes';
 
 export function createApp(): Express {
   const app = express();
@@ -79,11 +89,30 @@ export function createApp(): Express {
   apiRouter.use('/employees', employeesRoutes);
   apiRouter.use('/users', usersRoutes);
   apiRouter.use('/reports', reportsRoutes);
+  apiRouter.use('/projects/:projectId/budget-versions', budgetVersionsRoutes); // Presupuesto versionado
+  apiRouter.use('/budget-versions', budgetVersionsRoutes); // Acceso directo por ID
+  apiRouter.use('/budget-items/:budgetItemId/price-analysis', priceAnalysisRoutes); // APU por ítem
+  apiRouter.use('/price-analyses', priceAnalysisRoutes); // Acceso directo por ID
+  apiRouter.use('/budget-items/:budgetItemId/progress', progressRoutes); // Avance físico por ítem
+  apiRouter.use('/progress', progressRoutes); // Eliminar avance
+  apiRouter.use('/budget-versions/:budgetVersionId/progress-summary', progressRoutes); // Resumen avance
+  apiRouter.use('/projects/:projectId/certificates', certificatesRoutes); // Certificaciones por proyecto
+  apiRouter.use('/certificates', certificatesRoutes); // Certificaciones acceso directo
+  apiRouter.use('/projects/:projectId/subcontracts', subcontractsRoutes); // Subcontrataciones por proyecto
+  apiRouter.use('/subcontracts', subcontractsRoutes); // Subcontrataciones acceso directo
+  apiRouter.use('/adjustments', adjustmentsRoutes); // Redeterminación de precios
+  apiRouter.use('/currencies', currenciesRoutes); // Multi-moneda y tipos de cambio
+  apiRouter.use('/labor-categories', laborCategoriesRoutes); // Catálogo de mano de obra
+  apiRouter.use('/equipment-catalog', equipmentCatalogRoutes); // Catálogo de equipos
+  apiRouter.use('/projects/:projectId/financial-plans', financialPlansRoutes); // Plan financiero por proyecto
+  apiRouter.use('/financial-plans', financialPlansRoutes); // Plan financiero acceso directo
   apiRouter.use('/', costsRoutes); // Handles /expenses and /expense-categories (must be before stages/tasks)
 
   // Generic routes last (these have /:id patterns that can match anything)
-  apiRouter.use('/', stagesRoutes); // Handles /projects/:projectId/stages and /stages/:id
-  apiRouter.use('/', tasksRoutes); // Handles /stages/:stageId/tasks and /tasks/:id
+  apiRouter.use('/', stagesRoutes); // Handles /projects/:projectId/stages
+  apiRouter.use('/stages', stagesRoutes); // Handles /stages/:id
+  apiRouter.use('/', tasksRoutes); // Handles /stages/:stageId/tasks
+  apiRouter.use('/tasks', tasksRoutes); // Handles /tasks/:id, /tasks/:id/status, etc.
 
   app.use('/api/v1', apiRouter);
 

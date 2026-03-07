@@ -11,6 +11,13 @@ type Resource =
   | 'stages'
   | 'tasks'
   | 'budgets'
+  | 'budget_versions'
+  | 'price_analysis'
+  | 'progress'
+  | 'certificates'
+  | 'subcontracts'
+  | 'adjustments'
+  | 'currencies'
   | 'expenses'
   | 'purchase_orders'
   | 'suppliers'
@@ -21,7 +28,10 @@ type Resource =
   | 'reports'
   | 'users'
   | 'notifications'
-  | 'documents';
+  | 'documents'
+  | 'labor_categories'
+  | 'equipment_catalog'
+  | 'financial_plans';
 
 // Role-based permissions matrix
 const rolePermissions: Record<UserRole, Partial<Record<Resource, Permission[]>>> = {
@@ -30,6 +40,13 @@ const rolePermissions: Record<UserRole, Partial<Record<Resource, Permission[]>>>
     stages: ['read', 'write', 'delete'],
     tasks: ['read', 'write', 'delete'],
     budgets: ['read', 'write', 'delete'],
+    budget_versions: ['read', 'write', 'delete', 'approve'],
+    price_analysis: ['read', 'write', 'delete'],
+    progress: ['read', 'write', 'delete'],
+    certificates: ['read', 'write', 'delete', 'approve'],
+    subcontracts: ['read', 'write', 'delete', 'approve'],
+    adjustments: ['read', 'write', 'delete'],
+    currencies: ['read', 'write', 'delete'],
     expenses: ['read', 'write', 'delete', 'approve'],
     purchase_orders: ['read', 'write', 'delete'],
     suppliers: ['read', 'write', 'delete'],
@@ -41,12 +58,22 @@ const rolePermissions: Record<UserRole, Partial<Record<Resource, Permission[]>>>
     users: ['read', 'write', 'delete'],
     notifications: ['read', 'write'],
     documents: ['read', 'write', 'delete'],
+    labor_categories: ['read', 'write', 'delete'],
+    equipment_catalog: ['read', 'write', 'delete'],
+    financial_plans: ['read', 'write', 'delete', 'approve'],
   },
   PROJECT_MANAGER: {
     projects: ['read', 'write'],
     stages: ['read', 'write', 'delete'],
     tasks: ['read', 'write', 'delete'],
     budgets: ['read', 'write'],
+    budget_versions: ['read', 'write', 'approve'],
+    price_analysis: ['read', 'write'],
+    progress: ['read', 'write'],
+    certificates: ['read', 'write', 'approve'],
+    subcontracts: ['read', 'write', 'approve'],
+    adjustments: ['read', 'write'],
+    currencies: ['read'],
     expenses: ['read', 'write', 'approve'],
     purchase_orders: ['read', 'write'],
     suppliers: ['read', 'write'],
@@ -57,12 +84,22 @@ const rolePermissions: Record<UserRole, Partial<Record<Resource, Permission[]>>>
     reports: ['read'],
     notifications: ['read', 'write'],
     documents: ['read', 'write', 'delete'],
+    labor_categories: ['read', 'write'],
+    equipment_catalog: ['read', 'write'],
+    financial_plans: ['read', 'write', 'approve'],
   },
   SUPERVISOR: {
     projects: ['read'],
     stages: ['read'],
     tasks: ['read', 'write'],
     budgets: ['read'],
+    budget_versions: ['read', 'write', 'approve'],
+    price_analysis: ['read', 'write'],
+    progress: ['read', 'write'],
+    certificates: ['read', 'write'],
+    subcontracts: ['read'],
+    adjustments: ['read'],
+    currencies: ['read'],
     expenses: ['read', 'write'],
     purchase_orders: ['read'],
     suppliers: ['read'],
@@ -73,12 +110,22 @@ const rolePermissions: Record<UserRole, Partial<Record<Resource, Permission[]>>>
     reports: ['read'],
     notifications: ['read'],
     documents: ['read', 'write'],
+    labor_categories: ['read'],
+    equipment_catalog: ['read'],
+    financial_plans: ['read'],
   },
   ADMINISTRATIVE: {
     projects: ['read'],
     stages: ['read'],
     tasks: ['read'],
     budgets: ['read', 'write'],
+    budget_versions: ['read'],
+    price_analysis: ['read'],
+    progress: ['read'],
+    certificates: ['read'],
+    subcontracts: ['read'],
+    adjustments: ['read'],
+    currencies: ['read'],
     expenses: ['read', 'write'],
     purchase_orders: ['read', 'write'],
     suppliers: ['read', 'write'],
@@ -89,12 +136,22 @@ const rolePermissions: Record<UserRole, Partial<Record<Resource, Permission[]>>>
     reports: ['read'],
     notifications: ['read'],
     documents: ['read', 'write'],
+    labor_categories: ['read', 'write'],
+    equipment_catalog: ['read', 'write'],
+    financial_plans: ['read'],
   },
   READ_ONLY: {
     projects: ['read'],
     stages: ['read'],
     tasks: ['read'],
     budgets: ['read'],
+    budget_versions: ['read'],
+    price_analysis: ['read'],
+    progress: ['read'],
+    certificates: ['read'],
+    subcontracts: ['read'],
+    adjustments: ['read'],
+    currencies: ['read'],
     expenses: ['read'],
     purchase_orders: ['read'],
     suppliers: ['read'],
@@ -105,6 +162,9 @@ const rolePermissions: Record<UserRole, Partial<Record<Resource, Permission[]>>>
     reports: ['read'],
     notifications: ['read'],
     documents: ['read'],
+    labor_categories: ['read'],
+    equipment_catalog: ['read'],
+    financial_plans: ['read'],
   },
 };
 
@@ -223,6 +283,13 @@ function getResourceLabel(resource: Resource): string {
     stages: 'etapas',
     tasks: 'tareas',
     budgets: 'presupuestos',
+    budget_versions: 'versiones de presupuesto',
+    price_analysis: 'análisis de precios',
+    progress: 'avance físico',
+    certificates: 'certificaciones',
+    subcontracts: 'subcontrataciones',
+    adjustments: 'redeterminaciones',
+    currencies: 'monedas',
     expenses: 'gastos',
     purchase_orders: 'órdenes de compra',
     suppliers: 'proveedores',
@@ -234,6 +301,9 @@ function getResourceLabel(resource: Resource): string {
     users: 'usuarios',
     notifications: 'notificaciones',
     documents: 'documentos',
+    labor_categories: 'categorías de mano de obra',
+    equipment_catalog: 'catálogo de equipos',
+    financial_plans: 'planes financieros',
   };
   return labels[resource];
 }

@@ -48,7 +48,14 @@ router.get('/:id', requirePermission('tasks', 'read'), validateId, async (req, r
         stage: { project: { organizationId: req.user!.organizationId } },
       },
       include: {
-        stage: { select: { id: true, name: true, projectId: true } },
+        stage: {
+          select: {
+            id: true,
+            name: true,
+            projectId: true,
+            project: { select: { id: true, code: true, name: true } },
+          },
+        },
         assignments: {
           include: {
             user: { select: { id: true, firstName: true, lastName: true } },

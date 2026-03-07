@@ -14,6 +14,11 @@ const CODE_CONFIGS: Record<string, CodeConfig> = {
   supplier: { prefix: 'PROV', table: 'suppliers', field: 'code' },
   material: { prefix: 'MAT', table: 'materials', field: 'code' },
   employee: { prefix: 'EMP', table: 'employees', field: 'legajo' },
+  budgetVersion: { prefix: 'PRES', table: 'budget_versions', field: 'code' },
+  priceAnalysis: { prefix: 'APU', table: 'price_analyses', field: 'code' },
+  certificate: { prefix: 'CERT', table: 'certificates', field: 'code' },
+  subcontract: { prefix: 'SUB', table: 'subcontracts', field: 'code' },
+  subcontractCertificate: { prefix: 'SUBCERT', table: 'subcontract_certificates', field: 'code' },
 };
 
 /**

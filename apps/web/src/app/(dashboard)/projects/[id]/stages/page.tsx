@@ -11,12 +11,13 @@ import {
   Trash2,
   ChevronDown,
   ChevronRight,
-  GripVertical,
   CheckCircle2,
   Clock,
   AlertCircle,
   DollarSign,
   Eye,
+  FolderOpen,
+  Layers,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -41,7 +42,7 @@ import { api } from '@/lib/api';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import { StageForm } from '@/components/forms/stage-form';
 import { TaskForm } from '@/components/forms/task-form';
-import { TASK_STATUS_LABELS, TASK_PRIORITY_LABELS } from '@construccion/shared';
+import { TASK_PRIORITY_LABELS } from '@construccion/shared';
 import { toast } from 'sonner';
 
 interface Task {
@@ -56,7 +57,6 @@ interface Task {
   progress: number;
   totalExpenses?: number;
   expenseCount?: number;
-  _count?: { subtasks: number; dependencies: number };
 }
 
 interface Stage {
@@ -65,10 +65,12 @@ interface Stage {
   description: string | null;
   order: number;
   progress: number;
+  parentStageId: string | null;
   plannedStartDate: string | null;
   plannedEndDate: string | null;
   tasks: Task[];
-  _count?: { tasks: number };
+  childStages: Stage[];
+  _count?: { tasks: number; childStages: number };
 }
 
 interface Project {
@@ -82,23 +84,33 @@ export default function ProjectStagesPage() {
   const projectId = params.id as string;
   const queryClient = useQueryClient();
 
-  // State for dialogs
+  // Stage dialog
   const [stageDialogOpen, setStageDialogOpen] = useState(false);
+  const [editingStage, setEditingStage] = useState<Stage | null>(null);
+  const [parentStageForNew, setParentStageForNew] = useState<string | null>(null);
+  const [nextOrderOverride, setNextOrderOverride] = useState(1);
+
+  // Task dialog
   const [taskDialogOpen, setTaskDialogOpen] = useState(false);
+  const [stageForTask, setStageForTask] = useState<Stage | null>(null);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+
+  // Delete dialogs
   const [deleteStageDialogOpen, setDeleteStageDialogOpen] = useState(false);
+  const [stageToDelete, setStageToDelete] = useState<Stage | null>(null);
   const [deleteTaskDialogOpen, setDeleteTaskDialogOpen] = useState(false);
-  const [selectedStage, setSelectedStage] = useState<Stage | null>(null);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+
+  // Expanded states
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [expandedStages, setExpandedStages] = useState<Set<string>>(new Set());
 
-  // Fetch project info
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
     queryFn: () => api.get<Project>(`/projects/${projectId}`),
   });
 
-  // Fetch stages with tasks
-  const { data: stages, isLoading } = useQuery({
+  const { data: rootStages, isLoading } = useQuery({
     queryKey: ['project-stages', projectId],
     queryFn: () => api.get<Stage[]>(`/projects/${projectId}/stages`),
   });
@@ -109,26 +121,20 @@ export default function ProjectStagesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project-stages', projectId] });
       queryClient.invalidateQueries({ queryKey: ['project', projectId] });
-      setStageDialogOpen(false);
-      setSelectedStage(null);
-      toast.success('Etapa creada correctamente');
+      closeStagDialog();
+      toast.success(parentStageForNew ? 'Etapa creada correctamente' : 'Categoría creada correctamente');
     },
-    onError: (error: any) => {
-      toast.error(error.message || 'Error al crear la etapa');
-    },
+    onError: (error: any) => toast.error(error.message || 'Error al crear'),
   });
 
   const updateStageMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => api.put(`/stages/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project-stages', projectId] });
-      setStageDialogOpen(false);
-      setSelectedStage(null);
-      toast.success('Etapa actualizada correctamente');
+      closeStagDialog();
+      toast.success('Guardado correctamente');
     },
-    onError: (error: any) => {
-      toast.error(error.message || 'Error al actualizar la etapa');
-    },
+    onError: (error: any) => toast.error(error.message || 'Error al actualizar'),
   });
 
   const deleteStageMutation = useMutation({
@@ -137,12 +143,10 @@ export default function ProjectStagesPage() {
       queryClient.invalidateQueries({ queryKey: ['project-stages', projectId] });
       queryClient.invalidateQueries({ queryKey: ['project', projectId] });
       setDeleteStageDialogOpen(false);
-      setSelectedStage(null);
-      toast.success('Etapa eliminada correctamente');
+      setStageToDelete(null);
+      toast.success('Eliminado correctamente');
     },
-    onError: (error: any) => {
-      toast.error(error.message || 'Error al eliminar la etapa');
-    },
+    onError: (error: any) => toast.error(error.message || 'Error al eliminar'),
   });
 
   // Task mutations
@@ -152,28 +156,20 @@ export default function ProjectStagesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project-stages', projectId] });
       queryClient.invalidateQueries({ queryKey: ['project', projectId] });
-      setTaskDialogOpen(false);
-      setSelectedTask(null);
-      setSelectedStage(null);
+      closeTaskDialog();
       toast.success('Tarea creada correctamente');
     },
-    onError: (error: any) => {
-      toast.error(error.message || 'Error al crear la tarea');
-    },
+    onError: (error: any) => toast.error(error.message || 'Error al crear la tarea'),
   });
 
   const updateTaskMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => api.put(`/tasks/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project-stages', projectId] });
-      setTaskDialogOpen(false);
-      setSelectedTask(null);
-      setSelectedStage(null);
+      closeTaskDialog();
       toast.success('Tarea actualizada correctamente');
     },
-    onError: (error: any) => {
-      toast.error(error.message || 'Error al actualizar la tarea');
-    },
+    onError: (error: any) => toast.error(error.message || 'Error al actualizar la tarea'),
   });
 
   const deleteTaskMutation = useMutation({
@@ -182,113 +178,407 @@ export default function ProjectStagesPage() {
       queryClient.invalidateQueries({ queryKey: ['project-stages', projectId] });
       queryClient.invalidateQueries({ queryKey: ['project', projectId] });
       setDeleteTaskDialogOpen(false);
-      setSelectedTask(null);
+      setTaskToDelete(null);
       toast.success('Tarea eliminada correctamente');
     },
-    onError: (error: any) => {
-      toast.error(error.message || 'Error al eliminar la tarea');
-    },
+    onError: (error: any) => toast.error(error.message || 'Error al eliminar la tarea'),
   });
 
+  // Helpers
+  const closeStagDialog = () => {
+    setStageDialogOpen(false);
+    setEditingStage(null);
+    setParentStageForNew(null);
+  };
+
+  const closeTaskDialog = () => {
+    setTaskDialogOpen(false);
+    setEditingTask(null);
+    setStageForTask(null);
+  };
+
   // Handlers
-  const handleAddStage = () => {
-    setSelectedStage(null);
+  const handleAddCategory = () => {
+    setEditingStage(null);
+    setParentStageForNew(null);
+    setNextOrderOverride((rootStages?.length || 0) + 1);
+    setStageDialogOpen(true);
+  };
+
+  const handleAddChildStage = (category: Stage) => {
+    setEditingStage(null);
+    setParentStageForNew(category.id);
+    setNextOrderOverride((category.childStages?.length || 0) + 1);
     setStageDialogOpen(true);
   };
 
   const handleEditStage = (stage: Stage) => {
-    setSelectedStage(stage);
+    setEditingStage(stage);
+    setParentStageForNew(stage.parentStageId);
     setStageDialogOpen(true);
   };
 
   const handleDeleteStage = (stage: Stage) => {
-    setSelectedStage(stage);
+    setStageToDelete(stage);
     setDeleteStageDialogOpen(true);
   };
 
   const handleAddTask = (stage: Stage) => {
-    setSelectedStage(stage);
-    setSelectedTask(null);
+    setStageForTask(stage);
+    setEditingTask(null);
     setTaskDialogOpen(true);
   };
 
   const handleEditTask = (stage: Stage, task: Task) => {
-    setSelectedStage(stage);
-    setSelectedTask(task);
+    setStageForTask(stage);
+    setEditingTask(task);
     setTaskDialogOpen(true);
   };
 
   const handleDeleteTask = (task: Task) => {
-    setSelectedTask(task);
+    setTaskToDelete(task);
     setDeleteTaskDialogOpen(true);
   };
 
   const handleStageSubmit = async (data: any) => {
-    if (selectedStage?.id) {
-      await updateStageMutation.mutateAsync({ id: selectedStage.id, data });
+    const submitData = parentStageForNew ? { ...data, parentStageId: parentStageForNew } : data;
+    if (editingStage?.id) {
+      await updateStageMutation.mutateAsync({ id: editingStage.id, data: submitData });
     } else {
-      await createStageMutation.mutateAsync(data);
+      await createStageMutation.mutateAsync(submitData);
     }
   };
 
   const handleTaskSubmit = async (data: any) => {
-    if (selectedTask?.id) {
-      await updateTaskMutation.mutateAsync({ id: selectedTask.id, data });
-    } else if (selectedStage?.id) {
-      await createTaskMutation.mutateAsync({ stageId: selectedStage.id, data });
+    if (editingTask?.id) {
+      await updateTaskMutation.mutateAsync({ id: editingTask.id, data });
+    } else if (stageForTask?.id) {
+      await createTaskMutation.mutateAsync({ stageId: stageForTask.id, data });
     }
   };
 
-  const toggleStageExpand = (stageId: string) => {
-    const newExpanded = new Set(expandedStages);
-    if (newExpanded.has(stageId)) {
-      newExpanded.delete(stageId);
-    } else {
-      newExpanded.add(stageId);
-    }
-    setExpandedStages(newExpanded);
+  const toggleCategory = (id: string) => {
+    const next = new Set(expandedCategories);
+    next.has(id) ? next.delete(id) : next.add(id);
+    setExpandedCategories(next);
+  };
+
+  const toggleStage = (id: string) => {
+    const next = new Set(expandedStages);
+    next.has(id) ? next.delete(id) : next.add(id);
+    setExpandedStages(next);
   };
 
   const getTaskStatusIcon = (status: string) => {
     switch (status) {
-      case 'COMPLETED':
-        return <CheckCircle2 className="h-4 w-4 text-green-500" />;
-      case 'IN_PROGRESS':
-        return <Clock className="h-4 w-4 text-blue-500" />;
-      case 'BLOCKED':
-        return <AlertCircle className="h-4 w-4 text-red-500" />;
-      default:
-        return <Clock className="h-4 w-4 text-gray-400" />;
+      case 'COMPLETED': return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+      case 'IN_PROGRESS': return <Clock className="h-4 w-4 text-blue-500" />;
+      case 'BLOCKED': return <AlertCircle className="h-4 w-4 text-red-500" />;
+      default: return <Clock className="h-4 w-4 text-gray-400" />;
     }
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'URGENT':
-        return 'destructive';
-      case 'HIGH':
-        return 'warning';
-      case 'MEDIUM':
-        return 'default';
-      default:
-        return 'secondary';
+      case 'URGENT': return 'destructive';
+      case 'HIGH': return 'warning';
+      case 'MEDIUM': return 'default';
+      default: return 'secondary';
     }
   };
 
-  const nextOrder = (stages?.length || 0) + 1;
+  // ── Renderizado de tareas ─────────────────────────────────────────────────
+  const renderTasks = (tasks: Task[], stage: Stage) => (
+    <div className="space-y-2">
+      {tasks.map((task) => (
+        <div
+          key={task.id}
+          className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            {getTaskStatusIcon(task.status)}
+            <div>
+              <p className="font-medium text-sm">{task.name}</p>
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                {task.plannedStartDate && (
+                  <span>
+                    {formatDate(task.plannedStartDate)}
+                    {task.plannedEndDate && ` - ${formatDate(task.plannedEndDate)}`}
+                  </span>
+                )}
+                {task.estimatedHours && <span>({task.estimatedHours}h)</span>}
+                {(task.expenseCount ?? 0) > 0 && (
+                  <span className="flex items-center gap-1 text-green-600">
+                    <DollarSign className="h-3 w-3" />
+                    {formatCurrency(task.totalExpenses || 0, { compact: true })}
+                    <span className="text-muted-foreground">({task.expenseCount} gastos)</span>
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant={getPriorityColor(task.priority) as any} className="text-xs">
+              {TASK_PRIORITY_LABELS[task.priority as keyof typeof TASK_PRIORITY_LABELS]}
+            </Badge>
+            <span className="text-sm font-medium w-12 text-right">{task.progress}%</span>
+            <Link href={`/projects/${projectId}/tasks/${task.id}`}>
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Ver detalle">
+                <Eye className="h-3 w-3" />
+              </Button>
+            </Link>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => handleEditTask(stage, task)}
+            >
+              <Edit className="h-3 w-3" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => handleDeleteTask(task)}
+            >
+              <Trash2 className="h-3 w-3 text-destructive" />
+            </Button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  // ── Nivel 2: Etapa hijo (con tareas) ─────────────────────────────────────
+  const renderChildStage = (stage: Stage) => {
+    const isExpanded = expandedStages.has(stage.id);
+    return (
+      <div key={stage.id} className="border rounded-lg bg-background">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="p-0 h-auto shrink-0"
+              onClick={() => toggleStage(stage.id)}
+            >
+              {isExpanded ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
+            </Button>
+            <Layers className="h-4 w-4 text-blue-500 shrink-0" />
+            <div className="min-w-0">
+              <span className="font-medium text-sm">{stage.name}</span>
+              {stage.description && (
+                <span className="text-xs text-muted-foreground ml-2 truncate">
+                  — {stage.description}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0 ml-4">
+            <Badge variant="outline" className="text-xs">
+              {stage.tasks?.length || 0} tareas
+            </Badge>
+            <Badge variant="secondary" className="text-xs">{stage.progress}%</Badge>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => handleEditStage(stage)}
+            >
+              <Edit className="h-3 w-3" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => handleDeleteStage(stage)}
+            >
+              <Trash2 className="h-3 w-3 text-destructive" />
+            </Button>
+          </div>
+        </div>
+        <div className="px-4 pb-1">
+          <div className="h-1 bg-muted rounded-full overflow-hidden">
+            <div
+              className="h-full bg-primary/60 transition-all"
+              style={{ width: `${stage.progress}%` }}
+            />
+          </div>
+        </div>
+        {isExpanded && (
+          <div className="px-4 pb-4 pt-3 border-t mt-1">
+            <div className="flex items-center justify-between mb-3">
+              <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Tareas
+              </h5>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                onClick={() => handleAddTask(stage)}
+              >
+                <Plus className="mr-1 h-3 w-3" />
+                Agregar Tarea
+              </Button>
+            </div>
+            {(!stage.tasks || stage.tasks.length === 0) ? (
+              <p className="text-sm text-muted-foreground text-center py-3">
+                No hay tareas en esta etapa
+              </p>
+            ) : (
+              renderTasks(stage.tasks, stage)
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ── Nivel 1: Categoría raíz ───────────────────────────────────────────────
+  const renderRootStage = (stage: Stage) => {
+    const hasChildren = stage.childStages && stage.childStages.length > 0;
+    const hasDirectTasks = stage.tasks && stage.tasks.length > 0;
+    const isExpanded = expandedCategories.has(stage.id);
+
+    return (
+      <Card key={stage.id}>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="p-0 h-auto"
+                onClick={() => toggleCategory(stage.id)}
+              >
+                {isExpanded ? (
+                  <ChevronDown className="h-5 w-5" />
+                ) : (
+                  <ChevronRight className="h-5 w-5" />
+                )}
+              </Button>
+              {hasChildren ? (
+                <FolderOpen className="h-5 w-5 text-amber-500" />
+              ) : (
+                <Layers className="h-5 w-5 text-blue-500" />
+              )}
+              <div>
+                <CardTitle className="text-lg">
+                  {stage.order}. {stage.name}
+                </CardTitle>
+                {stage.description && (
+                  <p className="text-sm text-muted-foreground">{stage.description}</p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {hasChildren ? (
+                <Badge variant="outline">{stage.childStages.length} etapas</Badge>
+              ) : (
+                <Badge variant="outline">{stage.tasks?.length || 0} tareas</Badge>
+              )}
+              <Badge variant="secondary">{stage.progress}%</Badge>
+              <Button variant="ghost" size="icon" onClick={() => handleEditStage(stage)}>
+                <Edit className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={() => handleDeleteStage(stage)}>
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            </div>
+          </div>
+          <div className="h-2 bg-muted rounded-full overflow-hidden mt-2">
+            <div
+              className="h-full bg-primary transition-all"
+              style={{ width: `${stage.progress}%` }}
+            />
+          </div>
+        </CardHeader>
+
+        {isExpanded && (
+          <CardContent className="pt-0">
+            <div className="border-t pt-4 space-y-4">
+              {/* Etapas hijas */}
+              {hasChildren && (
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-medium text-sm text-muted-foreground">Etapas</h4>
+                    <Button size="sm" variant="outline" onClick={() => handleAddChildStage(stage)}>
+                      <Plus className="mr-1 h-3 w-3" />
+                      Agregar Etapa
+                    </Button>
+                  </div>
+                  <div className="space-y-2">
+                    {stage.childStages
+                      .sort((a, b) => a.order - b.order)
+                      .map(renderChildStage)}
+                  </div>
+                </div>
+              )}
+
+              {/* Tareas directas (etapas sin hijos) o estado vacío */}
+              {!hasChildren && (
+                <>
+                  {hasDirectTasks ? (
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-medium text-sm text-muted-foreground">Tareas</h4>
+                        <Button size="sm" variant="outline" onClick={() => handleAddTask(stage)}>
+                          <Plus className="mr-1 h-3 w-3" />
+                          Agregar Tarea
+                        </Button>
+                      </div>
+                      {renderTasks(stage.tasks, stage)}
+                    </div>
+                  ) : (
+                    <div className="text-center py-4">
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Esta categoría está vacía. Podés agregar etapas o tareas directas.
+                      </p>
+                      <div className="flex justify-center gap-2">
+                        <Button size="sm" variant="outline" onClick={() => handleAddChildStage(stage)}>
+                          <Plus className="mr-1 h-3 w-3" />
+                          Agregar Etapa
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => handleAddTask(stage)}>
+                          <Plus className="mr-1 h-3 w-3" />
+                          Agregar Tarea
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </CardContent>
+        )}
+      </Card>
+    );
+  };
 
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="h-8 w-48 animate-pulse bg-muted rounded"></div>
+        <div className="h-8 w-48 animate-pulse bg-muted rounded" />
         <div className="space-y-4">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-32 animate-pulse bg-muted rounded"></div>
+            <div key={i} className="h-32 animate-pulse bg-muted rounded" />
           ))}
         </div>
       </div>
     );
   }
+
+  const stageDialogTitle = editingStage
+    ? editingStage.parentStageId !== null
+      ? 'Editar Etapa'
+      : 'Editar Categoría'
+    : parentStageForNew
+      ? 'Nueva Etapa'
+      : 'Nueva Categoría';
 
   return (
     <div className="space-y-6">
@@ -307,223 +597,64 @@ export default function ProjectStagesPage() {
             </p>
           </div>
         </div>
-        <Button onClick={handleAddStage}>
+        <Button onClick={handleAddCategory}>
           <Plus className="mr-2 h-4 w-4" />
-          Nueva Etapa
+          Nueva Categoría
         </Button>
       </div>
 
       {/* Stages List */}
-      {!stages || stages.length === 0 ? (
+      {!rootStages || rootStages.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground mb-4">
-              No hay etapas definidas para este proyecto.
+              No hay categorías definidas para este proyecto.
             </p>
-            <Button onClick={handleAddStage}>
+            <Button onClick={handleAddCategory}>
               <Plus className="mr-2 h-4 w-4" />
-              Crear Primera Etapa
+              Crear Primera Categoría
             </Button>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-4">
-          {stages
-            .sort((a, b) => a.order - b.order)
-            .map((stage) => (
-              <Card key={stage.id}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <GripVertical className="h-5 w-5 text-muted-foreground cursor-grab" />
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="p-0 h-auto"
-                        onClick={() => toggleStageExpand(stage.id)}
-                      >
-                        {expandedStages.has(stage.id) ? (
-                          <ChevronDown className="h-5 w-5" />
-                        ) : (
-                          <ChevronRight className="h-5 w-5" />
-                        )}
-                      </Button>
-                      <div>
-                        <CardTitle className="text-lg">
-                          {stage.order}. {stage.name}
-                        </CardTitle>
-                        {stage.description && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {stage.description}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">{stage._count?.tasks || stage.tasks?.length || 0} tareas</Badge>
-                      <Badge variant="secondary">{stage.progress}%</Badge>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEditStage(stage)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteStage(stage)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </div>
-                  {/* Progress bar */}
-                  <div className="h-2 bg-muted rounded-full overflow-hidden mt-3">
-                    <div
-                      className="h-full bg-primary transition-all"
-                      style={{ width: `${stage.progress}%` }}
-                    />
-                  </div>
-                </CardHeader>
-
-                {expandedStages.has(stage.id) && (
-                  <CardContent className="pt-0">
-                    <div className="border-t pt-4">
-                      <div className="flex items-center justify-between mb-4">
-                        <h4 className="font-medium text-sm text-muted-foreground">Tareas</h4>
-                        <Button size="sm" variant="outline" onClick={() => handleAddTask(stage)}>
-                          <Plus className="mr-1 h-3 w-3" />
-                          Agregar Tarea
-                        </Button>
-                      </div>
-
-                      {(!stage.tasks || stage.tasks.length === 0) ? (
-                        <p className="text-sm text-muted-foreground text-center py-4">
-                          No hay tareas en esta etapa
-                        </p>
-                      ) : (
-                        <div className="space-y-2">
-                          {stage.tasks.map((task) => (
-                            <div
-                              key={task.id}
-                              className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
-                            >
-                              <div className="flex items-center gap-3">
-                                {getTaskStatusIcon(task.status)}
-                                <div>
-                                  <p className="font-medium">{task.name}</p>
-                                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                                    {task.plannedStartDate && (
-                                      <span>
-                                        {formatDate(task.plannedStartDate)}
-                                        {task.plannedEndDate &&
-                                          ` - ${formatDate(task.plannedEndDate)}`}
-                                      </span>
-                                    )}
-                                    {task.estimatedHours && (
-                                      <span>({task.estimatedHours}h)</span>
-                                    )}
-                                    {(task.expenseCount ?? 0) > 0 && (
-                                      <span className="flex items-center gap-1 text-green-600">
-                                        <DollarSign className="h-3 w-3" />
-                                        {formatCurrency(task.totalExpenses || 0)}
-                                        <span className="text-muted-foreground">
-                                          ({task.expenseCount} gastos)
-                                        </span>
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Badge variant={getPriorityColor(task.priority) as any} className="text-xs">
-                                  {TASK_PRIORITY_LABELS[task.priority as keyof typeof TASK_PRIORITY_LABELS]}
-                                </Badge>
-                                <div className="w-16 text-right">
-                                  <span className="text-sm font-medium">{task.progress}%</span>
-                                </div>
-                                <Link href={`/projects/${projectId}/tasks/${task.id}`}>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8"
-                                    title="Ver detalle"
-                                  >
-                                    <Eye className="h-3 w-3" />
-                                  </Button>
-                                </Link>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => handleEditTask(stage, task)}
-                                >
-                                  <Edit className="h-3 w-3" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => handleDeleteTask(task)}
-                                >
-                                  <Trash2 className="h-3 w-3 text-destructive" />
-                                </Button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                )}
-              </Card>
-            ))}
+          {rootStages.sort((a, b) => a.order - b.order).map(renderRootStage)}
         </div>
       )}
 
       {/* Stage Dialog */}
-      <Dialog open={stageDialogOpen} onOpenChange={setStageDialogOpen}>
+      <Dialog open={stageDialogOpen} onOpenChange={(open) => !open && closeStagDialog()}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>
-              {selectedStage ? 'Editar Etapa' : 'Nueva Etapa'}
-            </DialogTitle>
+            <DialogTitle>{stageDialogTitle}</DialogTitle>
           </DialogHeader>
           <StageForm
-            stage={selectedStage}
-            nextOrder={nextOrder}
+            stage={editingStage}
+            nextOrder={nextOrderOverride}
             onSubmit={handleStageSubmit}
-            onCancel={() => {
-              setStageDialogOpen(false);
-              setSelectedStage(null);
-            }}
+            onCancel={closeStagDialog}
             isLoading={createStageMutation.isPending || updateStageMutation.isPending}
           />
         </DialogContent>
       </Dialog>
 
       {/* Task Dialog */}
-      <Dialog open={taskDialogOpen} onOpenChange={setTaskDialogOpen}>
+      <Dialog open={taskDialogOpen} onOpenChange={(open) => !open && closeTaskDialog()}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              {selectedTask ? 'Editar Tarea' : 'Nueva Tarea'}
-              {selectedStage && (
+              {editingTask ? 'Editar Tarea' : 'Nueva Tarea'}
+              {stageForTask && (
                 <span className="text-sm font-normal text-muted-foreground block">
-                  Etapa: {selectedStage.name}
+                  Etapa: {stageForTask.name}
                 </span>
               )}
             </DialogTitle>
           </DialogHeader>
           <TaskForm
-            task={selectedTask}
+            task={editingTask}
             onSubmit={handleTaskSubmit}
-            onCancel={() => {
-              setTaskDialogOpen(false);
-              setSelectedTask(null);
-              setSelectedStage(null);
-            }}
+            onCancel={closeTaskDialog}
             isLoading={createTaskMutation.isPending || updateTaskMutation.isPending}
           />
         </DialogContent>
@@ -533,17 +664,19 @@ export default function ProjectStagesPage() {
       <AlertDialog open={deleteStageDialogOpen} onOpenChange={setDeleteStageDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Eliminar Etapa</AlertDialogTitle>
+            <AlertDialogTitle>
+              Eliminar {stageToDelete?.parentStageId ? 'Etapa' : 'Categoría'}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              ¿Estas seguro de que deseas eliminar la etapa "{selectedStage?.name}"?
-              Esta accion tambien eliminara todas las tareas asociadas.
+              ¿Estás seguro de que deseas eliminar &quot;{stageToDelete?.name}&quot;?
+              Esta acción también eliminará todas las etapas y tareas asociadas.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => selectedStage && deleteStageMutation.mutate(selectedStage.id)}
+              onClick={() => stageToDelete && deleteStageMutation.mutate(stageToDelete.id)}
             >
               {deleteStageMutation.isPending ? 'Eliminando...' : 'Eliminar'}
             </AlertDialogAction>
@@ -557,14 +690,14 @@ export default function ProjectStagesPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Eliminar Tarea</AlertDialogTitle>
             <AlertDialogDescription>
-              ¿Estas seguro de que deseas eliminar la tarea "{selectedTask?.name}"?
+              ¿Estás seguro de que deseas eliminar la tarea &quot;{taskToDelete?.name}&quot;?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => selectedTask && deleteTaskMutation.mutate(selectedTask.id)}
+              onClick={() => taskToDelete && deleteTaskMutation.mutate(taskToDelete.id)}
             >
               {deleteTaskMutation.isPending ? 'Eliminando...' : 'Eliminar'}
             </AlertDialogAction>

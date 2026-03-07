@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main]
+
+jobs:
+  # ----------------------------------------------------------------
+  # shared package — validators y utils (sin base de datos)
+  # ----------------------------------------------------------------
+  test-shared:
+    name: Tests — @construccion/shared
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Instalar dependencias
+        run: pnpm install --frozen-lockfile
+
+      - name: Ejecutar tests con cobertura
+        run: pnpm --filter @construccion/shared test:coverage
+
+      - name: Subir cobertura
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          flags: shared
+
+  # ----------------------------------------------------------------
+  # API — tests unitarios e integración (con PostgreSQL)
+  # ----------------------------------------------------------------
+  test-api:
+    name: Tests — @construccion/api
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: construccion_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/construccion_test
+      JWT_SECRET: ci-test-jwt-secret-minimum-32-chars!!
+      JWT_REFRESH_SECRET: ci-test-refresh-secret-minimum-32-chars!!
+      NODE_ENV: test
+      PORT: 3002
+      CORS_ORIGIN: http://localhost:3000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Instalar dependencias
+        run: pnpm install --frozen-lockfile
+
+      - name: Generar Prisma client
+        run: pnpm db:generate
+
+      - name: Aplicar schema a la BD de test
+        run: pnpm --filter @construccion/database exec prisma db push --skip-generate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/construccion_test
+
+      - name: Ejecutar tests con cobertura
+        run: pnpm --filter @construccion/api test:coverage
+
+      - name: Subir cobertura
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          flags: api

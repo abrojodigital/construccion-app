@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth.store';
 import { Sidebar } from '@/components/layouts/sidebar';
@@ -8,6 +8,7 @@ import { Sidebar } from '@/components/layouts/sidebar';
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -25,8 +26,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Sidebar />
-      <main className="pl-64 min-h-screen">
+      <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
+      <main
+        className="min-h-screen transition-all duration-300"
+        style={{ paddingLeft: collapsed ? '4rem' : '16rem' }}
+      >
         <div className="p-8">{children}</div>
       </main>
     </div>

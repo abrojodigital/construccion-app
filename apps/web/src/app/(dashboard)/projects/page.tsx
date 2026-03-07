@@ -154,8 +154,8 @@ export default function ProjectsPage() {
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Presupuesto</span>
                         <span className="font-medium">
-                          {formatCurrency(Number(project.currentSpent))} /{' '}
-                          {formatCurrency(Number(project.estimatedBudget))}
+                          {formatCurrency(Number(project.currentSpent), { compact: true })} /{' '}
+                          {formatCurrency(Number(project.estimatedBudget), { compact: true })}
                         </span>
                       </div>
 

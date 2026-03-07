@@ -61,6 +61,46 @@ router.get(
   }
 );
 
+// GET /api/v1/employees/available - Empleados disponibles para asignar a un proyecto
+router.get('/available', requirePermission('employees', 'read'), async (req, res, next) => {
+  try {
+    const { projectId } = req.query as { projectId?: string };
+
+    // IDs ya asignados al proyecto (activos)
+    let assignedIds: string[] = [];
+    if (projectId) {
+      const assignments = await prisma.employeeProjectAssignment.findMany({
+        where: { projectId, isActive: true },
+        select: { employeeId: true },
+      });
+      assignedIds = assignments.map((a) => a.employeeId);
+    }
+
+    const employees = await prisma.employee.findMany({
+      where: {
+        organizationId: req.user!.organizationId,
+        deletedAt: null,
+        isActive: true,
+        ...(assignedIds.length > 0 && { id: { notIn: assignedIds } }),
+      },
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+      select: {
+        id: true,
+        legajo: true,
+        firstName: true,
+        lastName: true,
+        specialty: true,
+        department: true,
+        position: true,
+      },
+    });
+
+    sendSuccess(res, employees);
+  } catch (error) {
+    next(error);
+  }
+});
+
 // GET /api/v1/employees/:id
 router.get('/:id', requirePermission('employees', 'read'), validateId, async (req, res, next) => {
   try {
@@ -165,6 +205,12 @@ router.delete(
 // GET /api/v1/employees/:id/attendance
 router.get('/:id/attendance', requirePermission('attendance', 'read'), validateId, async (req, res, next) => {
   try {
+    const employee = await prisma.employee.findFirst({
+      where: { id: req.params.id, organizationId: req.user!.organizationId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!employee) throw new NotFoundError('Empleado', req.params.id);
+
     const { month, year } = req.query as { month?: string; year?: string };
 
     let dateFilter: Prisma.AttendanceWhereInput = {};
@@ -232,6 +278,12 @@ router.post(
 // GET /api/v1/employees/:id/projects
 router.get('/:id/projects', requirePermission('employees', 'read'), validateId, async (req, res, next) => {
   try {
+    const employee = await prisma.employee.findFirst({
+      where: { id: req.params.id, organizationId: req.user!.organizationId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!employee) throw new NotFoundError('Empleado', req.params.id);
+
     const assignments = await prisma.employeeProjectAssignment.findMany({
       where: { employeeId: req.params.id },
       include: {

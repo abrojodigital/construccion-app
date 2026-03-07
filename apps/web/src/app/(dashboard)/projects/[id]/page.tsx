@@ -18,6 +18,11 @@ import {
   Settings,
   Plus,
   Trash2,
+  ClipboardList,
+  Award,
+  Workflow,
+  TrendingUp,
+  Banknote,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -214,9 +219,9 @@ export default function ProjectDetailPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(Number(project.currentSpent))}</div>
+            <div className="text-2xl font-bold">{formatCurrency(Number(project.currentSpent), { compact: true })}</div>
             <p className="text-xs text-muted-foreground">
-              de {formatCurrency(Number(project.estimatedBudget))} ({budgetPercentage}%)
+              de {formatCurrency(Number(project.estimatedBudget), { compact: true })} ({budgetPercentage}%)
             </p>
           </CardContent>
         </Card>
@@ -319,6 +324,76 @@ export default function ProjectDetailPage() {
               <div>
                 <h3 className="font-medium">Documentos</h3>
                 <p className="text-sm text-muted-foreground">{project._count.documents} archivos</p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href={`/projects/${project.id}/budget-versions`}>
+          <Card className="hover:shadow-md transition-shadow cursor-pointer">
+            <CardContent className="p-6 flex items-center gap-4">
+              <div className="p-3 bg-amber-500/10 rounded-lg">
+                <ClipboardList className="h-6 w-6 text-amber-500" />
+              </div>
+              <div>
+                <h3 className="font-medium">Presupuesto</h3>
+                <p className="text-sm text-muted-foreground">Versiones y APU</p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href={`/projects/${project.id}/certificates`}>
+          <Card className="hover:shadow-md transition-shadow cursor-pointer">
+            <CardContent className="p-6 flex items-center gap-4">
+              <div className="p-3 bg-teal-500/10 rounded-lg">
+                <Award className="h-6 w-6 text-teal-500" />
+              </div>
+              <div>
+                <h3 className="font-medium">Certificaciones</h3>
+                <p className="text-sm text-muted-foreground">Certificados de obra</p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href={`/projects/${project.id}/subcontracts`}>
+          <Card className="hover:shadow-md transition-shadow cursor-pointer">
+            <CardContent className="p-6 flex items-center gap-4">
+              <div className="p-3 bg-indigo-500/10 rounded-lg">
+                <Workflow className="h-6 w-6 text-indigo-500" />
+              </div>
+              <div>
+                <h3 className="font-medium">Subcontratos</h3>
+                <p className="text-sm text-muted-foreground">Contratos con terceros</p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href={`/projects/${project.id}/adjustment-formula/new`}>
+          <Card className="hover:shadow-md transition-shadow cursor-pointer">
+            <CardContent className="p-6 flex items-center gap-4">
+              <div className="p-3 bg-rose-500/10 rounded-lg">
+                <TrendingUp className="h-6 w-6 text-rose-500" />
+              </div>
+              <div>
+                <h3 className="font-medium">Redeterminacion</h3>
+                <p className="text-sm text-muted-foreground">Formulas de ajuste</p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href={`/projects/${project.id}/financial-plans`}>
+          <Card className="hover:shadow-md transition-shadow cursor-pointer">
+            <CardContent className="p-6 flex items-center gap-4">
+              <div className="p-3 bg-emerald-500/10 rounded-lg">
+                <Banknote className="h-6 w-6 text-emerald-500" />
+              </div>
+              <div>
+                <h3 className="font-medium">Plan Financiero</h3>
+                <p className="text-sm text-muted-foreground">Cash flow mensual</p>
               </div>
             </CardContent>
           </Card>

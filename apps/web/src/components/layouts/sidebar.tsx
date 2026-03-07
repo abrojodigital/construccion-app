@@ -15,12 +15,15 @@ import {
   LogOut,
   ChevronLeft,
   Menu,
+  Coins,
+  TrendingUp,
+  HardHat,
+  Cog,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/auth.store';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -29,16 +32,24 @@ const navigation = [
   { name: 'Proveedores', href: '/suppliers', icon: Truck },
   { name: 'Materiales', href: '/materials', icon: Package },
   { name: 'Empleados', href: '/employees', icon: Users },
+  { name: 'Mano de Obra', href: '/labor-categories', icon: HardHat },
+  { name: 'Equipos', href: '/equipment-catalog', icon: Cog },
+  { name: 'Monedas', href: '/currencies', icon: Coins },
+  { name: 'Redeterminacion', href: '/adjustments', icon: TrendingUp },
   { name: 'Reportes', href: '/reports', icon: BarChart3 },
   { name: 'Configuracion', href: '/settings', icon: Settings },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  collapsed: boolean;
+  onToggle: () => void;
+}
+
+export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const logout = useAuthStore((state) => state.logout);
   const user = useAuthStore((state) => state.user);
-  const [collapsed, setCollapsed] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -64,7 +75,7 @@ export function Sidebar() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setCollapsed(!collapsed)}
+            onClick={onToggle}
             className={cn(collapsed && 'mx-auto')}
           >
             {collapsed ? <Menu className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}

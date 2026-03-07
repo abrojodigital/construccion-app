@@ -1,7 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useQuery } from '@tanstack/react-query';
+
+const InvestmentCurve = dynamic(
+  () => import('@/components/charts/investment-curve').then((m) => m.InvestmentCurve),
+  { ssr: false, loading: () => <div className="h-72 animate-pulse bg-muted rounded-lg" /> }
+);
 import {
   BarChart3,
   Download,
@@ -11,7 +17,6 @@ import {
   DollarSign,
   Building2,
   Users,
-  Package,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -41,8 +46,10 @@ interface DashboardStats {
 }
 
 export default function ReportsPage() {
-  const [period, setPeriod] = useState('month');
+  const [period, setPeriod] = useState('all');
   const [projectFilter, setProjectFilter] = useState('all');
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
 
   const { data: stats, isLoading } = useQuery({
     queryKey: ['dashboard-stats', period, projectFilter],
@@ -54,33 +61,59 @@ export default function ReportsPage() {
     queryFn: () => api.get<{ data: Array<{ id: string; code: string; name: string }> }>('/projects?limit=100'),
   });
 
+  const exportBody = { period, projectId: projectFilter !== 'all' ? projectFilter : undefined };
+
   const handleExportPDF = async () => {
+    setExportingPdf(true);
     try {
-      const response = await api.post('/reports/export/pdf', { period, projectId: projectFilter !== 'all' ? projectFilter : undefined }, { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([response as any]));
+      const token = (await import('@/store/auth.store')).useAuthStore.getState().accessToken;
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+      const response = await fetch(`${apiUrl}/reports/export/pdf`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(exportBody),
+      });
+      if (!response.ok) throw new Error('Error al exportar');
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `reporte-${new Date().toISOString().split('T')[0]}.pdf`);
+      link.setAttribute('download', `reporte-${new Date().toISOString().split('T')[0]}.html`);
       document.body.appendChild(link);
       link.click();
       link.remove();
+      URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error exporting PDF:', error);
+    } finally {
+      setExportingPdf(false);
     }
   };
 
   const handleExportExcel = async () => {
+    setExportingExcel(true);
     try {
-      const response = await api.post('/reports/export/excel', { period, projectId: projectFilter !== 'all' ? projectFilter : undefined }, { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([response as any]));
+      const token = (await import('@/store/auth.store')).useAuthStore.getState().accessToken;
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+      const response = await fetch(`${apiUrl}/reports/export/excel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(exportBody),
+      });
+      if (!response.ok) throw new Error('Error al exportar');
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `reporte-${new Date().toISOString().split('T')[0]}.xlsx`);
+      link.setAttribute('download', `reporte-${new Date().toISOString().split('T')[0]}.csv`);
       document.body.appendChild(link);
       link.click();
       link.remove();
+      URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error exporting Excel:', error);
+    } finally {
+      setExportingExcel(false);
     }
   };
 
@@ -93,13 +126,13 @@ export default function ReportsPage() {
           <p className="text-muted-foreground">Analisis y estadisticas del sistema</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handleExportPDF}>
+          <Button variant="outline" onClick={handleExportPDF} disabled={exportingPdf}>
             <FileText className="mr-2 h-4 w-4" />
-            Exportar PDF
+            {exportingPdf ? 'Exportando...' : 'Exportar PDF'}
           </Button>
-          <Button variant="outline" onClick={handleExportExcel}>
+          <Button variant="outline" onClick={handleExportExcel} disabled={exportingExcel}>
             <Download className="mr-2 h-4 w-4" />
-            Exportar Excel
+            {exportingExcel ? 'Exportando...' : 'Exportar Excel'}
           </Button>
         </div>
       </div>
@@ -159,10 +192,10 @@ export default function ReportsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {formatCurrency(Number(stats?.totalSpent || 0))}
+              {formatCurrency(Number(stats?.totalSpent || 0), { compact: true })}
             </div>
             <p className="text-xs text-muted-foreground">
-              de {formatCurrency(Number(stats?.totalBudget || 0))} presupuestado
+              de {formatCurrency(Number(stats?.totalBudget || 0), { compact: true })} presupuestado
             </p>
           </CardContent>
         </Card>
@@ -227,7 +260,7 @@ export default function ReportsPage() {
                     <div className="flex items-center justify-between text-sm">
                       <span className="font-medium">{item.category}</span>
                       <span className="text-muted-foreground">
-                        {formatCurrency(item.amount)} ({item.percentage.toFixed(1)}%)
+                        {formatCurrency(item.amount, { compact: true })} ({item.percentage.toFixed(1)}%)
                       </span>
                     </div>
                     <div className="h-2 bg-muted rounded-full overflow-hidden">
@@ -286,7 +319,7 @@ export default function ReportsPage() {
                     <div className="flex justify-between text-xs text-muted-foreground">
                       <span>{project.project}</span>
                       <span>
-                        {formatCurrency(project.spent)} / {formatCurrency(project.budget)}
+                        {formatCurrency(project.spent, { compact: true })} / {formatCurrency(project.budget, { compact: true })}
                       </span>
                     </div>
                   </div>
@@ -297,84 +330,50 @@ export default function ReportsPage() {
         </Card>
       </div>
 
-      {/* Monthly Expenses Chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Gastos Mensuales</CardTitle>
-          <CardDescription>Evolucion de gastos en el tiempo</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="h-64 flex items-center justify-center">
-              <div className="animate-pulse text-muted-foreground">Cargando...</div>
-            </div>
-          ) : stats?.monthlyExpenses?.length === 0 ? (
-            <div className="h-64 flex items-center justify-center">
-              <div className="text-center">
-                <TrendingUp className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                <p className="text-muted-foreground">No hay datos para mostrar</p>
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-end justify-between h-64 gap-2">
-              {stats?.monthlyExpenses?.map((item, index) => {
-                const maxAmount = Math.max(...(stats?.monthlyExpenses?.map(e => e.amount) || [1]));
-                const height = (item.amount / maxAmount) * 100;
-                return (
-                  <div key={index} className="flex-1 flex flex-col items-center gap-2">
-                    <div className="text-xs text-muted-foreground">
-                      {formatCurrency(item.amount)}
-                    </div>
-                    <div
-                      className="w-full bg-primary rounded-t transition-all hover:bg-primary/80"
-                      style={{ height: `${Math.max(height, 5)}%` }}
-                    />
-                    <div className="text-xs font-medium">{item.month}</div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Monthly Expenses + S-curve */}
+      <InvestmentCurve isLoading={isLoading} monthlyExpenses={stats?.monthlyExpenses ?? []} />
 
       {/* Quick Reports */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="cursor-pointer hover:shadow-md transition-shadow">
+        <Card className="hover:shadow-md transition-shadow">
           <CardHeader>
-            <CardTitle className="text-base">Reporte de Gastos</CardTitle>
-            <CardDescription>Detalle completo de gastos por proyecto</CardDescription>
+            <CardTitle className="text-base">Reporte General</CardTitle>
+            <CardDescription>Proyectos y gastos por categoria (HTML)</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button variant="outline" className="w-full">
+            <Button variant="outline" className="w-full" onClick={handleExportPDF} disabled={exportingPdf}>
               <FileText className="mr-2 h-4 w-4" />
-              Generar Reporte
+              {exportingPdf ? 'Generando...' : 'Descargar HTML'}
             </Button>
           </CardContent>
         </Card>
 
-        <Card className="cursor-pointer hover:shadow-md transition-shadow">
+        <Card className="hover:shadow-md transition-shadow">
           <CardHeader>
-            <CardTitle className="text-base">Reporte de Presupuesto</CardTitle>
-            <CardDescription>Analisis de presupuesto vs ejecucion</CardDescription>
+            <CardTitle className="text-base">Exportar a Excel</CardTitle>
+            <CardDescription>Proyectos y gastos en formato CSV</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button variant="outline" className="w-full">
+            <Button variant="outline" className="w-full" onClick={handleExportExcel} disabled={exportingExcel}>
+              <Download className="mr-2 h-4 w-4" />
+              {exportingExcel ? 'Generando...' : 'Descargar CSV'}
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-md transition-shadow">
+          <CardHeader>
+            <CardTitle className="text-base">Reporte Completo</CardTitle>
+            <CardDescription>PDF + CSV del periodo seleccionado</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              className="w-full"
+              onClick={async () => { await handleExportPDF(); await handleExportExcel(); }}
+              disabled={exportingPdf || exportingExcel}
+            >
               <BarChart3 className="mr-2 h-4 w-4" />
-              Generar Reporte
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="cursor-pointer hover:shadow-md transition-shadow">
-          <CardHeader>
-            <CardTitle className="text-base">Reporte de Personal</CardTitle>
-            <CardDescription>Asistencia y costos de mano de obra</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button variant="outline" className="w-full">
-              <Users className="mr-2 h-4 w-4" />
-              Generar Reporte
+              Descargar Todo
             </Button>
           </CardContent>
         </Card>

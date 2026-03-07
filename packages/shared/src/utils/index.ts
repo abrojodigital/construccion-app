@@ -1,20 +1,49 @@
 /**
  * Format a number as Argentine Pesos (ARS)
+ * compact: true → "$ 2,70 MM" / "$ 17,9 M" / "$ 125.400" for cards and headers
  */
 export function formatCurrency(
   amount: number | string | null | undefined,
-  options: { showSymbol?: boolean; decimals?: number } = {}
+  options: { showSymbol?: boolean; decimals?: number; compact?: boolean } = {}
 ): string {
-  const { showSymbol = true, decimals = 2 } = options;
+  const { showSymbol = true, decimals = 2, compact = false } = options;
 
   if (amount === null || amount === undefined) {
-    return showSymbol ? '$ 0,00' : '0,00';
+    return showSymbol ? '$ 0' : '0';
   }
 
   const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
 
   if (isNaN(numAmount)) {
-    return showSymbol ? '$ 0,00' : '0,00';
+    return showSymbol ? '$ 0' : '0';
+  }
+
+  if (compact) {
+    const abs = Math.abs(numAmount);
+    const sign = numAmount < 0 ? '-' : '';
+    const sym = showSymbol ? `${sign}$ ` : sign;
+
+    if (abs >= 1_000_000_000) {
+      const val = (abs / 1_000_000_000).toLocaleString('es-AR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+      return `${sym}${val} MM`;
+    }
+
+    if (abs >= 1_000_000) {
+      const val = (abs / 1_000_000).toLocaleString('es-AR', {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      });
+      return `${sym}${val} M`;
+    }
+
+    const val = abs.toLocaleString('es-AR', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    });
+    return showSymbol ? `${sign}$ ${val}` : `${sign}${val}`;
   }
 
   const formatted = numAmount.toLocaleString('es-AR', {

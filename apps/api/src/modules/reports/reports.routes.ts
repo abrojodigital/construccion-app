@@ -3,6 +3,7 @@ import { prisma } from '@construccion/database';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { requirePermission } from '../../middleware/rbac.middleware';
 import { sendSuccess } from '../../shared/utils/response';
+import { escapeHtml } from '../../shared/utils/html-escape';
 
 const router: Router = Router();
 
@@ -113,9 +114,9 @@ router.get('/dashboard', requirePermission('reports', 'read'), async (req, res, 
         : 0,
     }));
 
-    // Get active projects for progress
+    // Get active projects for progress (PLANNING + IN_PROGRESS)
     const activeProjectsData = await prisma.project.findMany({
-      where: { organizationId, deletedAt: null, status: 'IN_PROGRESS' },
+      where: { organizationId, deletedAt: null, status: { in: ['PLANNING', 'IN_PROGRESS'] } },
       select: {
         id: true,
         code: true,
@@ -136,22 +137,26 @@ router.get('/dashboard', requirePermission('reports', 'read'), async (req, res, 
       spent: Number(p.currentSpent),
     }));
 
-    // Get monthly expenses for chart (last 6 months)
-    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    // Get monthly expenses for chart — respect the period filter
+    const monthlyExpenseWhere: any = {
+      project: { organizationId },
+      deletedAt: null,
+      status: { in: ['APPROVED', 'PAID'] },
+    };
+    if (startDate) {
+      monthlyExpenseWhere.expenseDate = { gte: startDate };
+    }
+    if (projectId) {
+      monthlyExpenseWhere.projectId = projectId;
+    }
+
     const recentExpenses = await prisma.expense.findMany({
-      where: {
-        project: { organizationId },
-        deletedAt: null,
-        status: { in: ['APPROVED', 'PAID'] },
-        expenseDate: { gte: sixMonthsAgo },
-      },
-      select: {
-        expenseDate: true,
-        totalAmount: true,
-      },
+      where: monthlyExpenseWhere,
+      select: { expenseDate: true, totalAmount: true },
+      orderBy: { expenseDate: 'asc' },
     });
 
-    // Group by month manually
+    // Group by month
     const monthlyMap = new Map<string, number>();
     const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
@@ -163,20 +168,19 @@ router.get('/dashboard', requirePermission('reports', 'read'), async (req, res, 
       }
     });
 
-    // Convert to sorted array
     const monthlyExpenses = Array.from(monthlyMap.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([key, amount]) => {
-        const [year, month] = key.split('-');
-        return {
-          month: monthNames[parseInt(month, 10) - 1],
-          amount,
-        };
+        const [, month] = key.split('-');
+        return { month: monthNames[parseInt(month, 10) - 1], amount };
       });
 
     // Calculate KPIs
     const totalProjects = projectsByStatus.reduce((sum, p) => sum + p._count, 0);
-    const activeProjectsCount = projectsByStatus.find((p) => p.status === 'IN_PROGRESS')?._count || 0;
+    // "Activos" = cualquier proyecto no completado ni cancelado
+    const activeProjectsCount = projectsByStatus
+      .filter((p) => !['COMPLETED', 'CANCELLED'].includes(p.status))
+      .reduce((sum, p) => sum + p._count, 0);
     const completedProjectsCount = projectsByStatus.find((p) => p.status === 'COMPLETED')?._count || 0;
 
     const totalBudget = Number(budgetAggregation._sum.estimatedBudget || 0);
@@ -221,9 +225,9 @@ router.get('/dashboard', requirePermission('reports', 'read'), async (req, res, 
     });
     const lowStockCount = allMaterials.filter(m => Number(m.currentStock) <= Number(m.minimumStock)).length;
 
-    // Get all projects for projectCards (active ones with details)
+    // Get all projects for projectCards (todos excepto CANCELLED)
     const projectsForCards = await prisma.project.findMany({
-      where: { organizationId, deletedAt: null, status: 'IN_PROGRESS' },
+      where: { organizationId, deletedAt: null, status: { notIn: ['CANCELLED'] } },
       select: {
         id: true,
         code: true,
@@ -260,6 +264,10 @@ router.get('/dashboard', requirePermission('reports', 'read'), async (req, res, 
       };
     });
 
+    const budgetVariance = totalBudget > 0
+      ? ((totalBudget - totalSpent) / totalBudget) * 100
+      : 0;
+
     sendSuccess(res, {
       kpis: {
         totalProjects,
@@ -273,7 +281,11 @@ router.get('/dashboard', requirePermission('reports', 'read'), async (req, res, 
         lowStockMaterialsCount: lowStockCount,
       },
       projectCards,
-      // Additional data for reports page
+      // Extra data for other report views
+      totalExpenses,
+      totalEmployees,
+      activeEmployees,
+      budgetVariance,
       expensesByCategory: expensesByCategoryFormatted,
       projectProgress,
       monthlyExpenses,
@@ -566,7 +578,7 @@ router.post('/export/pdf', requirePermission('reports', 'read'), async (req, res
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Reporte - ${organization?.name || 'Sistema de Construcción'}</title>
+  <title>Reporte - ${escapeHtml(organization?.name || 'Sistema de Construcción')}</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 40px; color: #333; }
     h1 { color: #1a1a1a; border-bottom: 2px solid #3b82f6; padding-bottom: 10px; }
@@ -591,7 +603,7 @@ router.post('/export/pdf', requirePermission('reports', 'read'), async (req, res
 </head>
 <body>
   <div class="header">
-    <h1>${organization?.name || 'Sistema de Construcción'}</h1>
+    <h1>${escapeHtml(organization?.name || 'Sistema de Construcción')}</h1>
     <span class="date">Generado: ${new Date().toLocaleDateString('es-AR')}</span>
   </div>
 
@@ -620,9 +632,9 @@ router.post('/export/pdf', requirePermission('reports', 'read'), async (req, res
                            p.status === 'PLANNING' ? 'Planificación' : p.status;
         return `
           <tr>
-            <td>${p.code}</td>
-            <td>${p.name}</td>
-            <td><span class="status ${statusClass}">${statusLabel}</span></td>
+            <td>${escapeHtml(p.code)}</td>
+            <td>${escapeHtml(p.name)}</td>
+            <td><span class="status ${statusClass}">${escapeHtml(statusLabel)}</span></td>
             <td class="progress">${p.progress}%</td>
             <td class="currency">$${budget.toLocaleString('es-AR')}</td>
             <td class="currency">$${spent.toLocaleString('es-AR')}</td>
@@ -646,7 +658,7 @@ router.post('/export/pdf', requirePermission('reports', 'read'), async (req, res
     <tbody>
       ${expensesByCategory.map(e => `
         <tr>
-          <td>${categoryMap.get(e.categoryId) || 'Sin categoría'}</td>
+          <td>${escapeHtml(categoryMap.get(e.categoryId) || 'Sin categoría')}</td>
           <td class="currency">$${Number(e._sum.totalAmount || 0).toLocaleString('es-AR')}</td>
         </tr>
       `).join('')}

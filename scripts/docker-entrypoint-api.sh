@@ -41,16 +41,22 @@ echo ""
 # ------------------------------------------
 # 2. Run database migrations
 # ------------------------------------------
+RUN_SEED_VAL="${RUN_SEED:-true}"
+
 echo "Synchronizing database schema..."
 cd /app/packages/database
-npx prisma db push --accept-data-loss --skip-generate
+if [ "$RUN_SEED_VAL" = "force" ]; then
+  echo "Force reset: dropping and recreating database schema..."
+  npx prisma db push --force-reset --skip-generate
+else
+  npx prisma db push --accept-data-loss --skip-generate
+fi
 echo "Database schema synchronized!"
 echo ""
 
 # ------------------------------------------
 # 3. Seed database (only if empty and enabled)
 # ------------------------------------------
-RUN_SEED_VAL="${RUN_SEED:-true}"
 
 if [ "$RUN_SEED_VAL" = "force" ]; then
   echo "Force re-seed requested..."

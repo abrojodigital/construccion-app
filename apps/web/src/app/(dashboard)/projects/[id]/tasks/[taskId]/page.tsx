@@ -244,7 +244,7 @@ export default function TaskDetailPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalExpenses)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(totalExpenses, { compact: true })}</div>
             <p className="text-xs text-muted-foreground">
               {expenses.length} gastos registrados
             </p>
@@ -384,7 +384,7 @@ export default function TaskDetailPage() {
 
               <div className="flex justify-between items-center px-3">
                 <span className="font-medium">Total de Gastos</span>
-                <span className="text-xl font-bold">{formatCurrency(totalExpenses)}</span>
+                <span className="text-xl font-bold">{formatCurrency(totalExpenses, { compact: true })}</span>
               </div>
             </div>
           )}

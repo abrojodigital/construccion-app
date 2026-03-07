@@ -102,9 +102,9 @@ export default function DashboardPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(kpis?.totalBudget || 0)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(kpis?.totalBudget || 0, { compact: true })}</div>
             <p className="text-xs text-muted-foreground">
-              {formatPercentage(kpis?.budgetUtilization || 0)} utilizado
+              {formatPercentage(kpis?.budgetUtilization || 0, 1)} utilizado
             </p>
           </CardContent>
         </Card>
@@ -142,7 +142,7 @@ export default function DashboardPage() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(kpis?.totalSpent || 0)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(kpis?.totalSpent || 0, { compact: true })}</div>
             <p className="text-xs text-muted-foreground">en todos los proyectos</p>
           </CardContent>
         </Card>

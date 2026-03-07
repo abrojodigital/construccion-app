@@ -265,6 +265,7 @@ export const createStageSchema = z.object({
   order: z.number().int().positive(),
   plannedStartDate: z.coerce.date().optional(),
   plannedEndDate: z.coerce.date().optional(),
+  parentStageId: z.string().optional(),
 });
 
 export const updateStageSchema = createStageSchema.partial();
@@ -441,6 +442,266 @@ export const createPurchaseOrderSchema = z.object({
 export const updatePurchaseOrderSchema = createPurchaseOrderSchema.partial();
 
 // ============================================
+// BUDGET VERSION SCHEMAS (Presupuesto Versionado)
+// ============================================
+
+const percentageDecimalSchema = z
+  .number()
+  .min(0, { message: 'Debe ser cero o mayor' })
+  .max(1, { message: 'Ingrese como decimal (ej: 0.21 para 21%). El valor debe ser entre 0 y 1' });
+
+export const createBudgetVersionSchema = z.object({
+  name: z.string().min(1, { message: 'El nombre es requerido' }).max(255),
+  description: z.string().optional(),
+  gastosGeneralesPct: percentageDecimalSchema.default(0),
+  beneficioPct: percentageDecimalSchema.default(0),
+  gastosFinancierosPct: percentageDecimalSchema.default(0),
+  ivaPct: percentageDecimalSchema.default(0),
+  projectId: z.string().min(1, { message: 'El proyecto es requerido' }),
+});
+
+export const updateBudgetVersionSchema = z.object({
+  name: z.string().min(1).max(255).optional(),
+  description: z.string().optional(),
+  gastosGeneralesPct: percentageDecimalSchema.optional(),
+  beneficioPct: percentageDecimalSchema.optional(),
+  gastosFinancierosPct: percentageDecimalSchema.optional(),
+  ivaPct: percentageDecimalSchema.optional(),
+});
+
+export const createBudgetCategorySchema = z.object({
+  number: z.number().int().positive({ message: 'El número debe ser positivo' }),
+  name: z.string().min(1, { message: 'El nombre es requerido' }).max(255),
+  description: z.string().optional(),
+  order: z.number().int().positive({ message: 'El orden debe ser positivo' }),
+});
+
+export const updateBudgetCategorySchema = createBudgetCategorySchema.partial();
+
+export const createBudgetStageSchema = z.object({
+  number: z.string().min(1, { message: 'El número de etapa es requerido' }), // "1.1", "2.3"
+  description: z.string().min(1, { message: 'La descripción es requerida' }),
+  unit: z.string().min(1, { message: 'La unidad es requerida' }),
+  quantity: positiveDecimalSchema,
+  unitPrice: nonNegativeDecimalSchema,
+});
+
+export const updateBudgetStageSchema = z.object({
+  number: z.string().min(1).optional(),
+  description: z.string().min(1).optional(),
+  unit: z.string().min(1).optional(),
+  quantity: positiveDecimalSchema.optional(),
+  unitPrice: nonNegativeDecimalSchema.optional(),
+});
+
+export const createBudgetItemSchema = z.object({
+  number: z.string().min(1, { message: 'El número de ítem es requerido' }), // "1.1.1", "2.3.2"
+  description: z.string().min(1, { message: 'La descripción es requerida' }),
+  unit: z.string().min(1, { message: 'La unidad es requerida' }),
+  quantity: positiveDecimalSchema,
+  unitPrice: nonNegativeDecimalSchema,
+});
+
+export const updateBudgetItemSchema = z.object({
+  number: z.string().min(1).optional(),
+  description: z.string().min(1).optional(),
+  unit: z.string().min(1).optional(),
+  quantity: positiveDecimalSchema.optional(),
+  unitPrice: nonNegativeDecimalSchema.optional(),
+});
+
+export const generateScheduleSchema = z.object({
+  mode: z.enum(['replace', 'append']),
+});
+
+export const budgetVersionQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(20),
+  sortBy: z.string().optional(),
+  sortOrder: z.enum(['asc', 'desc']).default('desc'),
+  status: z.enum(['DRAFT', 'APPROVED', 'SUPERSEDED']).optional(),
+  search: z.string().optional(),
+});
+
+// ============================================
+// PRICE ANALYSIS (APU) SCHEMAS - Fase 2
+// ============================================
+
+export const createAnalysisMaterialSchema = z.object({
+  description: z.string().min(1, { message: 'La descripción es requerida' }),
+  indecCode: z.string().optional(),
+  unit: z.string().min(1, { message: 'La unidad es requerida' }),
+  quantity: positiveDecimalSchema,
+  unitCost: nonNegativeDecimalSchema,
+  wastePct: nonNegativeDecimalSchema.default(0),
+  currencyId: z.string().optional(),
+  exchangeRate: positiveDecimalSchema.optional(),
+});
+
+export const createAnalysisLaborSchema = z.object({
+  category: z.string().min(1, { message: 'La categoría es requerida' }),
+  quantity: positiveDecimalSchema,
+  hourlyRate: positiveDecimalSchema,
+  baseSalary: positiveDecimalSchema.optional(),
+  attendancePct: nonNegativeDecimalSchema.optional(),
+  socialChargesPct: nonNegativeDecimalSchema.optional(),
+  artPct: nonNegativeDecimalSchema.optional(),
+});
+
+export const createAnalysisEquipmentSchema = z.object({
+  description: z.string().min(1, { message: 'La descripción es requerida' }),
+  powerHp: nonNegativeDecimalSchema.optional(),
+  newValue: nonNegativeDecimalSchema.optional(),
+  residualPct: nonNegativeDecimalSchema.optional(),
+  amortInterest: nonNegativeDecimalSchema.default(0),
+  repairsCost: nonNegativeDecimalSchema.default(0),
+  fuelCost: nonNegativeDecimalSchema.default(0),
+  lubricantsCost: nonNegativeDecimalSchema.default(0),
+  hoursUsed: positiveDecimalSchema,
+  section: z.enum(['D', 'E', 'F', 'DEF']).default('D'),
+  currencyId: z.string().optional(),
+  exchangeRate: positiveDecimalSchema.optional(),
+});
+
+export const createAnalysisTransportSchema = z.object({
+  description: z.string().min(1, { message: 'La descripción es requerida' }),
+  unit: z.string().min(1, { message: 'La unidad es requerida' }),
+  quantity: positiveDecimalSchema,
+  unitCost: positiveDecimalSchema,
+});
+
+// ============================================
+// ITEM PROGRESS SCHEMAS - Fase 3
+// ============================================
+
+export const createItemProgressSchema = z.object({
+  date: z.coerce.date(),
+  advance: z.number().min(0, { message: 'El avance mínimo es 0' }).max(1, { message: 'El avance máximo es 1' }),
+  notes: z.string().optional(),
+});
+
+export const updateItemProgressSchema = createItemProgressSchema.partial();
+
+// ============================================
+// CERTIFICATE SCHEMAS - Fase 4
+// ============================================
+
+export const createCertificateSchema = z.object({
+  periodStart: z.coerce.date(),
+  periodEnd: z.coerce.date(),
+  acopioPct: nonNegativeDecimalSchema.default(0),
+  anticipoPct: nonNegativeDecimalSchema.default(0),
+  fondoReparoPct: nonNegativeDecimalSchema.default(0),
+  ivaPct: nonNegativeDecimalSchema.default(0),
+});
+
+export const updateCertificateItemSchema = z.object({
+  currentAdvance: z.number().min(0).max(1),
+});
+
+export const certificateQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(20),
+  sortBy: z.string().optional(),
+  sortOrder: z.enum(['asc', 'desc']).default('desc'),
+  status: z.enum(['DRAFT', 'SUBMITTED', 'APPROVED', 'PAID']).optional(),
+});
+
+// ============================================
+// SUBCONTRACT SCHEMAS - Fase 5
+// ============================================
+
+export const createSubcontractSchema = z.object({
+  name: z.string().min(1, { message: 'El nombre es requerido' }),
+  description: z.string().optional(),
+  contractorName: z.string().min(1, { message: 'El nombre del contratista es requerido' }),
+  contractorCuit: cuitSchema,
+  contactEmail: z.string().email().optional().or(z.literal('')),
+  contactPhone: z.string().optional(),
+  startDate: z.coerce.date().optional(),
+  endDate: z.coerce.date().optional(),
+  totalAmount: positiveDecimalSchema,
+  projectId: z.string().min(1, { message: 'El proyecto es requerido' }),
+});
+
+export const updateSubcontractSchema = createSubcontractSchema.partial().omit({ projectId: true });
+
+export const createSubcontractItemSchema = z.object({
+  description: z.string().min(1, { message: 'La descripción es requerida' }),
+  unit: z.string().min(1, { message: 'La unidad es requerida' }),
+  quantity: positiveDecimalSchema,
+  unitPrice: positiveDecimalSchema,
+  budgetItemId: z.string().optional(),
+});
+
+export const createSubcontractCertificateSchema = z.object({
+  periodStart: z.coerce.date(),
+  periodEnd: z.coerce.date(),
+});
+
+export const updateSubcontractCertificateItemSchema = z.object({
+  currentAdvance: z.number().min(0).max(1),
+});
+
+export const subcontractQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(20),
+  sortBy: z.string().optional(),
+  sortOrder: z.enum(['asc', 'desc']).default('desc'),
+  status: z.enum(['DRAFT', 'ACTIVE', 'COMPLETED', 'CANCELLED']).optional(),
+  search: z.string().optional(),
+});
+
+// ============================================
+// PRICE ADJUSTMENT SCHEMAS - Fase 6
+// ============================================
+
+export const createPriceIndexSchema = z.object({
+  name: z.string().min(1, { message: 'El nombre es requerido' }),
+  code: z.string().min(1, { message: 'El código es requerido' }),
+  source: z.string().optional(),
+});
+
+export const createPriceIndexValueSchema = z.object({
+  date: z.coerce.date(),
+  value: positiveDecimalSchema,
+});
+
+export const createAdjustmentFormulaSchema = z.object({
+  name: z.string().min(1, { message: 'El nombre es requerido' }),
+  budgetVersionId: z.string().min(1, { message: 'La versión de presupuesto es requerida' }),
+  weights: z.array(z.object({
+    component: z.string().min(1),
+    weight: z.number().min(0).max(1),
+    priceIndexId: z.string().min(1),
+  })).min(1, { message: 'Debe agregar al menos un peso' }),
+});
+
+export const calculateAdjustmentSchema = z.object({
+  formulaId: z.string().min(1),
+  baseDate: z.coerce.date(),
+  currentDate: z.coerce.date(),
+});
+
+// ============================================
+// CURRENCY SCHEMAS - Fase 7
+// ============================================
+
+export const createCurrencySchema = z.object({
+  code: z.string().min(1, { message: 'El código es requerido' }).max(3),
+  name: z.string().min(1, { message: 'El nombre es requerido' }),
+  symbol: z.string().min(1, { message: 'El símbolo es requerido' }),
+});
+
+export const createExchangeRateSchema = z.object({
+  date: z.coerce.date(),
+  rate: positiveDecimalSchema,
+  fromCurrencyId: z.string().min(1),
+  toCurrencyId: z.string().min(1),
+  source: z.string().optional(),
+});
+
+// ============================================
 // QUERY SCHEMAS
 // ============================================
 
@@ -471,6 +732,71 @@ export const expenseQuerySchema = paginationSchema.extend({
 });
 
 // ============================================
+// LABOR CATEGORY SCHEMAS (Catálogo MdO)
+// ============================================
+
+export const createLaborCategorySchema = z.object({
+  code: z.string().min(1, { message: 'El código es requerido' }).max(20),
+  name: z.string().min(1, { message: 'El nombre es requerido' }).max(100),
+  description: z.string().optional(),
+  baseSalaryPerHour: positiveDecimalSchema,
+  attendancePct: percentageDecimalSchema.default(0.20),
+  socialChargesPct: percentageDecimalSchema.default(0.55),
+  artPct: percentageDecimalSchema.default(0.079),
+});
+
+export const updateLaborCategorySchema = createLaborCategorySchema.partial();
+
+// ============================================
+// EQUIPMENT CATALOG SCHEMAS (Catálogo Equipos)
+// ============================================
+
+export const createEquipmentCatalogSchema = z.object({
+  code: z.string().min(1, { message: 'El código es requerido' }).max(20),
+  name: z.string().min(1, { message: 'El nombre es requerido' }).max(200),
+  description: z.string().optional(),
+  powerHp: nonNegativeDecimalSchema.optional(),
+  newValue: positiveDecimalSchema,
+  residualPct: percentageDecimalSchema.default(0.10),
+  usefulLifeHours: positiveDecimalSchema.default(10000),
+  fuelPerHour: nonNegativeDecimalSchema.default(0),
+  lubricantsPerHour: nonNegativeDecimalSchema.default(0),
+});
+
+export const updateEquipmentCatalogSchema = createEquipmentCatalogSchema.partial();
+
+// ============================================
+// FINANCIAL PLAN SCHEMAS (Plan Financiero)
+// ============================================
+
+export const createFinancialPlanSchema = z.object({
+  name: z.string().min(1, { message: 'El nombre es requerido' }).max(200),
+  budgetVersionId: z.string().min(1, { message: 'La versión de presupuesto es requerida' }),
+});
+
+export const updateFinancialPlanSchema = z.object({
+  name: z.string().min(1).max(200).optional(),
+  status: z.enum(['DRAFT', 'APPROVED', 'SUPERSEDED']).optional(),
+});
+
+export const createFinancialPeriodSchema = z.object({
+  month: z.number().int().min(1).max(12),
+  year: z.number().int().min(2020).max(2040),
+  projectedAmount: nonNegativeDecimalSchema.default(0),
+  projectedMaterials: nonNegativeDecimalSchema.default(0),
+  projectedLabor: nonNegativeDecimalSchema.default(0),
+  projectedEquipment: nonNegativeDecimalSchema.default(0),
+  projectedSubcontracts: nonNegativeDecimalSchema.default(0),
+  certifiedAmount: nonNegativeDecimalSchema.default(0),
+  executedAmount: nonNegativeDecimalSchema.default(0),
+  projectedProgress: percentageDecimalSchema.default(0),
+  actualProgress: percentageDecimalSchema.default(0),
+  notes: z.string().optional(),
+});
+
+export const updateFinancialPeriodSchema = createFinancialPeriodSchema.partial();
+
+// ============================================
 // EXPORT TYPES
 // ============================================
 
@@ -496,3 +822,36 @@ export type CreateAttendanceInput = z.infer<typeof createAttendanceSchema>;
 export type CreatePurchaseOrderInput = z.infer<typeof createPurchaseOrderSchema>;
 export type ProjectQueryInput = z.infer<typeof projectQuerySchema>;
 export type ExpenseQueryInput = z.infer<typeof expenseQuerySchema>;
+export type CreateBudgetVersionInput = z.infer<typeof createBudgetVersionSchema>;
+export type UpdateBudgetVersionInput = z.infer<typeof updateBudgetVersionSchema>;
+export type CreateBudgetCategoryInput = z.infer<typeof createBudgetCategorySchema>;
+export type UpdateBudgetCategoryInput = z.infer<typeof updateBudgetCategorySchema>;
+export type CreateBudgetStageInput = z.infer<typeof createBudgetStageSchema>;
+export type UpdateBudgetStageInput = z.infer<typeof updateBudgetStageSchema>;
+export type CreateBudgetItemInput = z.infer<typeof createBudgetItemSchema>;
+export type UpdateBudgetItemInput = z.infer<typeof updateBudgetItemSchema>;
+export type GenerateScheduleInput = z.infer<typeof generateScheduleSchema>;
+export type BudgetVersionQueryInput = z.infer<typeof budgetVersionQuerySchema>;
+export type CreateAnalysisMaterialInput = z.infer<typeof createAnalysisMaterialSchema>;
+export type CreateAnalysisLaborInput = z.infer<typeof createAnalysisLaborSchema>;
+export type CreateAnalysisEquipmentInput = z.infer<typeof createAnalysisEquipmentSchema>;
+export type CreateAnalysisTransportInput = z.infer<typeof createAnalysisTransportSchema>;
+export type CreateItemProgressInput = z.infer<typeof createItemProgressSchema>;
+export type CreateCertificateInput = z.infer<typeof createCertificateSchema>;
+export type CertificateQueryInput = z.infer<typeof certificateQuerySchema>;
+export type CreateSubcontractInput = z.infer<typeof createSubcontractSchema>;
+export type CreateSubcontractItemInput = z.infer<typeof createSubcontractItemSchema>;
+export type SubcontractQueryInput = z.infer<typeof subcontractQuerySchema>;
+export type CreatePriceIndexInput = z.infer<typeof createPriceIndexSchema>;
+export type CreatePriceIndexValueInput = z.infer<typeof createPriceIndexValueSchema>;
+export type CreateAdjustmentFormulaInput = z.infer<typeof createAdjustmentFormulaSchema>;
+export type CreateCurrencyInput = z.infer<typeof createCurrencySchema>;
+export type CreateExchangeRateInput = z.infer<typeof createExchangeRateSchema>;
+export type CreateLaborCategoryInput = z.infer<typeof createLaborCategorySchema>;
+export type UpdateLaborCategoryInput = z.infer<typeof updateLaborCategorySchema>;
+export type CreateEquipmentCatalogInput = z.infer<typeof createEquipmentCatalogSchema>;
+export type UpdateEquipmentCatalogInput = z.infer<typeof updateEquipmentCatalogSchema>;
+export type CreateFinancialPlanInput = z.infer<typeof createFinancialPlanSchema>;
+export type UpdateFinancialPlanInput = z.infer<typeof updateFinancialPlanSchema>;
+export type CreateFinancialPeriodInput = z.infer<typeof createFinancialPeriodSchema>;
+export type UpdateFinancialPeriodInput = z.infer<typeof updateFinancialPeriodSchema>;
