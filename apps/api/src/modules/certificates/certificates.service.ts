@@ -262,38 +262,37 @@ export class CertificatesService {
     const currentAmount = currentAdvance.mul(quantity).mul(unitPrice);
     const totalAmount = totalAdvance.mul(quantity).mul(unitPrice);
 
-    // Actualizar item
-    const updatedItem = await prisma.certificateItem.update({
-      where: { id: itemId },
-      data: {
-        currentAdvance,
-        currentAmount,
-        totalAdvance,
-        totalAmount,
-      },
-    });
+    // Actualizar item y recalcular totales del certificado de forma atómica
+    const [updatedItem] = await prisma.$transaction(async (tx) => {
+      const updated = await tx.certificateItem.update({
+        where: { id: itemId },
+        data: {
+          currentAdvance,
+          currentAmount,
+          totalAdvance,
+          totalAmount,
+        },
+      });
 
-    // Recalcular totales del certificado
-    await this.recalculateTotals(certificateId);
+      await this.recalculateTotalsInTx(tx, certificateId, organizationId);
+
+      return [updated];
+    });
 
     return updatedItem;
   }
 
   /**
-   * Recalcular los totales de un certificado a partir de sus items.
-   *
-   * subtotal = suma de currentAmount de todos los items
-   * acopioAmount = subtotal * acopioPct
-   * anticipoAmount = subtotal * anticipoPct
-   * fondoReparoAmount = subtotal * fondoReparoPct
-   * netBeforeIva = subtotal - acopioAmount - anticipoAmount - fondoReparoAmount
-   * adjusted = netBeforeIva * adjustmentFactor
-   * ivaAmount = adjusted * ivaPct
-   * totalAmount = adjusted + ivaAmount
+   * Recalcular los totales de un certificado a partir de sus items (dentro de una transacción).
+   * Requiere organizationId para garantizar que el certificado pertenece a la organización.
    */
-  async recalculateTotals(certificateId: string): Promise<void> {
-    const certificate = await prisma.certificate.findUnique({
-      where: { id: certificateId },
+  private async recalculateTotalsInTx(
+    tx: Prisma.TransactionClient,
+    certificateId: string,
+    organizationId: string
+  ): Promise<void> {
+    const certificate = await tx.certificate.findFirst({
+      where: { id: certificateId, organizationId },
       include: { items: true },
     });
 
@@ -325,7 +324,7 @@ export class CertificatesService {
     // Total final
     const totalAmount = adjusted.add(ivaAmount);
 
-    await prisma.certificate.update({
+    await tx.certificate.update({
       where: { id: certificateId },
       data: {
         subtotal,
@@ -335,6 +334,16 @@ export class CertificatesService {
         ivaAmount,
         totalAmount,
       },
+    });
+  }
+
+  /**
+   * Recalcular los totales de un certificado (versión pública, fuera de transacción).
+   * Usar solo cuando no se está dentro de una transacción Prisma.
+   */
+  async recalculateTotals(certificateId: string, organizationId: string): Promise<void> {
+    await prisma.$transaction(async (tx) => {
+      await this.recalculateTotalsInTx(tx, certificateId, organizationId);
     });
   }
 

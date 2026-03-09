@@ -138,6 +138,13 @@ router.post(
       });
       if (!project) throw new NotFoundError('Proyecto', req.params.id);
 
+      // Validar que el empleado pertenezca a la misma organización
+      const employee = await prisma.employee.findFirst({
+        where: { id: employeeId, organizationId: req.user!.organizationId, deletedAt: null },
+        select: { id: true },
+      });
+      if (!employee) throw new NotFoundError('Empleado', employeeId);
+
       const assignment = await prisma.employeeProjectAssignment.upsert({
         where: { employeeId_projectId: { employeeId, projectId: req.params.id } },
         create: {

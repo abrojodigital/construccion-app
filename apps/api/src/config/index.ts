@@ -19,9 +19,27 @@ export const config = {
 
   // JWT
   jwt: {
-    secret: process.env.JWT_SECRET || 'default-secret-change-in-production',
+    secret: (() => {
+      const secret = process.env.JWT_SECRET;
+      if (!secret || secret === 'default-secret-change-in-production') {
+        if (process.env.NODE_ENV === 'production') {
+          throw new Error('JWT_SECRET debe estar definido en producción');
+        }
+        return secret || 'default-secret-change-in-production';
+      }
+      return secret;
+    })(),
     expiresIn: process.env.JWT_EXPIRES_IN || '30m',
-    refreshSecret: process.env.JWT_REFRESH_SECRET || 'default-refresh-secret-change-in-production',
+    refreshSecret: (() => {
+      const secret = process.env.JWT_REFRESH_SECRET;
+      if (!secret || secret === 'default-refresh-secret-change-in-production') {
+        if (process.env.NODE_ENV === 'production') {
+          throw new Error('JWT_REFRESH_SECRET debe estar definido en producción');
+        }
+        return secret || 'default-refresh-secret-change-in-production';
+      }
+      return secret;
+    })(),
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
   },
 

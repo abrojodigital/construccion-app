@@ -155,17 +155,30 @@ export class AuthService {
       throw new UnauthorizedError('Token de refresco inválido');
     }
 
-    // Check if refresh token exists in database and is not revoked
+    // Revocar el token de forma atómica: solo actualiza si aún no está revocado
+    // Esto previene la race condition donde múltiples requests concurrentes
+    // podrían usar el mismo refresh token antes de que sea revocado.
+    const revokedAt = new Date();
+    const revoked = await prisma.refreshToken.updateMany({
+      where: { token: refreshToken, revokedAt: null },
+      data: { revokedAt },
+    });
+
+    if (revoked.count === 0) {
+      throw new UnauthorizedError('Token de refresco inválido o revocado');
+    }
+
+    // Ahora leer el token ya revocado para obtener datos del usuario
     const storedToken = await prisma.refreshToken.findUnique({
       where: { token: refreshToken },
       include: { user: true },
     });
 
-    if (!storedToken || storedToken.revokedAt) {
+    if (!storedToken) {
       throw new UnauthorizedError('Token de refresco inválido o revocado');
     }
 
-    if (storedToken.expiresAt < new Date()) {
+    if (storedToken.expiresAt < revokedAt) {
       throw new UnauthorizedError('Token de refresco expirado');
     }
 
@@ -174,12 +187,6 @@ export class AuthService {
     if (!user.isActive || user.deletedAt) {
       throw new UnauthorizedError('Usuario inactivo');
     }
-
-    // Revoke old refresh token
-    await prisma.refreshToken.update({
-      where: { id: storedToken.id },
-      data: { revokedAt: new Date() },
-    });
 
     // Generate new tokens
     return this.generateTokens(user);

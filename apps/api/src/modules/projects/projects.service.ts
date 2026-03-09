@@ -1,5 +1,5 @@
 import { prisma, Prisma } from '@construccion/database';
-import { NotFoundError } from '../../shared/utils/errors';
+import { NotFoundError, ValidationError } from '../../shared/utils/errors';
 import { generateCode } from '../../shared/utils/code-generator';
 import type { ProjectStatus, GanttData, ProjectFilters } from '@construccion/shared';
 
@@ -133,6 +133,15 @@ export class ProjectsService {
    * Create a new project
    */
   async create(data: CreateProjectInput, organizationId: string) {
+    // Validar que el manager pertenezca a la misma organización
+    const manager = await prisma.user.findFirst({
+      where: { id: data.managerId, organizationId, deletedAt: null, isActive: true },
+      select: { id: true },
+    });
+    if (!manager) {
+      throw new ValidationError('El responsable seleccionado no pertenece a la organización');
+    }
+
     const code = await generateCode('project', organizationId);
 
     const project = await prisma.project.create({
@@ -166,6 +175,17 @@ export class ProjectsService {
   async update(id: string, data: UpdateProjectInput, organizationId: string) {
     // Verify project exists
     await this.findById(id, organizationId);
+
+    // Validar que el nuevo manager pertenezca a la misma organización
+    if (data.managerId) {
+      const manager = await prisma.user.findFirst({
+        where: { id: data.managerId, organizationId, deletedAt: null, isActive: true },
+        select: { id: true },
+      });
+      if (!manager) {
+        throw new ValidationError('El responsable seleccionado no pertenece a la organización');
+      }
+    }
 
     const project = await prisma.project.update({
       where: { id },

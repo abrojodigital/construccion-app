@@ -15,20 +15,35 @@ import { ValidationError, ConflictError } from '../../../shared/utils/errors';
 // ---------------------------------------------------------------------------
 // Prisma mock — vi.hoisted() so the object is ready when vi.mock() runs
 // ---------------------------------------------------------------------------
-const { mockPrisma } = vi.hoisted(() => ({
-  mockPrisma: {
+const { mockPrisma } = vi.hoisted(() => {
+  const txClient = {
     certificate: {
       findFirst: vi.fn(),
-      findUnique: vi.fn(),
       update: vi.fn(),
-      count: vi.fn(),
-      create: vi.fn(),
-      findMany: vi.fn(),
     },
-    certificateItem: { findFirst: vi.fn(), update: vi.fn() },
-    budgetVersion: { findFirst: vi.fn() },
-  },
-}));
+    certificateItem: { update: vi.fn() },
+  };
+
+  return {
+    mockPrisma: {
+      certificate: {
+        findFirst: vi.fn(),
+        findUnique: vi.fn(),
+        update: vi.fn(),
+        count: vi.fn(),
+        create: vi.fn(),
+        findMany: vi.fn(),
+      },
+      certificateItem: { findFirst: vi.fn(), update: vi.fn() },
+      budgetVersion: { findFirst: vi.fn() },
+      // Ejecuta el callback pasando un cliente de transacción mockeado
+      $transaction: vi.fn().mockImplementation((fn: (tx: typeof txClient) => Promise<any>) =>
+        fn(txClient)
+      ),
+      _txClient: txClient, // expuesto para configurar mocks en tests
+    },
+  };
+});
 
 vi.mock('@construccion/database', () => ({
   prisma: mockPrisma,
@@ -264,10 +279,11 @@ describe('CertificatesService.updateItem() — advance validation', () => {
       quantity: 100,
       unitPrice: 500,
     });
-    mockPrisma.certificateItem.update.mockResolvedValue({});
-    // recalculateTotals calls certificate.findUnique then certificate.update
-    mockPrisma.certificate.findUnique.mockResolvedValue({
+    mockPrisma._txClient.certificateItem.update.mockResolvedValue({});
+    // recalculateTotalsInTx usa tx.certificate.findFirst y tx.certificate.update
+    mockPrisma._txClient.certificate.findFirst.mockResolvedValue({
       id: 'cert-1',
+      organizationId: 'org-1',
       items: [],
       acopioPct: 0,
       anticipoPct: 0,
@@ -275,7 +291,7 @@ describe('CertificatesService.updateItem() — advance validation', () => {
       ivaPct: 0.21,
       adjustmentFactor: 1,
     });
-    mockPrisma.certificate.update.mockResolvedValue({});
+    mockPrisma._txClient.certificate.update.mockResolvedValue({});
 
     // 60% + 40% = 100% exactly — should not throw
     await expect(
