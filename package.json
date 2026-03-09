@@ -19,6 +19,9 @@
     "db:seed": "pnpm --filter @construccion/database db:seed",
     "db:studio": "pnpm --filter @construccion/database db:studio",
     "db:reset": "pnpm --filter @construccion/database db:reset",
+    "db:backup": "bash scripts/db-backup.sh backup",
+    "db:restore": "bash scripts/db-backup.sh restore",
+    "db:backup:list": "bash scripts/db-backup.sh list",
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
     "typecheck": "turbo typecheck"
   },

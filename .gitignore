@@ -45,3 +45,6 @@ packages/database/prisma/migrations/*_migration_lock.toml
 .cache
 tmp
 temp
+
+# Backups de base de datos
+backups/
