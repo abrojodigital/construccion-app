@@ -1,0 +1,2282 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tutorial — Sistema de Gestión de Construcción</title>
+  <style>
+    :root {
+      --primary: #1d4ed8;
+      --primary-light: #dbeafe;
+      --primary-dark: #1e3a8a;
+      --success: #16a34a;
+      --success-light: #dcfce7;
+      --warning: #d97706;
+      --warning-light: #fef3c7;
+      --danger: #dc2626;
+      --danger-light: #fee2e2;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-400: #9ca3af;
+      --gray-500: #6b7280;
+      --gray-600: #4b5563;
+      --gray-700: #374151;
+      --gray-800: #1f2937;
+      --gray-900: #111827;
+      --sidebar-width: 280px;
+      --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font);
+      background: var(--gray-50);
+      color: var(--gray-800);
+      line-height: 1.65;
+      display: flex;
+    }
+
+    /* ── Sidebar ─────────────────────────────────────────────── */
+    #sidebar {
+      position: fixed;
+      top: 0; left: 0;
+      width: var(--sidebar-width);
+      height: 100vh;
+      background: var(--gray-900);
+      color: #e5e7eb;
+      overflow-y: auto;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-header {
+      padding: 24px 20px 16px;
+      border-bottom: 1px solid #374151;
+      flex-shrink: 0;
+    }
+
+    .sidebar-header .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+
+    .sidebar-header .logo-icon {
+      width: 32px; height: 32px;
+      background: var(--primary);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+
+    .sidebar-header h1 {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: 0.3px;
+    }
+
+    .sidebar-header p {
+      font-size: 11px;
+      color: var(--gray-400);
+      margin-top: 2px;
+    }
+
+    .sidebar-nav { padding: 12px 0; flex: 1; }
+
+    .nav-group { margin-bottom: 4px; }
+
+    .nav-group-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--gray-500);
+      padding: 10px 20px 4px;
+    }
+
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 8px 20px;
+      font-size: 13px;
+      color: #d1d5db;
+      text-decoration: none;
+      border-left: 3px solid transparent;
+      transition: all 0.15s;
+    }
+
+    .nav-link:hover {
+      background: rgba(255,255,255,0.07);
+      color: #fff;
+      border-left-color: var(--primary);
+    }
+
+    .nav-link.active {
+      background: rgba(29, 78, 216, 0.2);
+      color: #93c5fd;
+      border-left-color: var(--primary);
+      font-weight: 600;
+    }
+
+    .nav-icon { font-size: 14px; width: 16px; text-align: center; }
+
+    /* ── Main content ─────────────────────────────────────────── */
+    #main {
+      margin-left: var(--sidebar-width);
+      flex: 1;
+      min-height: 100vh;
+    }
+
+    /* ── Hero ─────────────────────────────────────────────────── */
+    .hero {
+      background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 50%, #2563eb 100%);
+      color: #fff;
+      padding: 64px 48px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -40%; right: -10%;
+      width: 500px; height: 500px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 50%;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      margin-bottom: 16px;
+    }
+
+    .hero h1 {
+      font-size: 40px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 12px;
+      line-height: 1.15;
+    }
+
+    .hero p {
+      font-size: 17px;
+      color: rgba(255,255,255,0.82);
+      max-width: 600px;
+      margin-bottom: 28px;
+    }
+
+    .hero-meta {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    .hero-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: rgba(255,255,255,0.75);
+    }
+
+    /* ── Sections ─────────────────────────────────────────────── */
+    .section {
+      padding: 56px 48px;
+      border-bottom: 1px solid var(--gray-200);
+    }
+
+    .section:last-child { border-bottom: none; }
+
+    .section-header { margin-bottom: 32px; }
+
+    .section-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px; height: 28px;
+      background: var(--primary);
+      color: #fff;
+      border-radius: 50%;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--primary);
+      margin-bottom: 6px;
+    }
+
+    .section h2 {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--gray-900);
+      letter-spacing: -0.3px;
+      margin-bottom: 8px;
+    }
+
+    .section-desc {
+      font-size: 15px;
+      color: var(--gray-500);
+      max-width: 700px;
+    }
+
+    /* ── Cards ────────────────────────────────────────────────── */
+    .card-grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .card-grid-2 { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+    .card-grid-3 { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+
+    .card {
+      background: #fff;
+      border: 1px solid var(--gray-200);
+      border-radius: 12px;
+      padding: 20px;
+      transition: box-shadow 0.15s, border-color 0.15s;
+    }
+
+    .card:hover {
+      border-color: #bfdbfe;
+      box-shadow: 0 4px 16px rgba(29,78,216,0.08);
+    }
+
+    .card-icon {
+      width: 40px; height: 40px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      margin-bottom: 12px;
+    }
+
+    .card h3 {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--gray-900);
+      margin-bottom: 4px;
+    }
+
+    .card p {
+      font-size: 13px;
+      color: var(--gray-500);
+      line-height: 1.55;
+    }
+
+    /* ── Step flow ────────────────────────────────────────────── */
+    .steps { display: flex; flex-direction: column; gap: 0; }
+
+    .step {
+      display: flex;
+      gap: 20px;
+      position: relative;
+    }
+
+    .step:not(:last-child)::before {
+      content: '';
+      position: absolute;
+      left: 19px; top: 44px;
+      width: 2px;
+      bottom: 0;
+      background: var(--gray-200);
+    }
+
+    .step-num {
+      flex-shrink: 0;
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: var(--primary-light);
+      color: var(--primary);
+      font-weight: 700;
+      font-size: 14px;
+      display: flex; align-items: center; justify-content: center;
+      border: 2px solid #bfdbfe;
+      position: relative;
+      z-index: 1;
+    }
+
+    .step-body {
+      padding-bottom: 28px;
+      flex: 1;
+    }
+
+    .step-body h4 {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--gray-900);
+      margin-bottom: 4px;
+      margin-top: 8px;
+    }
+
+    .step-body p {
+      font-size: 13.5px;
+      color: var(--gray-600);
+    }
+
+    /* ── Role table ───────────────────────────────────────────── */
+    .role-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13.5px;
+      background: #fff;
+      border: 1px solid var(--gray-200);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .role-table th {
+      background: var(--gray-50);
+      text-align: left;
+      padding: 12px 16px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--gray-500);
+      border-bottom: 1px solid var(--gray-200);
+    }
+
+    .role-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--gray-100);
+      vertical-align: top;
+    }
+
+    .role-table tr:last-child td { border-bottom: none; }
+    .role-table tr:hover td { background: var(--gray-50); }
+
+    /* ── Code block ───────────────────────────────────────────── */
+    .url-block {
+      background: var(--gray-900);
+      color: #86efac;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-family: 'Courier New', monospace;
+      font-size: 12.5px;
+      display: inline-block;
+      margin: 2px 0;
+    }
+
+    /* ── Badges ───────────────────────────────────────────────── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+
+    .badge-blue { background: #dbeafe; color: #1d4ed8; }
+    .badge-green { background: #dcfce7; color: #16a34a; }
+    .badge-orange { background: #ffedd5; color: #c2410c; }
+    .badge-gray { background: #f3f4f6; color: #374151; }
+    .badge-purple { background: #ede9fe; color: #7c3aed; }
+    .badge-red { background: #fee2e2; color: #dc2626; }
+
+    /* ── Credential card ──────────────────────────────────────── */
+    .cred-card {
+      background: #fff;
+      border: 1px solid var(--gray-200);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .cred-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--gray-100);
+    }
+
+    .cred-avatar {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .cred-name { font-size: 14px; font-weight: 700; color: var(--gray-900); }
+    .cred-role { font-size: 11px; color: var(--gray-400); }
+
+    .cred-body { padding: 12px 16px; }
+
+    .cred-field {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 0;
+      font-size: 13px;
+    }
+
+    .cred-label { color: var(--gray-500); }
+
+    .cred-value {
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      color: var(--gray-800);
+      background: var(--gray-100);
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    /* ── Status flow ──────────────────────────────────────────── */
+    .status-flow {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 16px 0;
+    }
+
+    .status-node {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .status-arrow {
+      color: var(--gray-400);
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    /* ── Callout ──────────────────────────────────────────────── */
+    .callout {
+      display: flex;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: 10px;
+      margin: 16px 0;
+      font-size: 13.5px;
+    }
+
+    .callout-info { background: #eff6ff; border-left: 4px solid #3b82f6; color: #1e3a8a; }
+    .callout-tip { background: var(--success-light); border-left: 4px solid #22c55e; color: #14532d; }
+    .callout-warn { background: var(--warning-light); border-left: 4px solid #f59e0b; color: #78350f; }
+    .callout-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+
+    /* ── Module detail ────────────────────────────────────────── */
+    .module-block {
+      background: #fff;
+      border: 1px solid var(--gray-200);
+      border-radius: 12px;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+
+    .module-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--gray-100);
+      background: var(--gray-50);
+    }
+
+    .module-icon-wrap {
+      width: 44px; height: 44px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
+
+    .module-header h3 {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--gray-900);
+    }
+
+    .module-header p {
+      font-size: 12.5px;
+      color: var(--gray-500);
+    }
+
+    .module-body { padding: 20px 24px; }
+
+    .field-list { display: flex; flex-direction: column; gap: 8px; }
+
+    .field-row {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      font-size: 13.5px;
+    }
+
+    .field-name {
+      font-weight: 600;
+      color: var(--gray-700);
+      min-width: 160px;
+      flex-shrink: 0;
+    }
+
+    .field-desc { color: var(--gray-500); }
+
+    /* ── Formula block ────────────────────────────────────────── */
+    .formula {
+      background: var(--gray-900);
+      color: #fde68a;
+      padding: 16px 20px;
+      border-radius: 10px;
+      font-family: 'Courier New', monospace;
+      font-size: 15px;
+      text-align: center;
+      letter-spacing: 0.5px;
+      margin: 12px 0;
+    }
+
+    /* ── Divider ──────────────────────────────────────────────── */
+    .divider {
+      height: 1px;
+      background: var(--gray-200);
+      margin: 24px 0;
+    }
+
+    /* ── TOC chip ─────────────────────────────────────────────── */
+    .toc-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 20px;
+    }
+
+    .toc-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 12px;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 20px;
+      font-size: 12.5px;
+      color: rgba(255,255,255,0.9);
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+
+    .toc-chip:hover { background: rgba(255,255,255,0.25); color: #fff; }
+
+    /* ── Key insight ──────────────────────────────────────────── */
+    .insight-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .insight {
+      border: 1px solid var(--gray-200);
+      border-radius: 10px;
+      padding: 14px 16px;
+      background: #fff;
+    }
+
+    .insight-num {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--primary);
+      line-height: 1;
+    }
+
+    .insight-label {
+      font-size: 12px;
+      color: var(--gray-500);
+      margin-top: 2px;
+    }
+
+    /* ── Print / responsive ───────────────────────────────────── */
+    @media (max-width: 900px) {
+      #sidebar { display: none; }
+      #main { margin-left: 0; }
+      .section { padding: 40px 24px; }
+      .hero { padding: 40px 24px; }
+      .hero h1 { font-size: 28px; }
+    }
+
+    /* ── Inline highlight ─────────────────────────────────────── */
+    .hl { background: #fef9c3; padding: 1px 4px; border-radius: 4px; }
+    .mono { font-family: 'Courier New', monospace; font-size: 12px; background: var(--gray-100); padding: 1px 6px; border-radius: 4px; color: var(--gray-700); }
+
+    /* ── Two col layout ───────────────────────────────────────── */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+
+    @media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
+
+    ul.check-list {
+      list-style: none;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    ul.check-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 13.5px;
+      color: var(--gray-700);
+    }
+
+    ul.check-list li::before {
+      content: '✓';
+      color: var(--success);
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════ SIDEBAR ═══════════════════ -->
+<nav id="sidebar">
+  <div class="sidebar-header">
+    <div class="logo">
+      <div class="logo-icon">🏗️</div>
+      <div>
+        <h1>GestiónObra</h1>
+      </div>
+    </div>
+    <p>Manual de usuario v1.0</p>
+  </div>
+
+  <div class="sidebar-nav">
+    <div class="nav-group">
+      <div class="nav-group-title">Inicio</div>
+      <a href="#intro" class="nav-link"><span class="nav-icon">🏠</span> Introducción</a>
+      <a href="#acceso" class="nav-link"><span class="nav-icon">🔑</span> Acceso al sistema</a>
+      <a href="#dashboard" class="nav-link"><span class="nav-icon">📊</span> Tablero principal</a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-title">Proyectos</div>
+      <a href="#proyectos" class="nav-link"><span class="nav-icon">🏢</span> Proyectos</a>
+      <a href="#etapas-tareas" class="nav-link"><span class="nav-icon">📋</span> Etapas y tareas</a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-title">Presupuesto</div>
+      <a href="#presupuesto" class="nav-link"><span class="nav-icon">📄</span> Versiones de presupuesto</a>
+      <a href="#apu" class="nav-link"><span class="nav-icon">🔬</span> APU (Análisis de Precios)</a>
+      <a href="#avance" class="nav-link"><span class="nav-icon">📈</span> Avance físico</a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-title">Facturación</div>
+      <a href="#certificados" class="nav-link"><span class="nav-icon">📃</span> Certificaciones</a>
+      <a href="#subcontratos" class="nav-link"><span class="nav-icon">🤝</span> Subcontratos</a>
+      <a href="#gastos" class="nav-link"><span class="nav-icon">💸</span> Gastos</a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-title">Maestros</div>
+      <a href="#proveedores" class="nav-link"><span class="nav-icon">🏭</span> Proveedores</a>
+      <a href="#materiales" class="nav-link"><span class="nav-icon">🧱</span> Materiales</a>
+      <a href="#empleados" class="nav-link"><span class="nav-icon">👷</span> Empleados</a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-title">Financiero</div>
+      <a href="#monedas" class="nav-link"><span class="nav-icon">💱</span> Monedas</a>
+      <a href="#redeterminacion" class="nav-link"><span class="nav-icon">📐</span> Redeterminación</a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-title">Administración</div>
+      <a href="#roles" class="nav-link"><span class="nav-icon">🛡️</span> Roles y permisos</a>
+      <a href="#reportes" class="nav-link"><span class="nav-icon">📑</span> Reportes</a>
+      <a href="#configuracion" class="nav-link"><span class="nav-icon">⚙️</span> Configuración</a>
+      <a href="#tips" class="nav-link"><span class="nav-icon">💡</span> Consejos y atajos</a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-title">Ejemplos</div>
+      <a href="#caso-practico" class="nav-link"><span class="nav-icon">🚀</span> Caso práctico completo</a>
+      <a href="#faq" class="nav-link"><span class="nav-icon">❓</span> Preguntas frecuentes</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ═══════════════════ MAIN ═══════════════════ -->
+<main id="main">
+
+  <!-- ── Hero ── -->
+  <div class="hero">
+    <div class="hero-badge">📘 Manual de Usuario</div>
+    <h1>Sistema de Gestión<br>de Construcción</h1>
+    <p>Guía completa para administrar proyectos de obra, presupuestos, certificaciones y todo el ciclo constructivo desde una sola plataforma.</p>
+    <div class="toc-chips">
+      <a href="#acceso" class="toc-chip">🔑 Acceso</a>
+      <a href="#proyectos" class="toc-chip">🏢 Proyectos</a>
+      <a href="#presupuesto" class="toc-chip">📄 Presupuesto</a>
+      <a href="#apu" class="toc-chip">🔬 APU</a>
+      <a href="#certificados" class="toc-chip">📃 Certificados</a>
+      <a href="#gastos" class="toc-chip">💸 Gastos</a>
+      <a href="#redeterminacion" class="toc-chip">📐 Redeterminación</a>
+      <a href="#roles" class="toc-chip">🛡️ Roles</a>
+      <a href="#reportes" class="toc-chip">📑 Reportes</a>
+      <a href="#caso-practico" class="toc-chip">🚀 Caso práctico</a>
+      <a href="#faq" class="toc-chip">❓ FAQ</a>
+    </div>
+    <div class="hero-meta" style="margin-top:24px">
+      <span class="hero-meta-item">🏗️ 18 módulos documentados</span>
+      <span class="hero-meta-item">👥 5 roles de acceso</span>
+      <span class="hero-meta-item">🇦🇷 Sistema argentino</span>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 0 — INTRODUCCIÓN                          -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section" id="intro">
+    <div class="section-header">
+      <div class="section-label">Sección 0</div>
+      <h2>¿Qué es este sistema?</h2>
+      <p class="section-desc">Plataforma ERP completa para empresas constructoras argentinas. Centraliza proyectos, presupuestos, certificaciones y control de costos.</p>
+    </div>
+
+    <div class="insight-grid">
+      <div class="insight">
+        <div class="insight-num">48</div>
+        <div class="insight-label">Pantallas disponibles</div>
+      </div>
+      <div class="insight">
+        <div class="insight-num">18</div>
+        <div class="insight-label">Módulos funcionales</div>
+      </div>
+      <div class="insight">
+        <div class="insight-num">5</div>
+        <div class="insight-label">Roles de usuario</div>
+      </div>
+      <div class="insight">
+        <div class="insight-num">51</div>
+        <div class="insight-label">Entidades en la base de datos</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <h3 style="font-size:16px;font-weight:700;margin-bottom:12px;color:var(--gray-900)">¿Qué podés hacer con el sistema?</h3>
+    <div class="two-col">
+      <ul class="check-list">
+        <li>Crear y seguir proyectos de obra</li>
+        <li>Gestionar presupuestos versionados con coeficiente K</li>
+        <li>Realizar Análisis de Precios Unitarios (APU)</li>
+        <li>Registrar el avance físico por ítem</li>
+        <li>Emitir y aprobar certificados de obra</li>
+      </ul>
+      <ul class="check-list">
+        <li>Administrar subcontratos y sus certificados</li>
+        <li>Registrar gastos y vincularlos a ítems presupuestarios</li>
+        <li>Gestionar proveedores, materiales y empleados</li>
+        <li>Calcular redeterminación de precios (INDEC)</li>
+        <li>Visualizar reportes y control presupuestario</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 1 — ACCESO                                -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section" id="acceso">
+    <div class="section-header">
+      <div class="section-label">Sección 1</div>
+      <h2>Acceso al sistema</h2>
+      <p class="section-desc">Ingresá con tu email y contraseña. El sistema redirige automáticamente al tablero principal tras el login.</p>
+    </div>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">🌐</span>
+      <span>El sistema está disponible en <strong>http://localhost:3000</strong> en entorno de desarrollo, o en la URL que te haya proporcionado tu administrador.</span>
+    </div>
+
+    <h3 style="font-size:16px;font-weight:700;margin:24px 0 12px;color:var(--gray-900)">Credenciales de demo</h3>
+
+    <div class="card-grid card-grid-2" style="gap:12px">
+
+      <div class="cred-card">
+        <div class="cred-header">
+          <div class="cred-avatar" style="background:#1d4ed8">A</div>
+          <div>
+            <div class="cred-name">Administrador</div>
+            <div class="cred-role">Acceso total al sistema</div>
+          </div>
+          <span class="badge badge-blue" style="margin-left:auto">ADMIN</span>
+        </div>
+        <div class="cred-body">
+          <div class="cred-field">
+            <span class="cred-label">Email</span>
+            <span class="cred-value">admin@constructorademo.com.ar</span>
+          </div>
+          <div class="cred-field">
+            <span class="cred-label">Contraseña</span>
+            <span class="cred-value">password123</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="cred-card">
+        <div class="cred-header">
+          <div class="cred-avatar" style="background:#16a34a">J</div>
+          <div>
+            <div class="cred-name">Jefe de Obra</div>
+            <div class="cred-role">Proyectos, presupuestos y certificados</div>
+          </div>
+          <span class="badge badge-green">P. MANAGER</span>
+        </div>
+        <div class="cred-body">
+          <div class="cred-field">
+            <span class="cred-label">Email</span>
+            <span class="cred-value">jefe@constructorademo.com.ar</span>
+          </div>
+          <div class="cred-field">
+            <span class="cred-label">Contraseña</span>
+            <span class="cred-value">password123</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="cred-card">
+        <div class="cred-header">
+          <div class="cred-avatar" style="background:#d97706">S</div>
+          <div>
+            <div class="cred-name">Supervisor</div>
+            <div class="cred-role">Avance físico y gastos</div>
+          </div>
+          <span class="badge badge-orange">SUPERVISOR</span>
+        </div>
+        <div class="cred-body">
+          <div class="cred-field">
+            <span class="cred-label">Email</span>
+            <span class="cred-value">supervisor@constructorademo.com.ar</span>
+          </div>
+          <div class="cred-field">
+            <span class="cred-label">Contraseña</span>
+            <span class="cred-value">password123</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="cred-card">
+        <div class="cred-header">
+          <div class="cred-avatar" style="background:#7c3aed">A</div>
+          <div>
+            <div class="cred-name">Administrativo</div>
+            <div class="cred-role">Gastos, proveedores, materiales</div>
+          </div>
+          <span class="badge badge-purple">ADMIN.</span>
+        </div>
+        <div class="cred-body">
+          <div class="cred-field">
+            <span class="cred-label">Email</span>
+            <span class="cred-value">admin2@constructorademo.com.ar</span>
+          </div>
+          <div class="cred-field">
+            <span class="cred-label">Contraseña</span>
+            <span class="cred-value">password123</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="cred-card">
+        <div class="cred-header">
+          <div class="cred-avatar" style="background:#6b7280">L</div>
+          <div>
+            <div class="cred-name">Lector</div>
+            <div class="cred-role">Solo lectura de todos los datos</div>
+          </div>
+          <span class="badge badge-gray">READ ONLY</span>
+        </div>
+        <div class="cred-body">
+          <div class="cred-field">
+            <span class="cred-label">Email</span>
+            <span class="cred-value">lector@constructorademo.com.ar</span>
+          </div>
+          <div class="cred-field">
+            <span class="cred-label">Contraseña</span>
+            <span class="cred-value">password123</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 2 — DASHBOARD                             -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section" id="dashboard">
+    <div class="section-header">
+      <div class="section-label">Sección 2</div>
+      <h2>Tablero principal</h2>
+      <p class="section-desc">La pantalla de inicio muestra un resumen ejecutivo de toda la organización en tiempo real.</p>
+    </div>
+
+    <div class="card-grid card-grid-3" style="margin-bottom:24px">
+      <div class="card">
+        <div class="card-icon" style="background:#dbeafe">📦</div>
+        <h3>Proyectos activos</h3>
+        <p>Cantidad de proyectos en estado <span class="badge badge-blue">EN CURSO</span>.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="background:#dcfce7">💰</div>
+        <h3>Presupuesto total</h3>
+        <p>Suma de presupuestos aprobados de todos los proyectos activos.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="background:#ffedd5">📉</div>
+        <h3>Ejecución presupuestaria</h3>
+        <p>Porcentaje de gasto real vs. presupuesto disponible.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="background:#fee2e2">⚠️</div>
+        <h3>Tareas vencidas</h3>
+        <p>Tareas cuya fecha de fin superó la fecha de hoy sin completarse.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="background:#ede9fe">🕐</div>
+        <h3>Aprobaciones pendientes</h3>
+        <p>Certificados o gastos esperando revisión.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="background:#fef9c3">🧱</div>
+        <h3>Stock bajo</h3>
+        <p>Materiales cuya cantidad actual es menor al mínimo definido.</p>
+      </div>
+    </div>
+
+    <div class="callout callout-warn">
+      <span class="callout-icon">⚠️</span>
+      <span>El dashboard genera <strong>alertas automáticas</strong> cuando un proyecto supera el 90% de ejecución presupuestaria o tiene tareas con fecha vencida.</span>
+    </div>
+
+    <h3 style="font-size:16px;font-weight:700;margin-top:24px;margin-bottom:12px;color:var(--gray-900)">Gráficos disponibles</h3>
+    <ul class="check-list">
+      <li>Tendencia mensual de gastos (línea de tiempo)</li>
+      <li>Distribución de proyectos por estado (torta/dona)</li>
+      <li>Avance físico vs. ejecución presupuestaria por proyecto (barras)</li>
+      <li>Curva de inversión / flujo de caja proyectado</li>
+    </ul>
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 3 — PROYECTOS                             -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section" id="proyectos">
+    <div class="section-header">
+      <div class="section-label">Sección 3</div>
+      <h2>Proyectos</h2>
+      <p class="section-desc">Unidad central del sistema. Todo (presupuestos, gastos, certificados) está asociado a un proyecto.</p>
+    </div>
+
+    <h3 style="font-size:16px;font-weight:700;margin-bottom:16px;color:var(--gray-900)">Estados de un proyecto</h3>
+    <div class="status-flow">
+      <span class="status-node badge-gray">🗓️ PLANIFICACIÓN</span>
+      <span class="status-arrow">→</span>
+      <span class="status-node badge-blue">🔨 EN CURSO</span>
+      <span class="status-arrow">→</span>
+      <span class="status-node badge-green">✅ COMPLETADO</span>
+    </div>
+    <p style="font-size:13px;color:var(--gray-500);margin-bottom:24px">También puede ir a <span class="badge badge-orange">EN ESPERA</span> o <span class="badge badge-red">CANCELADO</span> en cualquier momento.</p>
+
+    <h3 style="font-size:16px;font-weight:700;margin-bottom:16px;color:var(--gray-900)">Cómo crear un proyecto</h3>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Ir a Proyectos → "Nuevo Proyecto"</h4>
+          <p>Hacé clic en el botón azul <strong>"+ Nuevo Proyecto"</strong> en la esquina superior derecha de la lista.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Completar los datos obligatorios</h4>
+          <p>Nombre del proyecto, dirección, ciudad, provincia, jefe de obra (usuario del sistema) y presupuesto estimado inicial.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Definir fechas</h4>
+          <p>Fecha de inicio y fecha estimada de fin. El sistema calculará si hay desvíos de plazo.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h4>Guardar</h4>
+          <p>El sistema genera automáticamente un código único tipo <span class="mono">OBR-2025-00001</span>. Serás redirigido al detalle del proyecto.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <span>Desde el <strong>detalle del proyecto</strong> (haciendo clic en la tarjeta) accedés a todas las sub-secciones: etapas, tareas, presupuesto, certificados, gastos, subcontratos, ajustes y documentos.</span>
+    </div>
+
+    <h3 style="font-size:16px;font-weight:700;margin-top:24px;margin-bottom:12px;color:var(--gray-900)">Pestañas disponibles en el detalle</h3>
+    <div class="card-grid card-grid-2" style="margin-top:8px">
+      <div class="card"><h3>📋 Etapas y Tareas</h3><p>Dividí la obra en etapas y cada etapa en tareas específicas.</p></div>
+      <div class="card"><h3>📄 Presupuesto</h3><p>Versiones de presupuesto versionadas con coeficiente K.</p></div>
+      <div class="card"><h3>📃 Certificaciones</h3><p>Certificados de obra periódicos con deducciones.</p></div>
+      <div class="card"><h3>💸 Gastos</h3><p>Todos los gastos imputados a este proyecto.</p></div>
+      <div class="card"><h3>🤝 Subcontratos</h3><p>Contratos con empresas o personas externas.</p></div>
+      <div class="card"><h3>📐 Fórmula de Ajuste</h3><p>Configurar redeterminación de precios para el proyecto.</p></div>
+      <div class="card"><h3>💰 Control Presupuestario</h3><p>Comparativa de presupuesto vs. gastos reales.</p></div>
+      <div class="card"><h3>📅 Plan Financiero</h3><p>Flujo de caja y cronograma de inversión proyectado.</p></div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 4 — ETAPAS Y TAREAS                       -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section" id="etapas-tareas">
+    <div class="section-header">
+      <div class="section-label">Sección 4</div>
+      <h2>Etapas y Tareas</h2>
+      <p class="section-desc">Organizá el cronograma de la obra dividiendo el proyecto en fases y cada fase en tareas concretas.</p>
+    </div>
+
+    <div class="two-col">
+      <div class="module-block">
+        <div class="module-header">
+          <div class="module-icon-wrap" style="background:#dbeafe">🗂️</div>
+          <div>
+            <h3>Etapas</h3>
+            <p>Agrupador de tareas</p>
+          </div>
+        </div>
+        <div class="module-body">
+          <div class="field-list">
+            <div class="field-row"><span class="field-name">Nombre</span><span class="field-desc">Ej: "Fundaciones", "Estructura"</span></div>
+            <div class="field-row"><span class="field-name">Descripción</span><span class="field-desc">Detalle opcional</span></div>
+            <div class="field-row"><span class="field-name">Orden</span><span class="field-desc">Número de secuencia en la obra</span></div>
+            <div class="field-row"><span class="field-name">Fechas</span><span class="field-desc">Inicio y fin planificados</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="module-block">
+        <div class="module-header">
+          <div class="module-icon-wrap" style="background:#dcfce7">✅</div>
+          <div>
+            <h3>Tareas</h3>
+            <p>Actividad específica dentro de una etapa</p>
+          </div>
+        </div>
+        <div class="module-body">
+          <div class="field-list">
+            <div class="field-row"><span class="field-name">Nombre</span><span class="field-desc">Ej: "Excavación 2m"</span></div>
+            <div class="field-row"><span class="field-name">Estado</span><span class="field-desc">Pendiente / En curso / Completada</span></div>
+            <div class="field-row"><span class="field-name">Prioridad</span><span class="field-desc">Baja / Media / Alta / Crítica</span></div>
+            <div class="field-row"><span class="field-name">Responsable</span><span class="field-desc">Usuario asignado</span></div>
+            <div class="field-row"><span class="field-name">Fechas</span><span class="field-desc">Inicio y vencimiento</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <span>Los gastos pueden vincularse opcionalmente a una tarea, permitiendo ver el costo real de cada actividad específica.</span>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 5 — PRESUPUESTO VERSIONADO                -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section" id="presupuesto">
+    <div class="section-header">
+      <div class="section-label">Sección 5</div>
+      <h2>Versiones de Presupuesto</h2>
+      <p class="section-desc">Cada proyecto puede tener múltiples versiones de presupuesto. El sistema calcula automáticamente el coeficiente K de ganancia.</p>
+    </div>
+
+    <h3 style="font-size:16px;font-weight:700;margin-bottom:12px;color:var(--gray-900)">Estructura del presupuesto</h3>
+    <div class="steps" style="margin-bottom:24px">
+      <div class="step">
+        <div class="step-num" style="background:#ede9fe;border-color:#c4b5fd;color:#7c3aed">K</div>
+        <div class="step-body">
+          <h4>Versión de presupuesto</h4>
+          <p>Contiene los porcentajes de coeficiente K (GG, Beneficio, GF, IVA) y agrupa los capítulos.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num" style="background:#dbeafe;border-color:#93c5fd;color:#1d4ed8">C</div>
+        <div class="step-body">
+          <h4>Capítulos</h4>
+          <p>Categorías del presupuesto. Ej: "01 - Movimiento de suelos", "02 - Estructura".</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num" style="background:#dcfce7;border-color:#86efac;color:#16a34a">Í</div>
+        <div class="step-body">
+          <h4>Ítems de presupuesto</h4>
+          <p>Línea individual con número, descripción, unidad, cantidad y precio unitario. El sistema calcula el total automáticamente.</p>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="font-size:16px;font-weight:700;margin-bottom:8px;color:var(--gray-900)">Fórmula del coeficiente K</h3>
+    <div class="formula">K = (1 + GG) × (1 + B) × (1 + GF) × (1 + IVA)</div>
+
+    <div class="field-list" style="background:#fff;border:1px solid var(--gray-200);border-radius:10px;padding:16px;margin-bottom:20px">
+      <div class="field-row"><span class="field-name">GG — Gastos Generales</span><span class="field-desc">% de overhead de la empresa. Ej: 0.12 = 12%</span></div>
+      <div class="field-row"><span class="field-name">B — Beneficio</span><span class="field-desc">% de ganancia esperada. Ej: 0.10 = 10%</span></div>
+      <div class="field-row"><span class="field-name">GF — Gastos Financieros</span><span class="field-desc">Costo del financiamiento. Ej: 0.03 = 3%</span></div>
+      <div class="field-row"><span class="field-name">IVA</span><span class="field-desc">Impuesto al valor agregado. Generalmente 0.21 = 21%</span></div>
+    </div>
+
+    <h3 style="font-size:16px;font-weight:700;margin-bottom:12px;color:var(--gray-900)">Estados de una versión</h3>
+    <div class="status-flow">
+      <span class="status-node badge-orange">✏️ BORRADOR</span>
+      <span class="status-arrow">→</span>
+      <span class="status-node badge-green">✅ APROBADO</span>
+      <span class="status-arrow">→</span>
+      <span class="status-node badge-gray">📁 SUPERSEDIDO</span>
+    </div>
+
+    <div class="callout callout-warn">
+      <span class="callout-icon">⚠️</span>
+      <span>Una versión <strong>APROBADA es de solo lectura</strong>. Para hacer cambios, creá una nueva versión. La versión anterior queda en estado SUPERSEDIDO como histórico.</span>
+    </div>
+
+    <h3 style="font-size:16px;font-weight:700;margin-top:24px;margin-bottom:12px;color:var(--gray-900)">Pasos para crear un presupuesto</h3>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Crear la versión</h4>
+          <p>Dentro del proyecto → pestaña Presupuesto → "Nueva Versión". Ingresá el nombre y los porcentajes GG, B, GF, IVA.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Agregar capítulos</h4>
+          <p>Hacé clic en "Agregar Capítulo". Un capítulo es una sección lógica de la obra.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Agregar ítems a cada capítulo</h4>
+          <p>Por cada ítem completá: número (ej: <span class="mono">1.1.1</span>), descripción, unidad de medida, cantidad y precio unitario. El sistema calcula el subtotal.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h4>Revisar y aprobar</h4>
+          <p>Cuando el presupuesto esté completo, cambiá el estado a <strong>APROBADO</strong>. Desde ese momento es inmutable.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 6 — APU                                   -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section" id="apu">
+    <div class="section-header">
+      <div class="section-label">Sección 6</div>
+      <h2>APU — Análisis de Precios Unitarios</h2>
+      <p class="section-desc">El APU desglosa el costo de cada ítem del presupuesto en sus componentes: materiales, mano de obra, equipos y transporte.</p>
+    </div>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">📍</span>
+      <span>Accedés al APU desde: <strong>Versión de Presupuesto → Ítem → botón "APU"</strong>. Es una pantalla anidada dentro del ítem presupuestario.</span>
+    </div>
+
+    <h3 style="font-size:16px;font-weight:700;margin:20px 0 12px;color:var(--gray-900)">Las 6 secciones del APU</h3>
+
+    <div class="card-grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px">
+      <div class="card" style="border-left:4px solid #3b82f6">
+        <div style="font-size:22px;margin-bottom:6px">🧱</div>
+        <h3>A — Materiales</h3>
+        <p>Lista de materiales con cantidad, unidad y precio unitario. Ej: cemento, arena, hierro.</p>
+      </div>
+      <div class="card" style="border-left:4px solid #16a34a">
+        <div style="font-size:22px;margin-bottom:6px">👷</div>
+        <h3>B — Mano de Obra</h3>
+        <p>Categorías de trabajadores (oficial, ayudante, etc.), horas y jornales.</p>
+      </div>
+      <div class="card" style="border-left:4px solid #d97706">
+        <div style="font-size:22px;margin-bottom:6px">🚜</div>
+        <h3>D/E/F — Equipos</h3>
+        <p>Tres secciones para distintos tipos de equipos: propios, alquilados, etc.</p>
+      </div>
+      <div class="card" style="border-left:4px solid #7c3aed">
+        <div style="font-size:22px;margin-bottom:6px">🚛</div>
+        <h3>G — Transporte</h3>
+        <p>Fletes y traslados de materiales o personal al lugar de obra.</p>
+      </div>
+      <div class="card" style="border-left:4px solid #dc2626">
+        <div style="font-size:22px;margin-bottom:6px">📊</div>
+        <h3>H — Costos Indirectos</h3>
+        <p>Gastos generales asignados proporcionalmente al ítem.</p>
+      </div>
+      <div class="card" style="border-left:4px solid var(--gray-400);background:var(--gray-50)">
+        <div style="font-size:22px;margin-bottom:6px">💰</div>
+        <h3>Total Costo Directo</h3>
+        <p>Suma automática de todas las secciones anteriores. Es el precio unitario base del ítem.</p>
+      </div>
+    </div>
+
+    <div class="callout callout-tip" style="margin-top:20px">
+      <span class="callout-icon">💡</span>
+      <span>El precio unitario que aparece en el ítem presupuestario debería coincidir con el Costo Directo Total del APU multiplicado por el coeficiente K de la versión.</span>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 7 — AVANCE FÍSICO                         -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section" id="avance">
+    <div class="section-header">
+      <div class="section-label">Sección 7</div>
+      <h2>Avance Físico</h2>
+      <p class="section-desc">Registrá el porcentaje de ejecución real de cada ítem del presupuesto para hacer seguimiento de obra.</p>
+    </div>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">📍</span>
+      <span>Accedés desde: <strong>Versión de Presupuesto → pestaña "Avance"</strong>.</span>
+    </div>
+
+    <div class="two-col" style="margin-top:20px">
+      <div>
+        <h3 style="font-size:15px;font-weight:700;margin-bottom:10px;color:var(--gray-900)">Cómo funciona</h3>
+        <ul class="check-list">
+          <li>Para cada ítem ingresás un valor entre <strong>0 y 1</strong> (ej: 0.65 = 65%)</li>
+          <li>El sistema calcula el monto ejecutado: <span class="mono">total_ítem × avance</span></li>
+          <li>Se muestra un resumen agrupado por capítulo</li>
+          <li>El total de avance del proyecto aparece en el dashboard</li>
+        </ul>
+      </div>
+      <div>
+        <h3 style="font-size:15px;font-weight:700;margin-bottom:10px;color:var(--gray-900)">Ejemplo</h3>
+        <div style="background:#fff;border:1px solid var(--gray-200);border-radius:10px;padding:16px;font-size:13.5px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+            <span style="color:var(--gray-600)">Excavación (Ítem 1.1.1)</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="color:var(--gray-500)">Total presupuestado</span>
+            <span style="font-weight:600">$250,000</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="color:var(--gray-500)">Avance registrado</span>
+            <span style="font-weight:600;color:var(--primary)">0.75 (75%)</span>
+          </div>
+          <div style="height:1px;background:var(--gray-200);margin:8px 0"></div>
+          <div style="display:flex;justify-content:space-between">
+            <span style="color:var(--gray-500)">Monto ejecutado</span>
+            <span style="font-weight:700;color:var(--success)">$187,500</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 8 — CERTIFICACIONES                       -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section" id="certificados">
+    <div class="section-header">
+      <div class="section-label">Sección 8</div>
+      <h2>Certificaciones de Obra</h2>
+      <p class="section-desc">Los certificados son documentos periódicos que acreditan el trabajo ejecutado y determinan el monto a cobrar descontando retenciones.</p>
+    </div>
+
+    <h3 style="font-size:16px;font-weight:700;margin-bottom:12px;color:var(--gray-900)">Ciclo de vida de un certificado</h3>
+    <div class="status-flow">
+      <span class="status-node badge-orange">✏️ BORRADOR</span>
+      <span class="status-arrow">→</span>
+      <span class="status-node badge-blue">📤 PRESENTADO</span>
+      <span class="status-arrow">→</span>
+      <span class="status-node badge-green">✅ APROBADO</span>
+      <span class="status-arrow">→</span>
+      <span class="status-node" style="background:#ede9fe;color:#7c3aed">💳 PAGADO</span>
+    </div>
+
+    <div class="callout callout-info" style="margin-top:16px">
+      <span class="callout-icon">✏️</span>
+      <span>Solo los certificados en estado <strong>BORRADOR</strong> permiten editar los porcentajes de avance por ítem. Una vez presentados, quedan fijos.</span>
+    </div>
+
+    <h3 style="font-size:16px;font-weight:700;margin:24px 0 12px;color:var(--gray-900)">Deducciones aplicadas</h3>
+    <div class="field-list" style="background:#fff;border:1px solid var(--gray-200);border-radius:10px;padding:16px">
+      <div class="field-row"><span class="field-name">Acopio</span><span class="field-desc">% retenido por materiales entregados antes de instalar. Se devuelve al usarlos.</span></div>
+      <div class="field-row"><span class="field-name">Anticipo Financiero</span><span class="field-desc">% que se descuenta para amortizar el anticipo otorgado al inicio de obra.</span></div>
+      <div class="field-row"><span class="field-name">Fondo de Reparo</span><span class="field-desc">% retenido como garantía por defectos post-obra. Se devuelve al vencimiento del plazo de garantía.</span></div>
+      <div class="field-row"><span class="field-name">IVA</span><span class="field-desc">Impuesto. Generalmente 21% sobre el monto gravado.</span></div>
+      <div class="field-row"><span class="field-name">Factor K de ajuste</span><span class="field-desc">Factor de redeterminación de precios. Por defecto 1.0 (sin ajuste).</span></div>
+    </div>
+
+    <div class="formula" style="font-size:13px;margin-top:16px">
+      Neto = (Total certificado − Acopio − Anticipo − F.Reparo) × Factor K × (1 + IVA)
+    </div>
+
+    <h3 style="font-size:16px;font-weight:700;margin:24px 0 12px;color:var(--gray-900)">Cómo crear un certificado</h3>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Abrir el proyecto → pestaña "Certificaciones" → "Nuevo Certificado"</h4>
+          <p>Completá el período (fecha de inicio y fin del período certificado).</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Ingresar los porcentajes de deducción</h4>
+          <p>Acopio, anticipo, fondo de reparo e IVA. Podés dejar en 0 los que no apliquen.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Editar el avance por ítem (en modo BORRADOR)</h4>
+          <p>El certificado abre en modo edición. Ingresá el porcentaje acumulado ejecutado para cada ítem del presupuesto.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h4>Presentar y aprobar</h4>
+          <p>Cambiá el estado a PRESENTADO para enviar al comitente. Cuando apruebe, pasá a APROBADO y finalmente PAGADO al recibir el pago.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 9 — SUBCONTRATOS                          -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section" id="subcontratos">
+    <div class="section-header">
+      <div class="section-label">Sección 9</div>
+      <h2>Subcontratos</h2>
+      <p class="section-desc">Administrá los trabajos tercerizados a otras empresas o profesionales dentro del proyecto.</p>
+    </div>
+
+    <div class="two-col">
+      <div>
+        <h3 style="font-size:15px;font-weight:700;margin-bottom:12px;color:var(--gray-900)">Datos del subcontrato</h3>
+        <div class="field-list">
+          <div class="field-row"><span class="field-name">Contratista</span><span class="field-desc">Nombre y razón social</span></div>
+          <div class="field-row"><span class="field-name">CUIT</span><span class="field-desc">Con validación de dígito verificador</span></div>
+          <div class="field-row"><span class="field-name">Contacto</span><span class="field-desc">Email, teléfono, responsable</span></div>
+          <div class="field-row"><span class="field-name">Ítems</span><span class="field-desc">Vinculados a ítems del presupuesto del proyecto</span></div>
+          <div class="field-row"><span class="field-name">Monto contratado</span><span class="field-desc">Total acordado con el subcontratista</span></div>
+        </div>
+      </div>
+      <div>
+        <h3 style="font-size:15px;font-weight:700;margin-bottom:12px;color:var(--gray-900)">Estados del subcontrato</h3>
+        <div class="status-flow" style="flex-direction:column;align-items:flex-start">
+          <span class="status-node badge-orange">BORRADOR</span>
+          <span class="status-arrow" style="transform:rotate(90deg);margin:2px 0">→</span>
+          <span class="status-node badge-blue">ACTIVO</span>
+          <span class="status-arrow" style="transform:rotate(90deg);margin:2px 0">→</span>
+          <span class="status-node badge-green">COMPLETADO</span>
+        </div>
+        <p style="font-size:12.5px;color:var(--gray-500);margin-top:8px">También puede pasar a <span class="badge badge-red">CANCELADO</span>.</p>
+      </div>
+    </div>
+
+    <div class="callout callout-tip" style="margin-top:20px">
+      <span class="callout-icon">💡</span>
+      <span>Los subcontratos tienen su <strong>propio flujo de certificación</strong> independiente del proyecto principal. Podés emitir certificados de subcontrato para liquidar pagos periódicos al contratista.</span>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 10 — GASTOS                               -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section" id="gastos">
+    <div class="section-header">
+      <div class="section-label">Sección 10</div>
+      <h2>Gastos</h2>
+      <p class="section-desc">Registrá todos los costos reales del proyecto. Podés vincularlos a tareas e ítems presupuestarios para el control de desviaciones.</p>
+    </div>
+
+    <div class="module-block">
+      <div class="module-header">
+        <div class="module-icon-wrap" style="background:#fee2e2">💸</div>
+        <div>
+          <h3>Campos de un gasto</h3>
+          <p>Completá los datos para registrar el comprobante</p>
+        </div>
+      </div>
+      <div class="module-body">
+        <div class="two-col">
+          <div class="field-list">
+            <div class="field-row"><span class="field-name">Proyecto *</span><span class="field-desc">Al que pertenece el gasto</span></div>
+            <div class="field-row"><span class="field-name">Categoría *</span><span class="field-desc">Tipo de gasto (mano de obra, materiales, etc.)</span></div>
+            <div class="field-row"><span class="field-name">Descripción *</span><span class="field-desc">Detalle del gasto</span></div>
+            <div class="field-row"><span class="field-name">Monto neto *</span><span class="field-desc">Sin IVA, en la moneda seleccionada</span></div>
+            <div class="field-row"><span class="field-name">IVA</span><span class="field-desc">Porcentaje (0%, 10.5%, 21%)</span></div>
+            <div class="field-row"><span class="field-name">Fecha del gasto *</span><span class="field-desc">Cuándo se incurrió el costo</span></div>
+          </div>
+          <div class="field-list">
+            <div class="field-row"><span class="field-name">Proveedor</span><span class="field-desc">Opcional — vinculado a proveedores del sistema</span></div>
+            <div class="field-row"><span class="field-name">Nº de factura</span><span class="field-desc">Referencia del comprobante</span></div>
+            <div class="field-row"><span class="field-name">Tipo de factura</span><span class="field-desc">A, B o C (clasificación fiscal argentina)</span></div>
+            <div class="field-row"><span class="field-name">Fecha de vencimiento</span><span class="field-desc">Para gestión de pagos</span></div>
+            <div class="field-row"><span class="field-name">Ítem presupuestario</span><span class="field-desc">Imputación al presupuesto (control de desviaciones)</span></div>
+            <div class="field-row"><span class="field-name">Tarea</span><span class="field-desc">Actividad específica a la que se imputa</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="font-size:16px;font-weight:700;margin:20px 0 12px;color:var(--gray-900)">Flujo de aprobación</h3>
+    <div class="status-flow">
+      <span class="status-node badge-orange">PENDIENTE</span>
+      <span class="status-arrow">→</span>
+      <span class="status-node badge-green">APROBADO</span>
+      <span class="status-arrow">→</span>
+      <span class="status-node" style="background:#ede9fe;color:#7c3aed">PAGADO</span>
+    </div>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <span>Al vincular un gasto a un <strong>ítem presupuestario</strong>, el módulo de <strong>Control Presupuestario</strong> (en el detalle del proyecto) muestra la diferencia entre lo presupuestado y lo gastado real.</span>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 11 — PROVEEDORES                          -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section" id="proveedores">
+    <div class="section-header">
+      <div class="section-label">Sección 11</div>
+      <h2>Proveedores</h2>
+      <p class="section-desc">Maestro de empresas y personas que proveen bienes o servicios a la constructora.</p>
+    </div>
+
+    <div class="two-col">
+      <div class="field-list" style="background:#fff;border:1px solid var(--gray-200);border-radius:10px;padding:16px">
+        <div class="field-row"><span class="field-name">Razón social *</span><span class="field-desc">Nombre legal de la empresa</span></div>
+        <div class="field-row"><span class="field-name">Nombre comercial</span><span class="field-desc">Nombre fantasía</span></div>
+        <div class="field-row"><span class="field-name">CUIT *</span><span class="field-desc">Con validación de dígito verificador</span></div>
+        <div class="field-row"><span class="field-name">Dirección</span><span class="field-desc">Calle, ciudad, provincia</span></div>
+        <div class="field-row"><span class="field-name">Contacto</span><span class="field-desc">Nombre, teléfono, email</span></div>
+      </div>
+      <div class="field-list" style="background:#fff;border:1px solid var(--gray-200);border-radius:10px;padding:16px">
+        <div class="field-row"><span class="field-name">Condición de pago</span><span class="field-desc">Contado, 30 días, 60 días, etc.</span></div>
+        <div class="field-row"><span class="field-name">CBU</span><span class="field-desc">Para transferencias bancarias</span></div>
+        <div class="field-row"><span class="field-name">Alias CBU</span><span class="field-desc">Alias del banco</span></div>
+        <div class="field-row"><span class="field-name">Estado</span><span class="field-desc">Activo / Inactivo</span></div>
+        <div class="field-row"><span class="field-name">Código</span><span class="field-desc">Auto-generado: <span class="mono">PROV-00001</span></span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 12 — MATERIALES                           -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section" id="materiales">
+    <div class="section-header">
+      <div class="section-label">Sección 12</div>
+      <h2>Materiales</h2>
+      <p class="section-desc">Catálogo de insumos de construcción con control de stock y alertas de reposición.</p>
+    </div>
+
+    <div class="two-col">
+      <div>
+        <h3 style="font-size:15px;font-weight:700;margin-bottom:10px;color:var(--gray-900)">Datos del material</h3>
+        <div class="field-list" style="background:#fff;border:1px solid var(--gray-200);border-radius:10px;padding:16px">
+          <div class="field-row"><span class="field-name">Código</span><span class="field-desc">Auto-generado por el sistema</span></div>
+          <div class="field-row"><span class="field-name">Nombre *</span><span class="field-desc">Identificación del insumo</span></div>
+          <div class="field-row"><span class="field-name">Categoría</span><span class="field-desc">Ej: cemento, áridos, acero</span></div>
+          <div class="field-row"><span class="field-name">Unidad de medida</span><span class="field-desc">kg, m³, m², unidad, etc.</span></div>
+          <div class="field-row"><span class="field-name">Stock actual</span><span class="field-desc">Cantidad disponible</span></div>
+          <div class="field-row"><span class="field-name">Stock mínimo</span><span class="field-desc">Umbral de alerta de reposición</span></div>
+          <div class="field-row"><span class="field-name">Último precio</span><span class="field-desc">Precio de la última compra registrada</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="callout callout-warn">
+          <span class="callout-icon">⚠️</span>
+          <span>El dashboard muestra automáticamente todos los materiales donde <strong>stock actual &lt; stock mínimo</strong> para alertar la necesidad de compra.</span>
+        </div>
+        <div class="callout callout-tip" style="margin-top:12px">
+          <span class="callout-icon">💡</span>
+          <span>Los materiales del catálogo pueden referenciarse en los <strong>APU</strong> (análisis de precios) de los ítems presupuestarios.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 13 — EMPLEADOS                            -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section" id="empleados">
+    <div class="section-header">
+      <div class="section-label">Sección 13</div>
+      <h2>Empleados</h2>
+      <p class="section-desc">Registro de personal de la empresa, con datos necesarios para el control laboral y el cálculo de costos en APU.</p>
+    </div>
+
+    <div class="field-list" style="background:#fff;border:1px solid var(--gray-200);border-radius:10px;padding:16px;max-width:600px">
+      <div class="field-row"><span class="field-name">Nombre y apellido *</span><span class="field-desc">Identificación de la persona</span></div>
+      <div class="field-row"><span class="field-name">DNI</span><span class="field-desc">Documento Nacional de Identidad</span></div>
+      <div class="field-row"><span class="field-name">CUIL *</span><span class="field-desc">Con validación de checksum argentino</span></div>
+      <div class="field-row"><span class="field-name">Cargo / Especialidad</span><span class="field-desc">Ej: Oficial albañil, electricista, plomero</span></div>
+      <div class="field-row"><span class="field-name">Tipo de empleo</span><span class="field-desc">Relación de dependencia, contrato, etc.</span></div>
+      <div class="field-row"><span class="field-name">Fecha de ingreso</span><span class="field-desc">Para cálculos de antigüedad</span></div>
+      <div class="field-row"><span class="field-name">Tarifa horaria</span><span class="field-desc">Usada en la sección Mano de Obra de los APU</span></div>
+      <div class="field-row"><span class="field-name">Contacto</span><span class="field-desc">Email y teléfono</span></div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 14 — MONEDAS                              -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section" id="monedas">
+    <div class="section-header">
+      <div class="section-label">Sección 14</div>
+      <h2>Monedas y Tipos de Cambio</h2>
+      <p class="section-desc">Soporte multi-moneda con historial de cotizaciones para proyectos con componentes en dólares u otras divisas.</p>
+    </div>
+
+    <div class="two-col">
+      <div>
+        <h3 style="font-size:15px;font-weight:700;margin-bottom:10px;color:var(--gray-900)">Monedas configuradas</h3>
+        <div style="background:#fff;border:1px solid var(--gray-200);border-radius:10px;overflow:hidden">
+          <div style="display:flex;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--gray-100);font-size:13.5px">
+            <span>🇦🇷 Peso Argentino</span><span class="mono">ARS</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--gray-100);font-size:13.5px">
+            <span>🇺🇸 Dólar Estadounidense</span><span class="mono">USD</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:12px 16px;font-size:13.5px">
+            <span>🇪🇺 Euro</span><span class="mono">EUR</span>
+          </div>
+        </div>
+      </div>
+      <div>
+        <h3 style="font-size:15px;font-weight:700;margin-bottom:10px;color:var(--gray-900)">Tipos de cambio</h3>
+        <p style="font-size:13.5px;color:var(--gray-600);margin-bottom:10px">Cada moneda tiene un historial de cotizaciones con fecha y fuente (ej: BCRA, mercado, etc.).</p>
+        <div class="callout callout-info" style="margin:0">
+          <span class="callout-icon">📅</span>
+          <span style="font-size:13px">El sistema busca el tipo de cambio más cercano a la fecha de un documento (gasto, certificado) para la conversión.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 15 — REDETERMINACIÓN                      -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section" id="redeterminacion">
+    <div class="section-header">
+      <div class="section-label">Sección 15</div>
+      <h2>Redeterminación de Precios</h2>
+      <p class="section-desc">Sistema argentino de ajuste de precios de contratos públicos según variación de índices INDEC. Calcula el factor K de actualización.</p>
+    </div>
+
+    <h3 style="font-size:16px;font-weight:700;margin-bottom:16px;color:var(--gray-900)">Los tres componentes</h3>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num" style="background:#fef3c7;border-color:#fcd34d;color:#92400e">1</div>
+        <div class="step-body">
+          <h4>Índices de precios</h4>
+          <p>Registros históricos de índices publicados por INDEC u otras fuentes. Cada índice tiene un nombre (ej: "Materiales de construcción"), código, fuente y serie de valores por fecha.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num" style="background:#ede9fe;border-color:#c4b5fd;color:#7c3aed">2</div>
+        <div class="step-body">
+          <h4>Fórmulas de ajuste</h4>
+          <p>Fórmulas polinómicas que combinan distintos índices con pesos (coeficientes). La suma de todos los pesos debe ser exactamente <strong>1.0 (100%)</strong>.</p>
+          <div class="formula" style="font-size:12px;margin-top:8px;text-align:left;padding:10px 14px">
+            F = w₁ × (I₁_actual/I₁_base) + w₂ × (I₂_actual/I₂_base) + ... + wₙ × (Iₙ_actual/Iₙ_base)
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num" style="background:#dcfce7;border-color:#86efac;color:#166534">3</div>
+        <div class="step-body">
+          <h4>Calculadora de ajuste</h4>
+          <p>Seleccionás una fórmula, ingresás la fecha base (firma del contrato) y la fecha actual, y el sistema calcula el factor K de variación de precios automáticamente.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <span>El factor K calculado se ingresa manualmente en el campo <strong>"Factor de ajuste K"</strong> de cada certificado de obra para actualizar los montos a cobrar.</span>
+    </div>
+
+    <h3 style="font-size:16px;font-weight:700;margin:24px 0 12px;color:var(--gray-900)">Cómo crear una fórmula de ajuste</h3>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Ir a Ajustes → Fórmulas → "Nueva Fórmula"</h4>
+          <p>O desde el detalle del proyecto → pestaña "Fórmula de Ajuste".</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Asignar nombre y versión de presupuesto</h4>
+          <p>La fórmula se vincula a la versión de presupuesto base del contrato.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Agregar componentes con sus pesos</h4>
+          <p>Para cada componente (materiales, mano de obra, equipos, etc.) asignás el índice correspondiente y el coeficiente de ponderación.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h4>Verificar que los pesos sumen 1.0</h4>
+          <p>El sistema valida que la suma de pesos sea exactamente 100% antes de guardar.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 16 — ROLES                                -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section" id="roles">
+    <div class="section-header">
+      <div class="section-label">Sección 16</div>
+      <h2>Roles y Permisos</h2>
+      <p class="section-desc">El sistema tiene 5 roles con distintos niveles de acceso. El administrador puede asignar roles desde Configuración → Usuarios.</p>
+    </div>
+
+    <table class="role-table">
+      <thead>
+        <tr>
+          <th>Rol</th>
+          <th>Descripción</th>
+          <th>Puede hacer</th>
+          <th>No puede</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="badge badge-blue">ADMIN</span></td>
+          <td>Administrador del sistema</td>
+          <td>Todo: crear, editar, eliminar, aprobar, gestionar usuarios</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-green">PROJECT_MANAGER</span></td>
+          <td>Jefe de Obra / Gerente de Proyectos</td>
+          <td>Proyectos, presupuestos, certificados, subcontratos, avance físico</td>
+          <td>Gestionar usuarios, configuración del sistema</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-orange">SUPERVISOR</span></td>
+          <td>Supervisor de obra</td>
+          <td>Ver proyectos, registrar avance físico, cargar gastos</td>
+          <td>Aprobar certificados, editar presupuestos, gestionar usuarios</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-purple">ADMINISTRATIVE</span></td>
+          <td>Área administrativa / contable</td>
+          <td>Gastos, proveedores, materiales, empleados</td>
+          <td>Editar presupuestos, aprobar certificados</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-gray">READ_ONLY</span></td>
+          <td>Consulta / auditoría</td>
+          <td>Ver todos los datos sin modificar nada</td>
+          <td>Cualquier acción de escritura, aprobación o eliminación</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout callout-info" style="margin-top:20px">
+      <span class="callout-icon">ℹ️</span>
+      <span>La gestión de usuarios está en <strong>Configuración → Usuarios</strong>. Solo el rol ADMIN puede crear usuarios y cambiar roles.</span>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 17 — TIPS                                 -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section" id="tips">
+    <div class="section-header">
+      <div class="section-label">Sección 17</div>
+      <h2>Consejos y flujos de trabajo</h2>
+      <p class="section-desc">Recomendaciones para aprovechar al máximo el sistema y evitar errores comunes.</p>
+    </div>
+
+    <div class="card-grid card-grid-2">
+
+      <div class="card" style="border-left:4px solid var(--primary)">
+        <div style="font-size:20px;margin-bottom:8px">🔄</div>
+        <h3>Orden recomendado de alta</h3>
+        <ul class="check-list" style="margin-top:8px">
+          <li>Primero: Proveedores, materiales, empleados</li>
+          <li>Luego: Crear el proyecto</li>
+          <li>Luego: Cargar versión de presupuesto con capítulos e ítems</li>
+          <li>Luego: Completar APUs si es necesario</li>
+          <li>Después: Registrar avance y gastos</li>
+          <li>Al final: Emitir certificados periódicos</li>
+        </ul>
+      </div>
+
+      <div class="card" style="border-left:4px solid var(--success)">
+        <div style="font-size:20px;margin-bottom:8px">📊</div>
+        <h3>Control presupuestario efectivo</h3>
+        <ul class="check-list" style="margin-top:8px">
+          <li>Vinculá cada gasto a un ítem presupuestario</li>
+          <li>Revisá el módulo de Control Presupuestario semanalmente</li>
+          <li>Activá alertas desde el dashboard (&gt;90% ejecución)</li>
+          <li>Compará versiones de presupuesto aprobadas vs. borrador</li>
+        </ul>
+      </div>
+
+      <div class="card" style="border-left:4px solid var(--warning)">
+        <div style="font-size:20px;margin-bottom:8px">⚠️</div>
+        <h3>Errores comunes a evitar</h3>
+        <ul class="check-list" style="margin-top:8px">
+          <li>No aprobar el presupuesto hasta estar seguro: es irreversible</li>
+          <li>Los pesos de la fórmula de ajuste DEBEN sumar 1.0</li>
+          <li>Los avances en certificados son acumulativos (no del período)</li>
+          <li>Un certificado presentado no puede editarse</li>
+        </ul>
+      </div>
+
+      <div class="card" style="border-left:4px solid #7c3aed">
+        <div style="font-size:20px;margin-bottom:8px">🔑</div>
+        <h3>Formatos argentinos importantes</h3>
+        <ul class="check-list" style="margin-top:8px">
+          <li>CUIT: XX-XXXXXXXX-X (validación automática)</li>
+          <li>CUIL: igual que CUIT pero para personas físicas</li>
+          <li>CBU: 22 dígitos (para pagos bancarios)</li>
+          <li>Facturas: tipo A (IVA responsable), B o C</li>
+          <li>Porcentajes: se ingresan como decimales (0.21 = 21%)</li>
+        </ul>
+      </div>
+
+      <div class="card" style="border-left:4px solid #06b6d4">
+        <div style="font-size:20px;margin-bottom:8px">🔍</div>
+        <h3>Navegación rápida</h3>
+        <ul class="check-list" style="margin-top:8px">
+          <li>Todas las listas tienen buscador en tiempo real</li>
+          <li>Las tablas son ordenables por columna</li>
+          <li>Los códigos auto-generados son únicos y buscables</li>
+          <li>Usá los links de "breadcrumb" para volver atrás</li>
+        </ul>
+      </div>
+
+      <div class="card" style="border-left:4px solid #f43f5e">
+        <div style="font-size:20px;margin-bottom:8px">🗑️</div>
+        <h3>Sobre eliminaciones</h3>
+        <ul class="check-list" style="margin-top:8px">
+          <li>El sistema usa "borrado suave": los datos no se pierden</li>
+          <li>Los registros eliminados quedan marcados con fecha</li>
+          <li>Solo ADMIN y PROJECT_MANAGER pueden eliminar entidades</li>
+          <li>Las eliminaciones pueden recuperarse contactando al admin</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <h3 style="font-size:16px;font-weight:700;margin-bottom:16px;color:var(--gray-900)">Glosario de términos</h3>
+    <div class="two-col">
+      <div class="field-list" style="background:#fff;border:1px solid var(--gray-200);border-radius:10px;padding:16px">
+        <div class="field-row"><span class="field-name">APU</span><span class="field-desc">Análisis de Precios Unitarios — desglose de costo por ítem</span></div>
+        <div class="field-row"><span class="field-name">Coeficiente K</span><span class="field-desc">Factor multiplicador que incluye gastos generales, beneficio, GF e IVA</span></div>
+        <div class="field-row"><span class="field-name">Certificado</span><span class="field-desc">Documento periódico que acredita trabajo ejecutado</span></div>
+        <div class="field-row"><span class="field-name">Acopio</span><span class="field-desc">Adelanto por materiales entregados y almacenados en obra</span></div>
+        <div class="field-row"><span class="field-name">Fondo de Reparo</span><span class="field-desc">Retención por garantía post-obra (generalmente 5%)</span></div>
+      </div>
+      <div class="field-list" style="background:#fff;border:1px solid var(--gray-200);border-radius:10px;padding:16px">
+        <div class="field-row"><span class="field-name">GG</span><span class="field-desc">Gastos Generales — overhead de la empresa</span></div>
+        <div class="field-row"><span class="field-name">GF</span><span class="field-desc">Gastos Financieros — costo del dinero en el tiempo</span></div>
+        <div class="field-row"><span class="field-name">Redeterminación</span><span class="field-desc">Ajuste de precios contractuales por variación de índices</span></div>
+        <div class="field-row"><span class="field-name">CUIT</span><span class="field-desc">Clave Única de Identificación Tributaria (empresas)</span></div>
+        <div class="field-row"><span class="field-name">Subcontrato</span><span class="field-desc">Contrato con empresa externa para parte de la obra</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 18 — REPORTES                             -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section" id="reportes">
+    <div class="section-header">
+      <div class="section-label">Sección 18</div>
+      <h2>Reportes</h2>
+      <p class="section-desc">Informes consolidados de toda la organización para toma de decisiones. Accedé desde el menú lateral → <strong>Reportes</strong>.</p>
+    </div>
+
+    <div class="card-grid card-grid-2">
+      <div class="card" style="border-left:4px solid var(--primary)">
+        <div style="font-size:22px;margin-bottom:8px">📊</div>
+        <h3>Resumen ejecutivo</h3>
+        <p>Vista consolidada de todos los proyectos: estado, avance, ejecución presupuestaria y alertas críticas.</p>
+      </div>
+      <div class="card" style="border-left:4px solid var(--success)">
+        <div style="font-size:22px;margin-bottom:8px">💰</div>
+        <h3>Control de gastos</h3>
+        <p>Gastos agrupados por proyecto, categoría y período. Comparativa presupuesto vs. real por ítem.</p>
+      </div>
+      <div class="card" style="border-left:4px solid var(--warning)">
+        <div style="font-size:22px;margin-bottom:8px">📈</div>
+        <h3>Avance de obra</h3>
+        <p>Porcentajes de avance físico por proyecto y capítulo. Curva S de inversión real vs. planificada.</p>
+      </div>
+      <div class="card" style="border-left:4px solid #7c3aed">
+        <div style="font-size:22px;margin-bottom:8px">📃</div>
+        <h3>Certificaciones</h3>
+        <p>Historial de certificados emitidos, montos aprobados y pagados, saldo pendiente por proyecto.</p>
+      </div>
+      <div class="card" style="border-left:4px solid #06b6d4">
+        <div style="font-size:22px;margin-bottom:8px">🏭</div>
+        <h3>Proveedores y compras</h3>
+        <p>Ranking de proveedores por volumen de compras, facturas pendientes de pago y vencimientos próximos.</p>
+      </div>
+      <div class="card" style="border-left:4px solid #f43f5e">
+        <div style="font-size:22px;margin-bottom:8px">📐</div>
+        <h3>Redeterminación</h3>
+        <p>Historial de factores K aplicados y proyección de ajustes futuros según índices vigentes.</p>
+      </div>
+    </div>
+
+    <div class="callout callout-tip" style="margin-top:20px">
+      <span class="callout-icon">💡</span>
+      <span>Los reportes se generan en tiempo real sobre los datos del sistema. No requieren ningún proceso previo de "cierre" o "consolidación".</span>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 19 — CONFIGURACIÓN                        -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section" id="configuracion">
+    <div class="section-header">
+      <div class="section-label">Sección 19</div>
+      <h2>Configuración</h2>
+      <p class="section-desc">Opciones de administración del sistema. Solo accesibles para el rol <span class="badge badge-blue">ADMIN</span>.</p>
+    </div>
+
+    <div class="two-col">
+      <div class="module-block">
+        <div class="module-header">
+          <div class="module-icon-wrap" style="background:#dbeafe">🏢</div>
+          <div>
+            <h3>Organización</h3>
+            <p>Datos de la empresa constructora</p>
+          </div>
+        </div>
+        <div class="module-body">
+          <div class="field-list">
+            <div class="field-row"><span class="field-name">Nombre</span><span class="field-desc">Razón social de la empresa</span></div>
+            <div class="field-row"><span class="field-name">CUIT</span><span class="field-desc">Identificación tributaria</span></div>
+            <div class="field-row"><span class="field-name">Dirección</span><span class="field-desc">Domicilio fiscal</span></div>
+            <div class="field-row"><span class="field-name">Logo</span><span class="field-desc">Aparece en reportes impresos</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="module-block">
+        <div class="module-header">
+          <div class="module-icon-wrap" style="background:#dcfce7">👥</div>
+          <div>
+            <h3>Gestión de usuarios</h3>
+            <p>Crear y administrar accesos</p>
+          </div>
+        </div>
+        <div class="module-body">
+          <div class="field-list">
+            <div class="field-row"><span class="field-name">Crear usuario</span><span class="field-desc">Nombre, email, contraseña inicial y rol</span></div>
+            <div class="field-row"><span class="field-name">Cambiar rol</span><span class="field-desc">Reasignar permisos sin recrear el usuario</span></div>
+            <div class="field-row"><span class="field-name">Desactivar</span><span class="field-desc">Bloquear acceso sin eliminar historial</span></div>
+            <div class="field-row"><span class="field-name">Resetear contraseña</span><span class="field-desc">El usuario recibe un link de reset</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-warn" style="margin-top:4px">
+      <span class="callout-icon">⚠️</span>
+      <span>Nunca compartas credenciales entre usuarios. Cada persona debe tener su propio acceso para mantener la trazabilidad en el log de auditoría.</span>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 20 — CASO PRÁCTICO                        -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section" id="caso-practico">
+    <div class="section-header">
+      <div class="section-label">Sección 20</div>
+      <h2>Caso práctico completo</h2>
+      <p class="section-desc">Seguí este flujo de punta a punta para una obra típica: desde el alta del proyecto hasta el cobro del primer certificado.</p>
+    </div>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">📋</span>
+      <span><strong>Ejemplo:</strong> Obra "Ampliación de red cloacal — Barrio Norte". Contrato por $15.000.000 ARS. Duración 8 meses.</span>
+    </div>
+
+    <div style="margin-top:28px">
+
+      <!-- FASE 1 -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <div style="background:#1d4ed8;color:#fff;padding:4px 14px;border-radius:20px;font-size:12px;font-weight:700">FASE 1 — Antes de empezar</div>
+        <div style="height:1px;flex:1;background:var(--gray-200)"></div>
+      </div>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h4>Cargar el proveedor principal</h4>
+            <p>Ir a <strong>Proveedores → Nuevo Proveedor</strong>. Completar razón social, CUIT y condición de pago. Este proveedor se usará para imputar facturas.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h4>Registrar materiales en el catálogo</h4>
+            <p>Ir a <strong>Materiales → Nuevo Material</strong>. Cargar caños, cemento, arena, etc. con unidad de medida y stock mínimo. Estos materiales se referencian en los APU.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h4>Dar de alta empleados</h4>
+            <p>Ir a <strong>Empleados → Nuevo Empleado</strong>. Cargar al menos un oficial y un ayudante con su CUIL y tarifa horaria. Se usan en la sección Mano de Obra de los APU.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- FASE 2 -->
+      <div style="display:flex;align-items:center;gap:10px;margin:28px 0 16px">
+        <div style="background:#16a34a;color:#fff;padding:4px 14px;border-radius:20px;font-size:12px;font-weight:700">FASE 2 — Crear el proyecto y presupuesto</div>
+        <div style="height:1px;flex:1;background:var(--gray-200)"></div>
+      </div>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <h4>Crear el proyecto</h4>
+            <p><strong>Proyectos → Nuevo Proyecto</strong>. Nombre: "Ampliación Red Cloacal Barrio Norte". Presupuesto estimado: $15.000.000. Asignar un jefe de obra. Estado inicial: PLANIFICACIÓN.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">5</div>
+          <div class="step-body">
+            <h4>Crear etapas</h4>
+            <p>Desde el detalle del proyecto → <strong>Etapas → Agregar Etapa</strong>. Ej: "Movimiento de suelos", "Instalación de cañería", "Relleno y compactación", "Obras civiles".</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">6</div>
+          <div class="step-body">
+            <h4>Crear la versión de presupuesto</h4>
+            <p>Pestaña <strong>Presupuesto → Nueva Versión</strong>. Nombre: "Versión original contrato". Completar GG=12%, B=10%, GF=3%, IVA=21%. El sistema calcula K automáticamente.</p>
+            <div style="background:var(--gray-900);color:#fde68a;padding:10px 14px;border-radius:8px;font-family:monospace;font-size:13px;margin-top:8px">
+              K = (1+0.12) × (1+0.10) × (1+0.03) × (1+0.21) = <strong>1.5367</strong>
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">7</div>
+          <div class="step-body">
+            <h4>Armar la estructura de capítulos e ítems</h4>
+            <p>Agregar los capítulos: "01 - Preliminares", "02 - Excavaciones", "03 - Instalación". Dentro de cada uno agregar los ítems con número, descripción, unidad, cantidad y precio unitario.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">8</div>
+          <div class="step-body">
+            <h4>Completar los APU (opcional pero recomendado)</h4>
+            <p>Para cada ítem relevante, hacer clic en <strong>APU</strong> y desglosar el costo en materiales, mano de obra, equipos y transporte. Esto justifica el precio unitario declarado.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">9</div>
+          <div class="step-body">
+            <h4>Aprobar el presupuesto</h4>
+            <p>Cuando el presupuesto esté completo y revisado, cambiar el estado a <span class="badge badge-green">APROBADO</span>. A partir de ese momento queda bloqueado.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- FASE 3 -->
+      <div style="display:flex;align-items:center;gap:10px;margin:28px 0 16px">
+        <div style="background:#d97706;color:#fff;padding:4px 14px;border-radius:20px;font-size:12px;font-weight:700">FASE 3 — Ejecución de obra</div>
+        <div style="height:1px;flex:1;background:var(--gray-200)"></div>
+      </div>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">10</div>
+          <div class="step-body">
+            <h4>Registrar gastos en tiempo real</h4>
+            <p>Cada vez que llega una factura, ir a <strong>Gastos → Nuevo Gasto</strong>. Seleccionar el proyecto, la categoría, ingresar monto neto e IVA, e imputar al ítem presupuestario correspondiente.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">11</div>
+          <div class="step-body">
+            <h4>Actualizar el avance físico semanalmente</h4>
+            <p>Desde <strong>Presupuesto → Avance</strong>. Para cada ítem, ingresar el porcentaje ejecutado acumulado (ej: 0.35 si ya se completó el 35%). El sistema actualiza el total ejecutado automáticamente.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">12</div>
+          <div class="step-body">
+            <h4>Controlar el presupuesto</h4>
+            <p>Revisar periódicamente la pestaña <strong>Control Presupuestario</strong> del proyecto. Compara lo gastado real vs. lo presupuestado por ítem e identifica desvíos.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- FASE 4 -->
+      <div style="display:flex;align-items:center;gap:10px;margin:28px 0 16px">
+        <div style="background:#7c3aed;color:#fff;padding:4px 14px;border-radius:20px;font-size:12px;font-weight:700">FASE 4 — Facturación mensual</div>
+        <div style="height:1px;flex:1;background:var(--gray-200)"></div>
+      </div>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">13</div>
+          <div class="step-body">
+            <h4>Calcular el factor de ajuste (si aplica)</h4>
+            <p>Ir a <strong>Ajustes → Calculadora</strong>. Seleccionar la fórmula del proyecto, la fecha base (firma del contrato) y la fecha actual. Anotar el factor K resultante.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">14</div>
+          <div class="step-body">
+            <h4>Crear el certificado del mes</h4>
+            <p>Desde el proyecto → <strong>Certificaciones → Nuevo Certificado</strong>. Completar el período (ej: 01/03/2025 al 31/03/2025), ingresar los porcentajes de deducción y el factor K calculado.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">15</div>
+          <div class="step-body">
+            <h4>Ingresar el avance por ítem en el certificado</h4>
+            <p>En modo <span class="badge badge-orange">BORRADOR</span>, editar el porcentaje de avance certificado para cada ítem. Este valor es el avance <strong>acumulado hasta el fin del período</strong>, no el del mes.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">16</div>
+          <div class="step-body">
+            <h4>Presentar, aprobar y registrar el pago</h4>
+            <p>Cambiar estado a <span class="badge badge-blue">PRESENTADO</span> al enviarlo al comitente. Al recibir conformidad → <span class="badge badge-green">APROBADO</span>. Al acreditar el pago → <span class="badge badge-purple" style="background:#ede9fe;color:#7c3aed">PAGADO</span>.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="callout callout-tip" style="margin-top:8px">
+      <span class="callout-icon">🎯</span>
+      <span>Seguir este orden garantiza la trazabilidad completa: cada peso gastado queda vinculado a su ítem presupuestario, y cada certificado refleja el avance real de obra.</span>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- 21 — FAQ                                  -->
+  <!-- ══════════════════════════════════════════ -->
+  <section class="section" id="faq">
+    <div class="section-header">
+      <div class="section-label">Sección 21</div>
+      <h2>Preguntas frecuentes</h2>
+      <p class="section-desc">Respuestas a las dudas más comunes al comenzar a usar el sistema.</p>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:12px">
+
+      <details style="background:#fff;border:1px solid var(--gray-200);border-radius:10px;overflow:hidden">
+        <summary style="padding:16px 20px;cursor:pointer;font-weight:600;font-size:14.5px;color:var(--gray-900);list-style:none;display:flex;justify-content:space-between;align-items:center">
+          ¿Puedo tener más de una versión de presupuesto activa al mismo tiempo?
+          <span style="color:var(--primary);font-size:18px">+</span>
+        </summary>
+        <div style="padding:0 20px 16px;font-size:13.5px;color:var(--gray-600);border-top:1px solid var(--gray-100)">
+          <br>Sí. Podés tener múltiples versiones en estado BORRADOR, pero solo <strong>una versión puede estar APROBADA</strong> a la vez. Las versiones anteriores pasan automáticamente a SUPERSEDIDO cuando aprobás una nueva.
+        </div>
+      </details>
+
+      <details style="background:#fff;border:1px solid var(--gray-200);border-radius:10px;overflow:hidden">
+        <summary style="padding:16px 20px;cursor:pointer;font-weight:600;font-size:14.5px;color:var(--gray-900);list-style:none;display:flex;justify-content:space-between;align-items:center">
+          Aprobé el presupuesto pero hay un error. ¿Qué hago?
+          <span style="color:var(--primary);font-size:18px">+</span>
+        </summary>
+        <div style="padding:0 20px 16px;font-size:13.5px;color:var(--gray-600);border-top:1px solid var(--gray-100)">
+          <br>Un presupuesto aprobado <strong>no puede editarse</strong> (por integridad documental). La solución es crear una <strong>nueva versión de presupuesto</strong> (Versión 2), corregir el error, y aprobarla. La versión original queda como histórico en estado SUPERSEDIDO.
+        </div>
+      </details>
+
+      <details style="background:#fff;border:1px solid var(--gray-200);border-radius:10px;overflow:hidden">
+        <summary style="padding:16px 20px;cursor:pointer;font-weight:600;font-size:14.5px;color:var(--gray-900);list-style:none;display:flex;justify-content:space-between;align-items:center">
+          ¿Los avances del certificado son del período o acumulados?
+          <span style="color:var(--primary);font-size:18px">+</span>
+        </summary>
+        <div style="padding:0 20px 16px;font-size:13.5px;color:var(--gray-600);border-top:1px solid var(--gray-100)">
+          <br><strong>Siempre acumulados.</strong> Si en el mes anterior certificaste 40% del ítem X y este mes ejecutaste 20% más, en el nuevo certificado ingresás <strong>60%</strong> (no 20%). El sistema calcula el diferencial con el certificado anterior para obtener el monto del período.
+        </div>
+      </details>
+
+      <details style="background:#fff;border:1px solid var(--gray-200);border-radius:10px;overflow:hidden">
+        <summary style="padding:16px 20px;cursor:pointer;font-weight:600;font-size:14.5px;color:var(--gray-900);list-style:none;display:flex;justify-content:space-between;align-items:center">
+          ¿Cómo ingreso el CUIT correctamente?
+          <span style="color:var(--primary);font-size:18px">+</span>
+        </summary>
+        <div style="padding:0 20px 16px;font-size:13.5px;color:var(--gray-600);border-top:1px solid var(--gray-100)">
+          <br>El sistema acepta el CUIT con o sin guiones. Formato: <span class="mono">30-71234567-8</span> o <span class="mono">30712345678</span>. El sistema <strong>valida automáticamente el dígito verificador</strong> y te avisa si es inválido antes de guardar.
+        </div>
+      </details>
+
+      <details style="background:#fff;border:1px solid var(--gray-200);border-radius:10px;overflow:hidden">
+        <summary style="padding:16px 20px;cursor:pointer;font-weight:600;font-size:14.5px;color:var(--gray-900);list-style:none;display:flex;justify-content:space-between;align-items:center">
+          ¿Qué pasa si borro un gasto o proveedor por error?
+          <span style="color:var(--primary);font-size:18px">+</span>
+        </summary>
+        <div style="padding:0 20px 16px;font-size:13.5px;color:var(--gray-600);border-top:1px solid var(--gray-100)">
+          <br>El sistema usa <strong>borrado suave</strong>: el registro no se elimina físicamente de la base de datos, solo se marca con la fecha de eliminación. Para recuperarlo es necesario contactar al administrador del sistema, quien puede restaurarlo directamente en la base de datos.
+        </div>
+      </details>
+
+      <details style="background:#fff;border:1px solid var(--gray-200);border-radius:10px;overflow:hidden">
+        <summary style="padding:16px 20px;cursor:pointer;font-weight:600;font-size:14.5px;color:var(--gray-900);list-style:none;display:flex;justify-content:space-between;align-items:center">
+          ¿Se puede cambiar la moneda de un proyecto a mitad de obra?
+          <span style="color:var(--primary);font-size:18px">+</span>
+        </summary>
+        <div style="padding:0 20px 16px;font-size:13.5px;color:var(--gray-600);border-top:1px solid var(--gray-100)">
+          <br>No directamente. La moneda se define en el presupuesto. Si necesitás manejar componentes en distintas monedas (ej: equipos importados en USD), creá los ítems correspondientes en la moneda correcta y registrá el tipo de cambio vigente en el módulo <strong>Monedas</strong> para que el sistema pueda convertir al consolidar.
+        </div>
+      </details>
+
+      <details style="background:#fff;border:1px solid var(--gray-200);border-radius:10px;overflow:hidden">
+        <summary style="padding:16px 20px;cursor:pointer;font-weight:600;font-size:14.5px;color:var(--gray-900);list-style:none;display:flex;justify-content:space-between;align-items:center">
+          ¿Cómo sé si mi fórmula de redeterminación está bien configurada?
+          <span style="color:var(--primary);font-size:18px">+</span>
+        </summary>
+        <div style="padding:0 20px 16px;font-size:13.5px;color:var(--gray-600);border-top:1px solid var(--gray-100)">
+          <br>El sistema valida que la suma de los pesos de todos los componentes sea exactamente <strong>1.0 (100%)</strong>. Si no suman 1.0, el botón "Guardar" queda deshabilitado y aparece un mensaje de error. Revisá los coeficientes de ponderación de cada componente.
+        </div>
+      </details>
+
+      <details style="background:#fff;border:1px solid var(--gray-200);border-radius:10px;overflow:hidden">
+        <summary style="padding:16px 20px;cursor:pointer;font-weight:600;font-size:14.5px;color:var(--gray-900);list-style:none;display:flex;justify-content:space-between;align-items:center">
+          ¿Puedo ver todos los gastos del sistema sin filtrar por proyecto?
+          <span style="color:var(--primary);font-size:18px">+</span>
+        </summary>
+        <div style="padding:0 20px 16px;font-size:13.5px;color:var(--gray-600);border-top:1px solid var(--gray-100)">
+          <br>Sí. Desde el menú lateral → <strong>Gastos</strong> (fuera del contexto de un proyecto) accedés a la lista global de todos los gastos de la organización, con filtros por proyecto, categoría, proveedor, período y estado.
+        </div>
+      </details>
+
+      <details style="background:#fff;border:1px solid var(--gray-200);border-radius:10px;overflow:hidden">
+        <summary style="padding:16px 20px;cursor:pointer;font-weight:600;font-size:14.5px;color:var(--gray-900);list-style:none;display:flex;justify-content:space-between;align-items:center">
+          ¿Cómo puedo agregar un nuevo usuario al sistema?
+          <span style="color:var(--primary);font-size:18px">+</span>
+        </summary>
+        <div style="padding:0 20px 16px;font-size:13.5px;color:var(--gray-600);border-top:1px solid var(--gray-100)">
+          <br>Solo el rol <span class="badge badge-blue">ADMIN</span> puede crear usuarios. Ir a <strong>Configuración → Usuarios → Nuevo Usuario</strong>. Completar nombre, email, asignar rol y definir una contraseña inicial. El usuario podrá cambiarla desde su perfil al primer login.
+        </div>
+      </details>
+
+      <details style="background:#fff;border:1px solid var(--gray-200);border-radius:10px;overflow:hidden">
+        <summary style="padding:16px 20px;cursor:pointer;font-weight:600;font-size:14.5px;color:var(--gray-900);list-style:none;display:flex;justify-content:space-between;align-items:center">
+          ¿Qué significa el código auto-generado de cada entidad?
+          <span style="color:var(--primary);font-size:18px">+</span>
+        </summary>
+        <div style="padding:0 20px 16px;font-size:13.5px;color:var(--gray-600);border-top:1px solid var(--gray-100)">
+          <br>Cada entidad recibe un código secuencial único. El formato incluye un prefijo por tipo:
+          <br><br>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px">
+            <div><span class="mono">OBR-2025-00001</span> → Proyecto</div>
+            <div><span class="mono">PRES-2025-00001-v1</span> → Versión de presupuesto</div>
+            <div><span class="mono">CERT-2025-00001</span> → Certificado</div>
+            <div><span class="mono">GAS-2025-00001</span> → Gasto</div>
+            <div><span class="mono">PROV-00001</span> → Proveedor</div>
+            <div><span class="mono">MAT-00001</span> → Material</div>
+          </div>
+        </div>
+      </details>
+
+    </div>
+  </section>
+
+  <!-- ── Footer ── -->
+  <div style="background:var(--gray-900);color:var(--gray-400);padding:32px 48px;text-align:center;font-size:13px">
+    <div style="font-size:22px;margin-bottom:8px">🏗️</div>
+    <div style="font-weight:600;color:#e5e7eb;margin-bottom:4px">Sistema de Gestión de Construcción</div>
+    <div>Manual de Usuario v1.0 — Constructora Patagonia S.A. (demo)</div>
+    <div style="margin-top:12px;font-size:11px;color:var(--gray-600)">Todos los módulos y funcionalidades documentados en este tutorial.</div>
+  </div>
+
+</main>
+
+<script>
+  // Highlight active nav link on scroll
+  const sections = document.querySelectorAll('section[id], div[id]');
+  const navLinks = document.querySelectorAll('.nav-link');
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        navLinks.forEach(link => link.classList.remove('active'));
+        const active = document.querySelector(`.nav-link[href="#${entry.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-30% 0px -60% 0px' });
+
+  sections.forEach(s => observer.observe(s));
+
+  // FAQ accordion: toggle icon
+  document.querySelectorAll('details').forEach(el => {
+    el.addEventListener('toggle', () => {
+      const icon = el.querySelector('summary span:last-child');
+      if (icon) icon.textContent = el.open ? '−' : '+';
+    });
+  });
+</script>
+</body>
+</html>

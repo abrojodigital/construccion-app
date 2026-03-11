@@ -35,12 +35,19 @@ const expenseSchema = z.object({
 
 type ExpenseFormValues = z.infer<typeof expenseSchema>;
 
+interface StageTask {
+  id: string;
+  name: string;
+}
+
 interface Stage {
   id: string;
   name: string;
-  tasks: Array<{
+  tasks: StageTask[];
+  childStages?: Array<{
     id: string;
     name: string;
+    tasks: StageTask[];
   }>;
 }
 
@@ -50,6 +57,13 @@ interface BudgetItemOption {
   description: string;
   stageName: string;
   categoryName: string;
+}
+
+interface BudgetVersionListItem {
+  id: string;
+  name: string;
+  code: string;
+  status: string;
 }
 
 interface BudgetVersionWithItems {
@@ -113,16 +127,24 @@ export function ExpenseForm({ initialData, onSuccess, onCancel }: ExpenseFormPro
     enabled: !!selectedProjectId,
   });
 
-  // Cargar versión de presupuesto aprobada para imputación por ítem
-  const { data: budgetVersionData } = useQuery({
-    queryKey: ['budget-version-items', selectedProjectId],
+  // Obtener ID de la versión aprobada
+  const { data: approvedVersionList } = useQuery({
+    queryKey: ['budget-version-approved-id', selectedProjectId],
     queryFn: () =>
-      api.get<{ data: BudgetVersionWithItems[] }>(
+      api.get<BudgetVersionListItem[]>(
         `/projects/${selectedProjectId}/budget-versions?status=APPROVED&limit=1`
       ),
     enabled: !!selectedProjectId,
-    select: (res) => {
-      const version = res?.data?.[0];
+  });
+
+  const approvedVersionId = approvedVersionList?.[0]?.id;
+
+  // Cargar detalle completo de la versión aprobada (incluye categorías, etapas e ítems)
+  const { data: budgetVersionData } = useQuery({
+    queryKey: ['budget-version-items', approvedVersionId],
+    queryFn: () => api.get<BudgetVersionWithItems>(`/budget-versions/${approvedVersionId}`),
+    enabled: !!approvedVersionId,
+    select: (version) => {
       if (!version) return [];
       const items: BudgetItemOption[] = [];
       for (const cat of version.categories) {
@@ -173,14 +195,21 @@ export function ExpenseForm({ initialData, onSuccess, onCancel }: ExpenseFormPro
     }
   };
 
-  // Aplanar las tareas agrupadas por etapa para el selector
-  const taskOptions = projectStages?.flatMap(stage =>
-    stage.tasks.map(task => ({
+  // Aplanar las tareas agrupadas por etapa para el selector (incluye subniveles)
+  const taskOptions = projectStages?.flatMap(stage => [
+    ...stage.tasks.map(task => ({
       id: task.id,
       name: task.name,
       stageName: stage.name,
-    }))
-  ) || [];
+    })),
+    ...(stage.childStages?.flatMap(child =>
+      child.tasks.map(task => ({
+        id: task.id,
+        name: task.name,
+        stageName: `${stage.name} › ${child.name}`,
+      }))
+    ) || []),
+  ]) || [];
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
