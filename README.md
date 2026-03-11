@@ -1,296 +1,151 @@
 # Sistema de Gestión de Construcción
 
-Sistema completo para la gestión de obras de construcción, desarrollado para el mercado argentino. Permite administrar proyectos, planes de trabajo, costos, proveedores, materiales y personal.
+Sistema ERP integral para la gestión de obras de construcción, desarrollado para el mercado argentino. Cubre el ciclo completo de una obra: proyectos, cronograma Gantt, presupuesto versionado con coeficiente K, certificaciones, subcontrataciones, gastos, personal, materiales y redeterminación de precios.
 
-## Stack Tecnológico
+---
 
-- **Backend**: Node.js + Express + TypeScript
-- **Base de datos**: PostgreSQL + Prisma ORM
-- **Frontend**: Next.js 14 (App Router) + TypeScript
-- **Estilos**: Tailwind CSS
-- **Autenticación**: JWT con refresh tokens
-- **Estructura**: Monorepo (pnpm workspaces + Turborepo)
+## Stack tecnológico
 
-## Estructura del Proyecto
+| Capa | Tecnología |
+|------|-----------|
+| Backend | Node.js 20 · Express 4.18 · TypeScript |
+| Base de datos | PostgreSQL 16 · Prisma ORM 5 (51 modelos) |
+| Frontend | Next.js 14 (App Router) · TypeScript (48 páginas) |
+| Estilos | Tailwind CSS · Radix UI · shadcn/ui |
+| Estado | Zustand (auth) · TanStack Query (servidor) |
+| Validación | Zod · 64 schemas compartidos frontend/backend |
+| Gráficos | Recharts |
+| Autenticación | JWT + Refresh Tokens · RBAC 5 roles |
+| Infraestructura | Docker · Docker Compose · Nginx |
+| Monorepo | Turborepo · pnpm workspaces |
+
+---
+
+## Instalación rápida (Docker)
+
+> Requisito único: **Docker Desktop** instalado y corriendo.
+
+```bash
+git clone https://github.com/abrojodigital/construccion-app.git
+cd construccion-app
+./setup.sh
+```
+
+El script construye las imágenes, levanta los servicios, ejecuta migraciones y carga datos de demo.
+Tiempo estimado: **3–8 minutos** la primera vez.
+
+| Servicio | URL |
+|----------|-----|
+| Aplicación web | http://localhost:3000 |
+| API REST | http://localhost:3001/api/v1 |
+
+### Credenciales de demo
+
+| Rol | Email | Contraseña |
+|-----|-------|-----------|
+| Administrador | admin@constructorademo.com.ar | password123 |
+| Jefe de Obra | jefe@constructorademo.com.ar | password123 |
+| Supervisor | supervisor@constructorademo.com.ar | password123 |
+| Administrativo | admin2@constructorademo.com.ar | password123 |
+| Solo Lectura | lector@constructorademo.com.ar | password123 |
+
+---
+
+## Instalación para desarrollo local
+
+```bash
+pnpm install
+cp apps/api/.env.example apps/api/.env
+cp apps/web/.env.example apps/web/.env
+# Editar DATABASE_URL en apps/api/.env
+pnpm db:push
+pnpm db:seed
+pnpm dev
+```
+
+Ver [TUTORIAL_INSTALACION.md](./TUTORIAL_INSTALACION.md) para instrucciones completas.
+
+---
+
+## Estructura del proyecto
 
 ```
 construccion-app/
 ├── apps/
-│   ├── api/                 # Backend Express
-│   └── web/                 # Frontend Next.js
+│   ├── api/          # Express REST API — 18 módulos
+│   └── web/          # Next.js 14 App Router — 48 páginas
 ├── packages/
-│   ├── database/            # Prisma schema y cliente
-│   ├── shared/              # Tipos y utilidades compartidas
-│   ├── ui/                  # Componentes UI compartidos
-│   └── typescript-config/   # Configuraciones TypeScript
-├── package.json
-├── pnpm-workspace.yaml
+│   ├── database/     # Schema Prisma (51 modelos) + seed (2.300 LOC)
+│   ├── shared/       # Tipos TS + validadores Zod + constantes
+│   └── typescript-config/
+├── docker-compose.yml
+├── setup.sh
 └── turbo.json
 ```
 
-## Requisitos Previos
+---
 
-- Node.js >= 20
-- pnpm >= 9.0
-- PostgreSQL >= 14
-- Git
+## Módulos ERP
 
-## Instalación
+| Módulo | Descripción |
+|--------|-------------|
+| Proyectos | Obras con KPIs, cronograma y seguimiento |
+| Rubros y Tareas | Jerarquía 3 niveles: Rubro → Tarea → Ítem |
+| Diagrama Gantt | Vista por Rubros / Tareas / Ítems con exportación PDF |
+| Presupuesto Versionado | Versiones con coeficiente K (GG · Beneficio · GF · IVA) |
+| APU | Análisis de Precios Unitarios: materiales, mano de obra, equipos |
+| Avance Físico | Seguimiento de avance por ítem presupuestado |
+| Certificaciones | Certificados de obra con deducciones (Acopio, Anticipo, Fondo de Reparo) |
+| Subcontrataciones | Gestión de subcontratistas con workflow propio de certificación |
+| Gastos | Registro, aprobación y trazabilidad de gastos por proyecto |
+| Monedas | Multi-moneda con historial de tipos de cambio |
+| Redeterminación | Índices INDEC + fórmulas polinómicas de ajuste de precios |
+| Proveedores | Base de datos con datos fiscales (CUIT) y bancarios (CBU) |
+| Materiales | Inventario con control de stock y alertas de reposición |
+| Empleados | Legajos, asistencia y asignación a proyectos |
+| Reportes | Dashboard ejecutivo + reportes de costos y avance |
 
-### 1. Clonar el repositorio
+---
 
-```bash
-git clone <repository-url>
-cd construccion-app
-```
-
-### 2. Instalar dependencias
-
-```bash
-pnpm install
-```
-
-### 3. Configurar variables de entorno
-
-Copiar los archivos de ejemplo y configurar:
-
-```bash
-# Backend
-cp apps/api/.env.example apps/api/.env
-
-# Frontend
-cp apps/web/.env.example apps/web/.env
-
-# Database
-cp packages/database/.env.example packages/database/.env
-```
-
-Configurar las variables en cada archivo `.env`:
-
-**packages/database/.env**:
-```env
-DATABASE_URL="postgresql://usuario:password@localhost:5432/construccion_db"
-```
-
-**apps/api/.env**:
-```env
-PORT=3001
-NODE_ENV=development
-DATABASE_URL="postgresql://usuario:password@localhost:5432/construccion_db"
-JWT_SECRET=tu-secreto-jwt-super-seguro
-JWT_EXPIRES_IN=30m
-JWT_REFRESH_EXPIRES_IN=7d
-```
-
-**apps/web/.env**:
-```env
-NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
-```
-
-### 4. Crear la base de datos
-
-```bash
-# Crear la base de datos en PostgreSQL
-createdb construccion_db
-
-# O usando psql:
-psql -U postgres -c "CREATE DATABASE construccion_db;"
-```
-
-### 5. Ejecutar migraciones
-
-```bash
-pnpm db:push
-# o para crear migraciones:
-pnpm db:migrate
-```
-
-### 6. Cargar datos de ejemplo
-
-```bash
-pnpm db:seed
-```
-
-### 7. Iniciar el proyecto
-
-```bash
-# Desarrollo (ambos servicios)
-pnpm dev
-
-# Solo backend
-pnpm --filter @construccion/api dev
-
-# Solo frontend
-pnpm --filter @construccion/web dev
-```
-
-## Acceso
-
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:3001
-- **Prisma Studio**: `pnpm db:studio`
-
-### Credenciales de prueba
-
-| Rol | Email | Password |
-|-----|-------|----------|
-| Administrador | admin@constructorademo.com.ar | password123 |
-| Jefe de Obra | jefe@constructorademo.com.ar | password123 |
-| Supervisor | supervisor@constructorademo.com.ar | password123 |
-| Administrativo | admin.contable@constructorademo.com.ar | password123 |
-| Solo Lectura | cliente@ejemplo.com.ar | password123 |
-
-## Funcionalidades
-
-### Gestión de Obras
-- Crear y administrar múltiples proyectos
-- Seguimiento de estado (planificación, en curso, pausada, finalizada)
-- Información de ubicación y responsables
-- Documentación asociada
-
-### Plan de Trabajo
-- Definir etapas de construcción
-- Gestión de tareas con dependencias
-- Diagrama de Gantt visual
-- Asignación de personal a tareas
-- Seguimiento de progreso
-
-### Gestión de Costos
-- Presupuestos por categoría
-- Registro de gastos con aprobaciones
-- Órdenes de compra
-- Comparativa presupuestado vs gastado
-- Alertas de sobre-presupuesto
-
-### Proveedores y Materiales
-- Base de datos de proveedores
-- Catálogo de materiales
-- Control de stock
-- Alertas de stock bajo
-
-### Personal
-- Gestión de empleados
-- Registro de asistencia
-- Asignación a proyectos
-
-### Reportes
-- Dashboard ejecutivo
-- Reportes de costos por proyecto
-- Exportación a PDF y Excel
-
-## API Endpoints
-
-### Autenticación
-```
-POST   /api/v1/auth/login
-POST   /api/v1/auth/register
-POST   /api/v1/auth/refresh
-POST   /api/v1/auth/logout
-GET    /api/v1/auth/me
-```
-
-### Proyectos
-```
-GET    /api/v1/projects
-GET    /api/v1/projects/:id
-POST   /api/v1/projects
-PUT    /api/v1/projects/:id
-DELETE /api/v1/projects/:id
-GET    /api/v1/projects/:id/gantt
-GET    /api/v1/projects/:id/budget-status
-```
-
-### Etapas y Tareas
-```
-GET    /api/v1/projects/:projectId/stages
-POST   /api/v1/projects/:projectId/stages
-GET    /api/v1/stages/:stageId/tasks
-POST   /api/v1/stages/:stageId/tasks
-PATCH  /api/v1/tasks/:id/status
-POST   /api/v1/tasks/:id/dependencies
-```
-
-### Gastos
-```
-GET    /api/v1/expenses
-POST   /api/v1/expenses
-PATCH  /api/v1/expenses/:id/approve
-PATCH  /api/v1/expenses/:id/reject
-```
-
-### Materiales
-```
-GET    /api/v1/materials
-POST   /api/v1/materials
-GET    /api/v1/materials/low-stock
-POST   /api/v1/materials/:id/stock-movement
-```
-
-### Reportes
-```
-GET    /api/v1/reports/dashboard
-GET    /api/v1/reports/projects/:id/costs
-GET    /api/v1/reports/projects/:id/progress
-```
-
-## Scripts Disponibles
+## Comandos útiles
 
 ```bash
 # Desarrollo
-pnpm dev              # Inicia todo el proyecto
-pnpm build            # Compila todo
-pnpm lint             # Ejecuta linters
-pnpm test             # Ejecuta tests
+pnpm dev              # API + Web en paralelo
+pnpm build            # Build de producción
+pnpm typecheck        # TypeScript estricto
+pnpm lint             # ESLint
 
 # Base de datos
-pnpm db:generate      # Genera cliente Prisma
-pnpm db:push          # Sincroniza schema con DB
-pnpm db:migrate       # Crea migración
-pnpm db:seed          # Carga datos de ejemplo
-pnpm db:studio        # Abre Prisma Studio
+pnpm db:push          # Sincronizar schema
+pnpm db:seed          # Cargar datos demo
+pnpm db:studio        # Prisma Studio (puerto 5555)
+pnpm db:reset         # Borrar todo y recrear
 
-# Limpieza
-pnpm clean            # Limpia node_modules y builds
+# Docker
+./setup.sh                              # Instalación completa
+docker compose up -d                    # Levantar servicios
+docker compose down                     # Detener
+docker compose build api web --no-cache # Reconstruir imágenes
+docker compose logs -f api              # Ver logs
 ```
 
-## Roles y Permisos
+---
 
-| Acción | Admin | Jefe Obra | Supervisor | Administrativo | Solo Lectura |
-|--------|-------|-----------|------------|----------------|--------------|
-| Ver proyectos | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Crear proyectos | ✓ | ✓ | - | - | - |
-| Gestionar tareas | ✓ | ✓ | ✓ | - | - |
-| Aprobar gastos | ✓ | ✓ | - | - | - |
-| Registrar gastos | ✓ | ✓ | ✓ | ✓ | - |
-| Gestionar usuarios | ✓ | - | - | - | - |
-| Gestionar empleados | ✓ | ✓ | - | ✓ | - |
+## Roles y permisos (RBAC)
 
-## Consideraciones para Producción
+| Acción | ADMIN | PROJECT_MANAGER | SUPERVISOR | ADMINISTRATIVE | READ_ONLY |
+|--------|:-----:|:---------------:|:----------:|:--------------:|:---------:|
+| Gestionar proyectos | ✓ | ✓ | — | — | — |
+| Rubros, tareas e ítems | ✓ | ✓ | ✓ | — | — |
+| Registrar gastos | ✓ | ✓ | ✓ | ✓ | — |
+| Aprobar gastos | ✓ | ✓ | — | — | — |
+| Presupuestos / APU | ✓ | ✓ | — | ✓ | — |
+| Certificaciones | ✓ | ✓ | — | ✓ | — |
+| Gestionar empleados | ✓ | ✓ | — | ✓ | — |
+| Gestionar usuarios | ✓ | — | — | — | — |
+| Consulta (solo lectura) | ✓ | ✓ | ✓ | ✓ | ✓ |
 
-1. **Variables de entorno**: Configurar secrets seguros para JWT
-2. **HTTPS**: Configurar certificado SSL
-3. **Base de datos**: Usar conexión segura con SSL
-4. **CORS**: Configurar dominios permitidos
-5. **Rate limiting**: Implementar límites de requests
-6. **Logging**: Configurar sistema de logs centralizado
-7. **Backups**: Configurar backups automáticos de DB
+---
 
-## Tecnologías Utilizadas
-
-- [Express](https://expressjs.com/) - Framework web
-- [Prisma](https://www.prisma.io/) - ORM
-- [Next.js](https://nextjs.org/) - Framework React
-- [Tailwind CSS](https://tailwindcss.com/) - Estilos
-- [TanStack Query](https://tanstack.com/query) - Estado del servidor
-- [Zustand](https://zustand-demo.pmnd.rs/) - Estado global
-- [React Hook Form](https://react-hook-form.com/) - Formularios
-- [Zod](https://zod.dev/) - Validación
-- [Recharts](https://recharts.org/) - Gráficos
-
-## Licencia
-
-Proyecto privado - Todos los derechos reservados.
-
-## Soporte
-
-Para soporte técnico, contactar a: soporte@constructorademo.com.ar
+Ver [TUTORIAL_INSTALACION.md](./TUTORIAL_INSTALACION.md) · [MANUAL_DE_USO.md](./MANUAL_DE_USO.md)

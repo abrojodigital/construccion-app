@@ -1,568 +1,628 @@
-# Manual de Uso - Sistema de Gestión de Construcción
+# Manual de Uso — Sistema de Gestión de Construcción
 
 ## Índice
 
-1. [Introducción](#introducción)
-2. [Acceso al Sistema](#acceso-al-sistema)
-3. [Roles y Permisos](#roles-y-permisos)
-4. [Diagrama de Flujo General](#diagrama-de-flujo-general)
-5. [Configuración Inicial](#configuración-inicial)
-6. [Gestión de Proyectos](#gestión-de-proyectos)
-7. [Gestión de Etapas y Tareas](#gestión-de-etapas-y-tareas)
-8. [Control de Gastos](#control-de-gastos)
-9. [Gestión de Empleados](#gestión-de-empleados)
-10. [Proveedores y Materiales](#proveedores-y-materiales)
-11. [Reportes y Dashboard](#reportes-y-dashboard)
-12. [Buenas Prácticas](#buenas-prácticas)
+1. [Acceso y roles](#1-acceso-y-roles)
+2. [Tablero (Dashboard)](#2-tablero-dashboard)
+3. [Gestión de Proyectos](#3-gestión-de-proyectos)
+4. [Rubros, Tareas e Ítems](#4-rubros-tareas-e-ítems)
+5. [Diagrama de Gantt](#5-diagrama-de-gantt)
+6. [Presupuesto Versionado](#6-presupuesto-versionado)
+7. [Análisis de Precios Unitarios (APU)](#7-análisis-de-precios-unitarios-apu)
+8. [Avance Físico](#8-avance-físico)
+9. [Certificaciones de Obra](#9-certificaciones-de-obra)
+10. [Subcontrataciones](#10-subcontrataciones)
+11. [Monedas y Tipos de Cambio](#11-monedas-y-tipos-de-cambio)
+12. [Redeterminación de Precios](#12-redeterminación-de-precios)
+13. [Control de Gastos](#13-control-de-gastos)
+14. [Proveedores](#14-proveedores)
+15. [Materiales e Inventario](#15-materiales-e-inventario)
+16. [Empleados y Asistencia](#16-empleados-y-asistencia)
+17. [Reportes](#17-reportes)
+18. [Configuración y Usuarios](#18-configuración-y-usuarios)
 
 ---
 
-## Introducción
+## 1. Acceso y roles
 
-El Sistema de Gestión de Construcción es una herramienta integral diseñada para administrar obras de construcción en Argentina. Permite controlar proyectos, etapas, tareas, gastos, empleados, proveedores y materiales desde una única plataforma.
+### Iniciar sesión
 
-### Funcionalidades Principales
+1. Ingresar a http://localhost:3000
+2. Ingresar email y contraseña
+3. Click en **Iniciar Sesión**
 
-- **Gestión de Proyectos**: Crear y administrar obras con presupuestos y cronogramas
-- **Diagrama Gantt**: Visualizar tareas y dependencias en línea de tiempo
-- **Control de Costos**: Registrar gastos, aprobarlos y compararlos con el presupuesto
-- **Gestión de Personal**: Administrar empleados y registrar asistencia
-- **Inventario**: Control de materiales y stock
-- **Proveedores**: Gestión de proveedores y cotizaciones
+La sesión se mantiene activa mediante refresh tokens. Si el token expira se redirige automáticamente al login.
 
----
-
-## Acceso al Sistema
-
-### Iniciar Sesión
-
-1. Ingresar a la URL del sistema
-2. Introducir email y contraseña
-3. Click en "Iniciar Sesión"
-
-### Usuarios de Prueba
+### Usuarios demo
 
 | Rol | Email | Contraseña |
-|-----|-------|------------|
+|-----|-------|-----------|
 | Administrador | admin@constructorademo.com.ar | password123 |
 | Jefe de Obra | jefe@constructorademo.com.ar | password123 |
 | Supervisor | supervisor@constructorademo.com.ar | password123 |
-| Administrativo | admin.contable@constructorademo.com.ar | password123 |
-| Cliente (Solo lectura) | cliente@ejemplo.com.ar | password123 |
+| Administrativo | admin2@constructorademo.com.ar | password123 |
+| Solo Lectura | lector@constructorademo.com.ar | password123 |
+
+### Matriz de permisos
+
+| Acción | ADMIN | PROJECT_MANAGER | SUPERVISOR | ADMINISTRATIVE | READ_ONLY |
+|--------|:-----:|:---------------:|:----------:|:--------------:|:---------:|
+| Crear / editar proyectos | ✓ | ✓ | — | — | — |
+| Rubros, tareas e ítems | ✓ | ✓ | ✓ | — | — |
+| Registrar gastos | ✓ | ✓ | ✓ | ✓ | — |
+| Aprobar / rechazar gastos | ✓ | ✓ | — | — | — |
+| Presupuestos y APU | ✓ | ✓ | — | ✓ | — |
+| Aprobar presupuestos | ✓ | ✓ | — | — | — |
+| Certificaciones | ✓ | ✓ | — | ✓ | — |
+| Subcontrataciones | ✓ | ✓ | — | ✓ | — |
+| Gestionar empleados | ✓ | ✓ | — | ✓ | — |
+| Gestionar proveedores | ✓ | ✓ | — | ✓ | — |
+| Gestionar materiales | ✓ | ✓ | ✓ | ✓ | — |
+| Redeterminación de precios | ✓ | ✓ | — | ✓ | — |
+| Gestionar usuarios | ✓ | — | — | — | — |
+| Consulta general | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 ---
 
-## Roles y Permisos
+## 2. Tablero (Dashboard)
 
-### Matriz de Permisos
+El tablero es la pantalla principal. Muestra el estado operativo de toda la organización.
 
-| Función | Admin | Jefe de Obra | Supervisor | Administrativo | Solo Lectura |
-|---------|:-----:|:------------:|:----------:|:--------------:|:------------:|
-| **Proyectos** |
-| Ver proyectos | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Crear proyectos | ✓ | ✓ | ✗ | ✗ | ✗ |
-| Editar proyectos | ✓ | ✓ | ✗ | ✗ | ✗ |
-| Eliminar proyectos | ✓ | ✗ | ✗ | ✗ | ✗ |
-| **Etapas y Tareas** |
-| Ver tareas | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Crear/Editar tareas | ✓ | ✓ | ✓ | ✗ | ✗ |
-| Actualizar progreso | ✓ | ✓ | ✓ | ✗ | ✗ |
-| **Gastos** |
-| Ver gastos | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Registrar gastos | ✓ | ✓ | ✓ | ✓ | ✗ |
-| Aprobar gastos | ✓ | ✓ | ✗ | ✗ | ✗ |
-| **Empleados** |
-| Ver empleados | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Gestionar empleados | ✓ | ✓ | ✗ | ✓ | ✗ |
-| Eliminar empleados | ✓ | ✗ | ✗ | ✗ | ✗ |
-| Registrar asistencia | ✓ | ✓ | ✓ | ✓ | ✗ |
-| **Usuarios** |
-| Gestionar usuarios | ✓ | ✗ | ✗ | ✗ | ✗ |
+### KPIs principales
+
+- **Proyectos Activos** — cantidad de obras en estado EN_PROGRESO
+- **Presupuesto Total** — suma de presupuestos estimados · porcentaje ejecutado
+- **Tareas Vencidas** — ítems con fecha de fin pasada y sin completar
+- **Aprobaciones Pendientes** — gastos en estado PENDING_APPROVAL
+- **Gasto Total** — suma de gastos aprobados y pagados
+- **Proyectos Completados** — obras finalizadas
+- **Stock Bajo** — materiales por debajo del stock mínimo
+
+### Gráficos
+
+- **Gastos Mensuales** — evolución mensual de gastos aprobados y pagados
+- **Estado de Proyectos** — distribución por estado (dona)
+- **Avance por Obra** — avance físico vs. ejecución presupuestaria (barras)
+
+### Lista de proyectos activos
+
+Muestra cada proyecto con barra de avance físico, barra de ejecución presupuestaria, estado y días restantes (o días de retraso en rojo).
 
 ---
 
-## Diagrama de Flujo General
+## 3. Gestión de Proyectos
 
-### Flujo Completo de Administración de un Proyecto
+Menú: **Proyectos**
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         CONFIGURACIÓN INICIAL                                │
-│  (Solo se hace una vez al comenzar a usar el sistema)                       │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  1. CARGAR DATOS MAESTROS                                                    │
-│  ├── Registrar Empleados (personal de obra)                                 │
-│  ├── Registrar Proveedores (corralones, ferreterías, etc.)                  │
-│  └── Cargar Materiales (catálogo de materiales con precios)                 │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         CICLO DE VIDA DEL PROYECTO                           │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  2. CREAR PROYECTO                                                           │
-│  ├── Nombre y descripción de la obra                                        │
-│  ├── Ubicación (dirección, ciudad, provincia)                               │
-│  ├── Fechas estimadas (inicio y fin)                                        │
-│  ├── Presupuesto total estimado                                             │
-│  └── Asignar Jefe de Obra responsable                                       │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  3. DEFINIR ETAPAS                                                           │
-│  ├── Trabajos Preliminares (limpieza, cerco, obrador)                       │
-│  ├── Fundaciones (excavación, bases, hormigón)                              │
-│  ├── Estructura (columnas, vigas, losas)                                    │
-│  ├── Mampostería (paredes)                                                  │
-│  ├── Instalaciones (electricidad, sanitarios, gas)                          │
-│  └── Terminaciones (revoques, pisos, pintura)                               │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  4. CREAR TAREAS EN CADA ETAPA                                               │
-│  ├── Definir nombre y descripción                                           │
-│  ├── Establecer fechas planificadas                                         │
-│  ├── Estimar horas de trabajo                                               │
-│  ├── Asignar prioridad (Alta, Media, Baja)                                  │
-│  ├── Definir dependencias (qué tareas deben completarse antes)              │
-│  └── Asignar empleados responsables                                         │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  5. DEFINIR PRESUPUESTO                                                      │
-│  ├── Presupuesto de Materiales                                              │
-│  ├── Presupuesto de Mano de Obra                                            │
-│  ├── Presupuesto de Equipos                                                 │
-│  ├── Presupuesto de Subcontratistas                                         │
-│  └── Contingencias (imprevistos)                                            │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         EJECUCIÓN DEL PROYECTO                               │
-│                    (Ciclo diario/semanal durante la obra)                   │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                    │
-        ┌───────────────────────────┼───────────────────────────┐
-        │                           │                           │
-        ▼                           ▼                           ▼
-┌───────────────────┐   ┌───────────────────┐   ┌───────────────────┐
-│  CADA DÍA         │   │  CADA SEMANA      │   │  CUANDO OCURRA    │
-├───────────────────┤   ├───────────────────┤   ├───────────────────┤
-│ • Registrar       │   │ • Actualizar      │   │ • Registrar       │
-│   asistencia de   │   │   progreso de     │   │   gastos y        │
-│   empleados       │   │   tareas          │   │   compras         │
-│                   │   │                   │   │                   │
-│ • Revisar tareas  │   │ • Revisar         │   │ • Solicitar       │
-│   del día         │   │   diagrama Gantt  │   │   aprobación de   │
-│                   │   │                   │   │   gastos          │
-│                   │   │ • Verificar       │   │                   │
-│                   │   │   presupuesto vs  │   │ • Actualizar      │
-│                   │   │   gastos reales   │   │   stock de        │
-│                   │   │                   │   │   materiales      │
-└───────────────────┘   └───────────────────┘   └───────────────────┘
-        │                           │                           │
-        └───────────────────────────┼───────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  6. FLUJO DE APROBACIÓN DE GASTOS                                            │
-│                                                                              │
-│  Administrativo          Jefe de Obra/Admin         Sistema                 │
-│       │                        │                        │                   │
-│       │  Registra gasto        │                        │                   │
-│       ├───────────────────────►│                        │                   │
-│       │                        │  Revisa y aprueba      │                   │
-│       │                        ├───────────────────────►│                   │
-│       │                        │                        │  Actualiza        │
-│       │                        │                        │  presupuesto      │
-│       │                        │◄───────────────────────┤                   │
-│       │  Notificación          │                        │                   │
-│       │◄───────────────────────┤                        │                   │
-│       │                        │                        │                   │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  7. MONITOREO Y CONTROL                                                      │
-│  ├── Revisar Dashboard con métricas generales                               │
-│  ├── Analizar desviaciones de presupuesto                                   │
-│  ├── Verificar progreso vs cronograma planificado                           │
-│  ├── Generar reportes para stakeholders                                     │
-│  └── Tomar acciones correctivas si es necesario                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  8. CIERRE DEL PROYECTO                                                      │
-│  ├── Verificar que todas las tareas estén completadas                       │
-│  ├── Revisar balance final de gastos                                        │
-│  ├── Generar reporte final                                                  │
-│  └── Cambiar estado del proyecto a "Completado"                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+### Crear un proyecto
 
----
+1. Click en **Nuevo Proyecto**
+2. Completar: nombre, dirección, ciudad, provincia, responsable, presupuesto estimado
+3. Opcionalmente: fechas de inicio y fin estimadas, descripción
+4. Click en **Crear Proyecto**
 
-## Configuración Inicial
+El sistema asigna automáticamente un código único (`OBR-YYYY-NNNNN`).
 
-### Paso 1: Cargar Empleados
+### Detalle de un proyecto
 
-Antes de iniciar cualquier proyecto, registre a todo el personal:
+Desde la lista, click en el nombre del proyecto. Se muestran:
 
-1. Ir a **Empleados** → **Nuevo Empleado**
-2. Completar datos:
-   - Nombre y Apellido
-   - DNI y CUIL
-   - Teléfono y Email
-   - Puesto (Albañil, Electricista, Plomero, etc.)
-   - Tipo de empleo (Permanente, Temporal, Contratista)
-   - Fecha de ingreso
-   - Tarifa por hora (para cálculo de costos)
+- **Información general**: estado, código, responsable, presupuesto, avance
+- **KPIs**: gasto ejecutado, tareas pendientes, empleados asignados, documentos
+- **Accesos rápidos**: Rubros y Tareas, Diagrama Gantt, Presupuesto, Gastos, Equipo, Certificaciones, Subcontratos, Documentos
 
-### Paso 2: Cargar Proveedores
-
-Registre sus proveedores habituales:
-
-1. Ir a **Proveedores** → **Nuevo Proveedor**
-2. Completar datos:
-   - Razón social y nombre comercial
-   - CUIT
-   - Dirección, teléfono, email
-   - Persona de contacto
-   - Condiciones de pago (7 días, 30 días, etc.)
-   - Calificación inicial
-
-### Paso 3: Cargar Catálogo de Materiales
-
-Cargue los materiales que utiliza frecuentemente:
-
-1. Ir a **Materiales** → **Nuevo Material**
-2. Completar datos:
-   - Nombre y descripción
-   - Unidad de medida (bolsa, m3, unidad, rollo, etc.)
-   - Categoría
-   - Stock mínimo requerido
-   - Último precio de compra
-
----
-
-## Gestión de Proyectos
-
-### Crear un Nuevo Proyecto
-
-1. Ir a **Proyectos** → **Nueva Obra**
-2. Completar el formulario:
-
-| Campo | Descripción | Ejemplo |
-|-------|-------------|---------|
-| Nombre | Nombre descriptivo de la obra | Casa Familia Rodriguez |
-| Descripción | Detalles del proyecto | Vivienda unifamiliar 180m2, 2 plantas |
-| Dirección | Ubicación de la obra | Calle Los Pinos 456 |
-| Ciudad | Ciudad | Nordelta |
-| Provincia | Provincia | Buenos Aires |
-| Fecha de Inicio | Cuándo comienza la obra | 01/02/2024 |
-| Fecha Estimada de Fin | Cuándo debería terminar | 31/10/2024 |
-| Presupuesto Estimado | Monto total del proyecto | $85.000.000 |
-
-3. Click en **Crear Proyecto**
-
-### Estados de un Proyecto
-
-| Estado | Descripción | Cuándo usarlo |
-|--------|-------------|---------------|
-| **Planificación** | Proyecto en etapa de diseño | Antes de iniciar la obra |
-| **En Progreso** | Obra en ejecución | Durante la construcción |
-| **En Pausa** | Obra detenida temporalmente | Problemas, falta de materiales, etc. |
-| **Completado** | Obra finalizada | Al entregar la obra |
-| **Cancelado** | Proyecto cancelado | Si se cancela definitivamente |
-
----
-
-## Gestión de Etapas y Tareas
-
-### Crear Etapas
-
-Las etapas representan las fases principales de la construcción:
-
-1. Entrar al proyecto → **Etapas**
-2. Click en **Nueva Etapa**
-3. Definir:
-   - Nombre de la etapa
-   - Descripción
-   - Orden (1, 2, 3...)
-   - Fechas planificadas
-
-### Etapas Típicas de una Obra
-
-| Orden | Etapa | Descripción |
-|-------|-------|-------------|
-| 1 | Trabajos Preliminares | Limpieza, cerco, obrador, replanteo |
-| 2 | Movimiento de Suelos | Excavaciones, rellenos, compactación |
-| 3 | Fundaciones | Bases, vigas de fundación |
-| 4 | Estructura | Columnas, vigas, losas |
-| 5 | Mampostería | Paredes de ladrillo |
-| 6 | Cubierta | Techo, impermeabilización |
-| 7 | Instalación Sanitaria | Cañerías, artefactos |
-| 8 | Instalación Eléctrica | Cableado, tableros, luminarias |
-| 9 | Instalación de Gas | Cañerías, artefactos |
-| 10 | Revoques | Grueso y fino |
-| 11 | Contrapisos y Carpetas | Preparación para pisos |
-| 12 | Pisos y Revestimientos | Cerámicos, porcelanatos |
-| 13 | Carpintería | Puertas, ventanas |
-| 14 | Pintura | Interior y exterior |
-| 15 | Limpieza Final | Entrega de obra |
-
-### Crear Tareas
-
-Dentro de cada etapa, cree las tareas específicas:
-
-1. En la etapa, click en **Nueva Tarea**
-2. Completar:
-
-| Campo | Descripción |
-|-------|-------------|
-| Nombre | Nombre descriptivo de la tarea |
-| Descripción | Detalles del trabajo a realizar |
-| Prioridad | Alta / Media / Baja |
-| Fecha de inicio | Cuándo comienza |
-| Fecha de fin | Cuándo debe terminar |
-| Horas estimadas | Cuántas horas de trabajo requiere |
-
-### Dependencias entre Tareas
-
-Las dependencias indican qué tareas deben completarse antes de iniciar otra:
-
-**Tipos de Dependencia:**
-
-| Tipo | Significado | Ejemplo |
-|------|-------------|---------|
-| FS (Fin-Inicio) | La tarea B inicia cuando termina A | Hormigonado después de encofrado |
-| SS (Inicio-Inicio) | Ambas tareas inician juntas | Instalación eléctrica y sanitaria |
-| FF (Fin-Fin) | Ambas tareas terminan juntas | Pintura interior y exterior |
-| SF (Inicio-Fin) | Tarea B termina cuando inicia A | Poco común |
-
-**Ejemplo de Dependencias en Estructura:**
-
-```
-Armado de Columnas ──FS──► Hormigonado de Columnas ──FS──► Encofrado de Losa ──FS──► Armado de Losa ──FS──► Hormigonado de Losa
-```
-
-### Diagrama Gantt
-
-El diagrama Gantt permite visualizar todas las tareas en una línea de tiempo:
-
-1. Entrar al proyecto → **Gantt**
-2. Visualizar:
-   - Barras de tareas con fechas
-   - Líneas de dependencia
-   - Progreso actual
-   - Tareas críticas (en rojo)
-
----
-
-## Control de Gastos
-
-### Flujo de Gastos
-
-```
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│   Registrar  │────►│   Pendiente  │────►│   Aprobado   │────►│    Pagado    │
-│    Gasto     │     │  Aprobación  │     │              │     │              │
-└──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
-                            │
-                            ▼
-                     ┌──────────────┐
-                     │   Rechazado  │
-                     └──────────────┘
-```
-
-### Registrar un Gasto
-
-1. Ir a **Gastos** → **Nuevo Gasto**
-2. Completar:
-
-| Campo | Descripción | Ejemplo |
-|-------|-------------|---------|
-| Proyecto | Obra asociada | Casa Familia Rodriguez |
-| Tarea (opcional) | Tarea específica | Hormigonado de losa |
-| Categoría | Tipo de gasto | Materiales |
-| Descripción | Detalle del gasto | Cemento Portland x 100 bolsas |
-| Monto | Valor sin IVA | $850.000 |
-| IVA | Impuesto | $178.500 |
-| Total | Monto final | $1.028.500 |
-| Proveedor | Quién provee | Corralón El Constructor |
-| Factura | Número de comprobante | A-0001-00045678 |
-| Fecha | Fecha del gasto | 10/02/2024 |
-
-### Categorías de Gastos
-
-| Categoría | Código | Descripción |
-|-----------|--------|-------------|
-| Materiales | MAT | Cemento, ladrillos, hierros, etc. |
-| Mano de Obra | MO | Jornales, horas extra |
-| Equipos | EQ | Alquiler de maquinaria |
-| Subcontratistas | SUB | Trabajos terciarizados |
-| Transporte | TRANS | Fletes, combustible |
-| Administrativos | ADM | Permisos, seguros, honorarios |
-
-### Aprobar Gastos (Jefe de Obra / Admin)
-
-1. Ir a **Gastos** → Filtrar por "Pendiente de aprobación"
-2. Revisar el detalle del gasto
-3. Click en **Aprobar** o **Rechazar**
-
----
-
-## Gestión de Empleados
-
-### Asistencia Diaria
-
-Registre la asistencia del personal cada día:
-
-1. Ir a **Empleados** → **Asistencia**
-2. Seleccionar fecha
-3. Para cada empleado, marcar:
+### Estados de un proyecto
 
 | Estado | Descripción |
 |--------|-------------|
-| Presente | Asistió normalmente |
-| Ausente | No asistió |
-| Licencia | Ausencia justificada |
-| Vacaciones | En período de vacaciones |
-| Feriado | Día no laborable |
-
-4. Registrar hora de entrada y salida
-5. Agregar horas extra si corresponde
-
-### Asignar Empleados a Proyectos
-
-1. Entrar al proyecto → **Equipo**
-2. Click en **Asignar Empleado**
-3. Seleccionar empleado y rol en el proyecto
+| PLANNING | En planificación, sin comenzar |
+| IN_PROGRESS | En ejecución |
+| ON_HOLD | Pausado |
+| COMPLETED | Finalizado |
+| CANCELLED | Cancelado |
 
 ---
 
-## Proveedores y Materiales
+## 4. Rubros, Tareas e Ítems
 
-### Gestión de Stock
+Menú: Proyecto → **Rubros y Tareas**
 
-1. Ir a **Materiales** → **Stock**
-2. Visualizar:
-   - Stock actual
-   - Stock mínimo
-   - Alertas de bajo stock
+El sistema organiza el plan de trabajo en 3 niveles jerárquicos:
 
-### Movimientos de Stock
+```
+Rubro (nivel 0)
+└── Tarea (nivel 1)
+    └── Ítem (nivel 2)
+```
 
-Registre entradas y salidas de materiales:
+- **Rubro**: agrupador principal (ej: "Estructura", "Instalaciones Eléctricas")
+- **Tarea**: subdivisión del rubro (ej: "Columnas", "Vigas")
+- **Ítem**: trabajo específico asignable con fecha, prioridad y responsable (ej: "Hormigonado columna C1")
 
-**Entrada (compra):**
-1. Click en **Entrada de Stock**
-2. Seleccionar material
-3. Indicar cantidad y proveedor
+### Crear un Rubro
 
-**Salida (uso en obra):**
-1. Click en **Salida de Stock**
-2. Seleccionar material
-3. Indicar cantidad y proyecto destino
+1. Click en **+ Agregar Rubro**
+2. Ingresar nombre, descripción, fechas planificadas y progreso inicial
+3. Click en **Crear**
 
----
+### Crear una Tarea dentro de un Rubro
 
-## Reportes y Dashboard
+1. Expandir el rubro con el botón de flecha
+2. Click en **+ Agregar Tarea**
+3. Completar datos y guardar
 
-### Dashboard Principal
+### Crear un Ítem dentro de una Tarea
 
-El dashboard muestra métricas clave:
+1. Expandir la tarea
+2. Click en **+ Agregar Ítem**
+3. Completar: nombre, descripción, estado, prioridad, fechas, progreso
+4. Opcionalmente asignar a un empleado o usuario
 
-| Métrica | Descripción |
-|---------|-------------|
-| Proyectos Activos | Cantidad de obras en ejecución |
-| Gastos del Mes | Total gastado en el período |
-| Presupuesto Disponible | Lo que queda por gastar |
-| Tareas Pendientes | Tareas sin completar |
-| Empleados Presentes | Personal trabajando hoy |
+### Estados de un Ítem
 
-### Reportes Disponibles
+| Estado | Color |
+|--------|-------|
+| PENDING | Gris |
+| IN_PROGRESS | Azul |
+| COMPLETED | Verde |
+| BLOCKED | Rojo |
+| CANCELLED | Gris tenue |
 
-Acceder a **Reportes** desde el menú lateral.
+### Prioridades
 
-| Reporte | Descripción | Útil para |
-|---------|-------------|-----------|
-| Dashboard de Reportes | Métricas generales con gráficos | Vista rápida del estado |
-| Gastos por Categoría | Distribución de gastos (gráfico de barras) | Análisis de costos |
-| Progreso de Proyectos | Estado de avance de obras activas | Control de cronograma |
-| Gastos Mensuales | Evolución de gastos en el tiempo | Tendencias |
-| Exportar PDF | Reporte HTML con tablas de proyectos y gastos | Reuniones con cliente |
-| Exportar Excel | CSV con datos de proyectos y gastos | Análisis en planilla |
-
-### Filtros de Reportes
-
-| Filtro | Opciones |
-|--------|----------|
-| Período | Última semana, Último mes, Último trimestre, Último año, Todo |
-| Proyecto | Todos o uno específico |
+LOW · MEDIUM · HIGH · URGENT
 
 ---
 
-## Buenas Prácticas
+## 5. Diagrama de Gantt
 
-### Para una Gestión Exitosa
+Menú: Proyecto → **Diagrama de Gantt** (ícono de calendario en la barra superior del proyecto)
 
-1. **Actualizar diariamente**
-   - Registrar asistencia todos los días
-   - Cargar gastos ni bien se producen
-   - Actualizar progreso de tareas
+Visualiza el cronograma del proyecto en una línea de tiempo horizontal.
 
-2. **Revisar semanalmente**
-   - Comparar avance real vs. planificado
-   - Verificar desviaciones de presupuesto
-   - Revisar diagrama Gantt
+### Vistas disponibles
 
-3. **Documentar siempre**
-   - Adjuntar facturas a los gastos
-   - Agregar notas a las tareas
-   - Registrar incidentes o problemas
+| Vista | Muestra |
+|-------|---------|
+| Rubros | Solo los rubros (nivel superior) |
+| Tareas | Rubros y tareas |
+| Ítems | La jerarquía completa (defecto) |
 
-4. **Usar dependencias correctamente**
-   - Definir dependencias lógicas entre tareas
-   - El Gantt ayuda a identificar el camino crítico
+Cada vista muestra un contador de elementos. Cambiar la vista no afecta los datos.
 
-5. **Control de presupuesto**
-   - Revisar gastos vs. presupuesto regularmente
-   - Actuar rápido ante desviaciones
-   - Solicitar aprobación antes de gastos grandes
+### Cómo leer el diagrama
 
-### Errores Comunes a Evitar
+- **Barra amarilla** — Rubro
+- **Barra índigo** — Tarea
+- **Barra azul** — Ítem en estado PENDING
+- **Barra verde** — Ítem completado
+- **Barra roja** — Ítem bloqueado
+- **Overlay oscuro sobre la barra** — porcentaje de avance completado
+- **Línea roja vertical** — día de hoy
+- **"Sin fechas"** — el elemento no tiene fechas cargadas aún
 
-| Error | Consecuencia | Cómo evitarlo |
-|-------|--------------|---------------|
-| No registrar gastos menores | Pérdida de control de costos | Registrar TODO gasto |
-| Olvidar actualizar progreso | Cronograma desactualizado | Actualizar semanalmente |
-| No definir dependencias | Gantt inútil | Pensar qué depende de qué |
-| Asistencia incompleta | Errores en liquidación | Registrar a diario |
-| Gastos sin aprobar | Demoras en pagos | Revisar pendientes diariamente |
+### Exportar a PDF
+
+Click en **Exportar PDF** (esquina superior derecha). Se imprime la vista actual.
 
 ---
 
-## Soporte
+## 6. Presupuesto Versionado
 
-Si tiene dudas o problemas con el sistema:
+Menú: Proyecto → **Presupuesto**
 
-- Revisar este manual
-- Contactar al administrador del sistema
-- Reportar errores en el sistema
+Permite manejar múltiples versiones del presupuesto con cálculo automático del coeficiente K.
+
+### Estructura
+
+```
+Versión de Presupuesto
+└── Rubro (número + nombre)
+    └── Tarea (número · descripción · unidad · cantidad · precio unitario)
+        └── Ítem (desglose)
+```
+
+### Crear una nueva versión
+
+1. Click en **Nueva Versión**
+2. Ingresar nombre y descripción
+3. Configurar porcentajes:
+   - **Gastos Generales (GG)**
+   - **Beneficio**
+   - **Gastos Financieros (GF)**
+   - **IVA**
+4. El sistema calcula automáticamente el **Coeficiente K**:
+   ```
+   K = (1 + GG) × (1 + B) × (1 + GF) × (1 + IVA)
+   ```
+
+### Agregar Rubros y Tareas
+
+1. Con la versión en estado BORRADOR, click en **+ Agregar Rubro**
+2. Dentro del rubro, click en **+ Tarea** para agregar líneas con cantidad y precio unitario
+3. El sistema calcula subtotales y totales automáticamente
+
+### Generar cronograma desde el presupuesto
+
+1. Click en **Generar Cronograma**
+2. Elegir modo: **Reemplazar** (borra el existente) o **Agregar** (sin borrar)
+3. El sistema crea Rubros y Tareas en el plan de trabajo a partir de la estructura del presupuesto
+
+### Aprobar un presupuesto
+
+1. Click en **Aprobar Versión**
+2. Confirmar la acción
+3. Una vez aprobado, el presupuesto queda en modo solo lectura
+4. Si hay una versión anterior aprobada, pasa a estado SUPERSEDIDO
+
+### Estados de una versión
+
+| Estado | Descripción |
+|--------|-------------|
+| DRAFT | En edición, se puede modificar |
+| APPROVED | Aprobado, solo lectura |
+| SUPERSEDED | Reemplazado por una versión más nueva |
 
 ---
 
-*Manual de Uso - Sistema de Gestión de Construcción v1.0*
-*Última actualización: Febrero 2024*
+## 7. Análisis de Precios Unitarios (APU)
+
+Menú: Proyecto → Presupuesto → Versión → Ítem → **Ver APU**
+
+Permite desglosar el costo unitario de cada ítem del presupuesto en 6 secciones:
+
+| Sección | Contenido |
+|---------|-----------|
+| Materiales | Insumos con cantidad y precio unitario |
+| Mano de Obra | Categorías laborales con jornales |
+| Equipos (D) | Equipos de uso directo |
+| Equipos (E) | Equipos de uso indirecto |
+| Equipos (F) | Equipos de movimiento |
+| Transporte | Fletes y acarreos |
+
+### Agregar componentes
+
+1. En la sección correspondiente, click en **+ Agregar**
+2. Completar: descripción, unidad, cantidad y precio unitario
+3. El subtotal se calcula automáticamente
+4. El **Costo Directo Total** suma todas las secciones
+
+---
+
+## 8. Avance Físico
+
+Menú: Proyecto → Presupuesto → Versión → **Avance Físico**
+
+Registra el porcentaje de avance de cada ítem presupuestado.
+
+### Registrar avance
+
+1. En la columna **Avance**, ingresar el valor entre 0 y 1 (ej: 0.75 = 75%)
+2. Click en **Guardar Avance**
+3. El sistema calcula el **monto ejecutado** multiplicando el avance por el precio total del ítem
+
+### Vista resumen
+
+- Avance por rubro (promedio ponderado)
+- Avance global de la versión
+- Monto total ejecutado vs. presupuestado
+
+---
+
+## 9. Certificaciones de Obra
+
+Menú: Proyecto → **Certificaciones**
+
+Los certificados documentan el trabajo ejecutado en un período y se usan para facturar al comitente.
+
+### Crear un certificado
+
+1. Click en **Nuevo Certificado**
+2. Definir el período (fecha inicio y fin)
+3. El sistema asigna un número correlativo (`CERT-YYYY-NNNNN`)
+
+### Completar un certificado (estado BORRADOR)
+
+En estado BORRADOR se pueden editar los avances de cada ítem:
+
+1. Para cada línea, ingresar el **% de avance acumulado** en el período
+2. El sistema calcula: avance del período = acumulado actual − acumulado anterior
+3. El subtotal se calcula multiplicando el avance del período por el precio del ítem
+
+### Deducciones
+
+El certificado permite aplicar deducciones al subtotal:
+
+| Deducción | Descripción |
+|-----------|-------------|
+| Acopio | Devolución de materiales entregados en advance |
+| Anticipo | Amortización del anticipo otorgado |
+| Fondo de Reparo | Retención por garantía de obra |
+| IVA | Impuesto al Valor Agregado |
+
+### Flujo de estados
+
+```
+DRAFT → SUBMITTED → APPROVED → PAID
+```
+
+- **DRAFT**: editable por PROJECT_MANAGER y ADMINISTRATIVE
+- **SUBMITTED**: enviado para aprobación
+- **APPROVED**: aprobado, listo para pagar
+- **PAID**: cobrado
+
+---
+
+## 10. Subcontrataciones
+
+Menú: Proyecto → **Subcontratos**
+
+Permite gestionar trabajos delegados a empresas subcontratistas.
+
+### Crear un subcontrato
+
+1. Click en **Nuevo Subcontrato**
+2. Completar:
+   - Datos del contratista: nombre, CUIT, contacto
+   - Descripción del alcance
+   - Monto total pactado
+3. El sistema asigna código automático
+
+### Agregar ítems al subcontrato
+
+Cada subcontrato tiene líneas de trabajo con:
+- Descripción, unidad, cantidad y precio unitario
+- Opcionalmente vinculado a un ítem del presupuesto
+
+### Certificación de subcontratos
+
+Los subcontratos tienen su propio ciclo de certificación, independiente del certificado principal de obra.
+
+### Estados
+
+DRAFT → ACTIVE → COMPLETED → CANCELLED
+
+---
+
+## 11. Monedas y Tipos de Cambio
+
+Menú: **Monedas**
+
+### Gestionar monedas
+
+El sistema viene con ARS, USD y EUR. Se pueden agregar otras monedas con su código ISO y símbolo.
+
+### Registrar tipos de cambio
+
+1. Ingresar a la moneda deseada (ej: USD)
+2. Click en **+ Agregar Tipo de Cambio**
+3. Ingresar: fecha, valor en ARS, fuente (ej: BCRA, mercado)
+
+Los tipos de cambio son históricos: cada registro corresponde a una fecha específica.
+
+---
+
+## 12. Redeterminación de Precios
+
+Menú: **Redeterminación**
+
+Sistema de ajuste de precios según variación de índices, aplicado en contratos de obra pública argentina.
+
+### Componentes
+
+#### Índices de Precios
+
+Registros históricos de índices publicados por organismos como INDEC:
+- Índice de materiales de construcción
+- Índice de mano de obra
+- Índice de equipos y maquinaria
+
+Para agregar valores históricos: ingresar al índice → **+ Agregar Valor** → fecha y valor.
+
+#### Fórmulas de Redeterminación
+
+Fórmulas polinómicas con pesos (coeficientes) asignados a cada índice.
+
+> Los pesos de todos los componentes deben sumar **exactamente 1.0 (100%)**.
+
+Ejemplo:
+```
+Factor = 0.40 × (I_materiales / I_materiales_base)
+       + 0.35 × (I_mano_obra / I_mano_obra_base)
+       + 0.25 × (I_equipos / I_equipos_base)
+```
+
+#### Calculadora de ajuste
+
+Menú: Proyecto → **Calcular Redeterminación**
+
+1. Seleccionar la fórmula
+2. Ingresar fecha base (inicio del contrato) y fecha actual
+3. El sistema busca los valores de índice para ambas fechas y calcula el factor de ajuste
+
+---
+
+## 13. Control de Gastos
+
+Menú: **Gastos**
+
+### Registrar un gasto
+
+1. Click en **Nuevo Gasto**
+2. Completar:
+   - Proyecto al que pertenece
+   - Categoría (materiales, mano de obra, equipos, etc.)
+   - Proveedor (opcional)
+   - Descripción e importe
+   - Tipo de comprobante (Factura A, B o C) y número
+   - Fecha
+3. Guardar como **Borrador** o enviar a aprobación directamente
+
+El sistema genera código automático (`GAS-YYYY-NNNNN`).
+
+### Flujo de aprobación
+
+```
+DRAFT → PENDING_APPROVAL → APPROVED → PAID
+                        ↓
+                     REJECTED
+```
+
+- **PROJECT_MANAGER** y **ADMIN** pueden aprobar y rechazar
+- Al aprobar o rechazar, el gasto queda como solo lectura
+- Los gastos APPROVED y PAID impactan en el KPI de ejecución presupuestaria del proyecto
+
+### Filtros disponibles
+
+- Por proyecto
+- Por estado
+- Por texto (descripción o referencia)
+- Por fecha
+
+---
+
+## 14. Proveedores
+
+Menú: **Proveedores**
+
+### Crear un proveedor
+
+1. Click en **Nuevo Proveedor**
+2. Completar:
+   - Razón social y CUIT (con validación de dígito verificador)
+   - Dirección y contacto
+   - Datos bancarios: CBU y banco
+   - Categorías de suministro
+
+### Datos relevantes
+
+Desde el detalle del proveedor se pueden ver todos los gastos y órdenes de compra asociados.
+
+---
+
+## 15. Materiales e Inventario
+
+Menú: **Materiales**
+
+### Agregar un material
+
+1. Click en **Nuevo Material**
+2. Completar: nombre, código, categoría, unidad de medida
+3. Definir: stock actual, stock mínimo y precio unitario
+
+### Control de stock
+
+El sistema alerta cuando el stock de un material cae por debajo del **stock mínimo**. El KPI "Stock Bajo" en el tablero muestra cuántos materiales están en esa situación.
+
+### Movimientos de stock
+
+Desde el detalle del material se registran entradas y salidas con fecha y motivo.
+
+---
+
+## 16. Empleados y Asistencia
+
+Menú: **Empleados**
+
+### Registrar un empleado
+
+1. Click en **Nuevo Empleado**
+2. Completar:
+   - Datos personales: nombre, DNI, CUIL (con validación)
+   - Categoría laboral y especialidad
+   - Datos bancarios (CBU)
+   - Contacto de emergencia
+
+### Asignar a un proyecto
+
+Desde el detalle del proyecto → **Equipo** → asignar empleado con fecha de inicio.
+
+### Registro de asistencia
+
+Desde el detalle del empleado → **Asistencia** → registrar por día:
+
+| Tipo | Descripción |
+|------|-------------|
+| PRESENT | Presente jornada completa |
+| ABSENT | Ausente sin justificación |
+| LATE | Llegó tarde |
+| HALF_DAY | Media jornada |
+| VACATION | Vacaciones |
+| SICK_LEAVE | Licencia médica |
+
+---
+
+## 17. Reportes
+
+Menú: **Reportes**
+
+### Dashboard ejecutivo
+
+Disponible en la pantalla principal (Tablero). Consolida todos los KPIs de la organización.
+
+### Reportes por proyecto
+
+Desde el detalle de cada proyecto:
+
+- **Resumen financiero**: presupuestado vs. gastado por categoría
+- **Estado del presupuesto**: desglose por rubro con porcentajes de ejecución
+- **Avance físico**: progreso por ítem con montos ejecutados
+
+---
+
+## 18. Configuración y Usuarios
+
+Menú: **Configuración**
+
+### Gestionar usuarios (solo ADMIN)
+
+1. Ir a Configuración → **Usuarios**
+2. Para crear un usuario: click en **Nuevo Usuario**
+3. Completar: nombre, email, rol, contraseña inicial
+4. El usuario puede cambiar su contraseña al ingresar
+
+### Roles disponibles
+
+| Rol | Descripción |
+|-----|-------------|
+| ADMIN | Acceso total, gestión de usuarios |
+| PROJECT_MANAGER | Gestión completa de proyectos |
+| SUPERVISOR | Seguimiento y actualización de obra |
+| ADMINISTRATIVE | Finanzas, gastos y certificaciones |
+| READ_ONLY | Solo consulta, sin modificaciones |
+
+### Desactivar un usuario
+
+Desde el listado de usuarios, usar el toggle de estado. Un usuario inactivo no puede iniciar sesión pero sus datos históricos se conservan.
+
+---
+
+## Flujo de trabajo típico en una obra
+
+```
+1. Crear proyecto  →  Definir responsable y presupuesto estimado
+
+2. Crear Presupuesto Versionado
+   └── Agregar Rubros → Tareas → Ítems con precios
+   └── Configurar K (GG, Beneficio, GF, IVA)
+   └── Completar APU por ítem si es necesario
+   └── Aprobar la versión
+
+3. Generar Cronograma desde el presupuesto
+   └── Se crean Rubros y Tareas automáticamente
+
+4. Ajustar el plan de trabajo
+   └── Agregar fechas planificadas a cada ítem
+   └── Asignar empleados
+   └── Verificar en el Diagrama Gantt
+
+5. Ejecutar la obra
+   └── Registrar gastos (con aprobación)
+   └── Actualizar avance de ítems
+   └── Registrar asistencia de personal
+   └── Emitir certificados de avance al comitente
+
+6. Cierre
+   └── Marcar el proyecto como COMPLETED
+   └── Generar reporte final
+```
