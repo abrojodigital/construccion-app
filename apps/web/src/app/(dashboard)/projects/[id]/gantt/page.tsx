@@ -6,21 +6,20 @@ import Link from 'next/link';
 import { ArrowLeft, Calendar, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { api } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
-import { TASK_STATUS_LABELS, TASK_STATUS_COLORS } from '@construccion/shared';
 import { GanttChart } from '@/components/gantt/gantt-chart';
 
-interface GanttTask {
+interface GanttRow {
   id: string;
   name: string;
+  type: 'rubro' | 'tarea' | 'item';
+  level: number;
+  parentId: string | null;
   start: string | null;
   end: string | null;
   progress: number;
-  status: string;
-  stageId: string;
-  stageName: string;
+  status: string | null;
   dependencies: Array<{ id: string; type: string; lag: number }>;
   assignees: Array<{ id: string; firstName: string; lastName: string }>;
 }
@@ -32,7 +31,7 @@ interface GanttData {
     startDate: string | null;
     estimatedEndDate: string | null;
   };
-  tasks: GanttTask[];
+  rows: GanttRow[];
 }
 
 export default function ProjectGanttPage() {
@@ -63,18 +62,6 @@ export default function ProjectGanttPage() {
       </div>
     );
   }
-
-  // Group tasks by stage
-  const tasksByStage = data.tasks.reduce((acc, task) => {
-    if (!acc[task.stageId]) {
-      acc[task.stageId] = {
-        name: task.stageName,
-        tasks: [],
-      };
-    }
-    acc[task.stageId].tasks.push(task);
-    return acc;
-  }, {} as Record<string, { name: string; tasks: GanttTask[] }>);
 
   return (
     <div className="space-y-6">
@@ -123,90 +110,26 @@ export default function ProjectGanttPage() {
       {/* Gantt Chart */}
       <Card>
         <CardHeader>
-          <CardTitle>Vista de Tareas</CardTitle>
+          <CardTitle>Vista del Cronograma</CardTitle>
         </CardHeader>
         <CardContent>
-          {data.tasks.length === 0 ? (
+          {data.rows.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
-              <p>No hay tareas definidas para este proyecto.</p>
+              <p>No hay rubros ni tareas definidas para este proyecto.</p>
               <p className="text-sm mt-2">
-                Agrega etapas y tareas desde la seccion de gestion del proyecto.
+                Agrega rubros y tareas desde la sección de gestión del proyecto.
               </p>
             </div>
           ) : (
             <GanttChart
-              tasks={data.tasks}
+              rows={data.rows}
               projectStart={data.project.startDate}
               projectEnd={data.project.estimatedEndDate}
+              projectName={data.project.name}
             />
           )}
         </CardContent>
       </Card>
-
-      {/* Task List by Stage */}
-      <div className="space-y-4">
-        <h2 className="text-xl font-semibold">Detalle por Etapa</h2>
-        {Object.entries(tasksByStage).map(([stageId, stage]) => (
-          <Card key={stageId}>
-            <CardHeader>
-              <CardTitle className="text-lg">{stage.name}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {stage.tasks.map((task) => (
-                  <div
-                    key={task.id}
-                    className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
-                  >
-                    <div className="space-y-1">
-                      <p className="font-medium">{task.name}</p>
-                      <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                        {task.start && (
-                          <span>
-                            {formatDate(task.start)}
-                            {task.end && ` - ${formatDate(task.end)}`}
-                          </span>
-                        )}
-                        {task.assignees.length > 0 && (
-                          <span>
-                            {task.assignees
-                              .map((a) => `${a.firstName} ${a.lastName}`)
-                              .join(', ')}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="text-right">
-                        <div className="text-sm font-medium">{task.progress}%</div>
-                        <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-primary"
-                            style={{ width: `${task.progress}%` }}
-                          />
-                        </div>
-                      </div>
-                      <Badge
-                        variant={
-                          task.status === 'COMPLETED'
-                            ? 'success'
-                            : task.status === 'IN_PROGRESS'
-                            ? 'default'
-                            : task.status === 'BLOCKED'
-                            ? 'destructive'
-                            : 'secondary'
-                        }
-                      >
-                        {TASK_STATUS_LABELS[task.status as keyof typeof TASK_STATUS_LABELS]}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
     </div>
   );
 }

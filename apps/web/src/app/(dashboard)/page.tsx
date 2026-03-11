@@ -1,5 +1,7 @@
 'use client';
 
+import { useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import {
@@ -16,9 +18,21 @@ import { api } from '@/lib/api';
 import { formatCurrency, formatPercentage } from '@/lib/utils';
 import { PROJECT_STATUS_LABELS } from '@construccion/shared';
 import { cn } from '@/lib/utils';
-import { MonthlyExpensesChart } from '@/components/charts/monthly-expenses-chart';
-import { ProjectStatusChart } from '@/components/charts/project-status-chart';
-import { ProjectProgressChart } from '@/components/charts/project-progress-chart';
+
+const MonthlyExpensesChart = dynamic(
+  () => import('@/components/charts/monthly-expenses-chart').then((m) => m.MonthlyExpensesChart),
+  { ssr: false, loading: () => <div className="h-52 animate-pulse rounded bg-muted" /> }
+);
+
+const ProjectStatusChart = dynamic(
+  () => import('@/components/charts/project-status-chart').then((m) => m.ProjectStatusChart),
+  { ssr: false, loading: () => <div className="h-52 animate-pulse rounded bg-muted" /> }
+);
+
+const ProjectProgressChart = dynamic(
+  () => import('@/components/charts/project-progress-chart').then((m) => m.ProjectProgressChart),
+  { ssr: false, loading: () => <div className="h-48 animate-pulse rounded bg-muted" /> }
+);
 
 interface DashboardData {
   kpis: {
@@ -163,21 +177,23 @@ export default function DashboardPage() {
   const projectProgress = data?.projectProgress ?? [];
 
   // Derive status distribution from projectCards
-  const statusCounts = projects.reduce<Record<string, number>>((acc, p) => {
-    acc[p.status] = (acc[p.status] ?? 0) + 1;
-    return acc;
-  }, {});
-  const statusData = Object.entries(statusCounts).map(([status, count]) => ({
-    status,
-    count,
-    label: PROJECT_STATUS_LABELS[status as keyof typeof PROJECT_STATUS_LABELS] ?? status,
-  }));
+  const statusData = useMemo(() => {
+    const counts = projects.reduce<Record<string, number>>((acc, p) => {
+      acc[p.status] = (acc[p.status] ?? 0) + 1;
+      return acc;
+    }, {});
+    return Object.entries(counts).map(([status, count]) => ({
+      status,
+      count,
+      label: PROJECT_STATUS_LABELS[status as keyof typeof PROJECT_STATUS_LABELS] ?? status,
+    }));
+  }, [projects]);
 
   return (
     <div className="space-y-8">
       {/* Header */}
       <div className="animate-fade-in-up">
-        <h1 className="font-display text-4xl text-foreground tracking-wide">Dashboard</h1>
+        <h1 className="font-display text-4xl text-foreground tracking-wide">Tablero</h1>
         <p className="mt-1 text-sm text-muted-foreground">Resumen operativo de obras y recursos</p>
       </div>
 

@@ -80,18 +80,7 @@ export type TaskStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'BLOCKED' | '
 export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 export type DependencyType = 'FS' | 'SS' | 'FF' | 'SF';
 
-export interface GanttTask {
-  id: string;
-  name: string;
-  start: string | null;
-  end: string | null;
-  progress: number;
-  status: TaskStatus;
-  stageId: string;
-  stageName: string;
-  dependencies: GanttDependency[];
-  assignees: GanttAssignee[];
-}
+export type GanttRowType = 'rubro' | 'tarea' | 'item';
 
 export interface GanttDependency {
   id: string;
@@ -105,6 +94,20 @@ export interface GanttAssignee {
   lastName: string;
 }
 
+export interface GanttRow {
+  id: string;
+  name: string;
+  type: GanttRowType;
+  level: number;
+  parentId: string | null;
+  start: string | null;
+  end: string | null;
+  progress: number;
+  status: string | null;
+  dependencies: GanttDependency[];
+  assignees: GanttAssignee[];
+}
+
 export interface GanttData {
   project: {
     id: string;
@@ -112,7 +115,7 @@ export interface GanttData {
     startDate: string | null;
     estimatedEndDate: string | null;
   };
-  tasks: GanttTask[];
+  rows: GanttRow[];
 }
 
 // Expense Types

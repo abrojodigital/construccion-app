@@ -122,7 +122,7 @@ export default function ProjectStagesPage() {
       queryClient.invalidateQueries({ queryKey: ['project-stages', projectId] });
       queryClient.invalidateQueries({ queryKey: ['project', projectId] });
       closeStagDialog();
-      toast.success(parentStageForNew ? 'Etapa creada correctamente' : 'Categoría creada correctamente');
+      toast.success(parentStageForNew ? 'Tarea creada correctamente' : 'Rubro creado correctamente');
     },
     onError: (error: any) => toast.error(error.message || 'Error al crear'),
   });
@@ -157,9 +157,9 @@ export default function ProjectStagesPage() {
       queryClient.invalidateQueries({ queryKey: ['project-stages', projectId] });
       queryClient.invalidateQueries({ queryKey: ['project', projectId] });
       closeTaskDialog();
-      toast.success('Tarea creada correctamente');
+      toast.success('Ítem creado correctamente');
     },
-    onError: (error: any) => toast.error(error.message || 'Error al crear la tarea'),
+    onError: (error: any) => toast.error(error.message || 'Error al crear el ítem'),
   });
 
   const updateTaskMutation = useMutation({
@@ -167,9 +167,9 @@ export default function ProjectStagesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project-stages', projectId] });
       closeTaskDialog();
-      toast.success('Tarea actualizada correctamente');
+      toast.success('Ítem actualizado correctamente');
     },
-    onError: (error: any) => toast.error(error.message || 'Error al actualizar la tarea'),
+    onError: (error: any) => toast.error(error.message || 'Error al actualizar el ítem'),
   });
 
   const deleteTaskMutation = useMutation({
@@ -179,9 +179,9 @@ export default function ProjectStagesPage() {
       queryClient.invalidateQueries({ queryKey: ['project', projectId] });
       setDeleteTaskDialogOpen(false);
       setTaskToDelete(null);
-      toast.success('Tarea eliminada correctamente');
+      toast.success('Ítem eliminado correctamente');
     },
-    onError: (error: any) => toast.error(error.message || 'Error al eliminar la tarea'),
+    onError: (error: any) => toast.error(error.message || 'Error al eliminar el ítem'),
   });
 
   // Helpers
@@ -380,7 +380,7 @@ export default function ProjectStagesPage() {
           </div>
           <div className="flex items-center gap-2 shrink-0 ml-4">
             <Badge variant="outline" className="text-xs">
-              {stage.tasks?.length || 0} tareas
+              {stage.tasks?.length || 0} ítems
             </Badge>
             <Badge variant="secondary" className="text-xs">{stage.progress}%</Badge>
             <Button
@@ -413,7 +413,7 @@ export default function ProjectStagesPage() {
           <div className="px-4 pb-4 pt-3 border-t mt-1">
             <div className="flex items-center justify-between mb-3">
               <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                Tareas
+                Ítems
               </h5>
               <Button
                 size="sm"
@@ -422,12 +422,12 @@ export default function ProjectStagesPage() {
                 onClick={() => handleAddTask(stage)}
               >
                 <Plus className="mr-1 h-3 w-3" />
-                Agregar Tarea
+                Agregar Ítem
               </Button>
             </div>
             {(!stage.tasks || stage.tasks.length === 0) ? (
               <p className="text-sm text-muted-foreground text-center py-3">
-                No hay tareas en esta etapa
+                No hay ítems en esta tarea
               </p>
             ) : (
               renderTasks(stage.tasks, stage)
@@ -477,9 +477,9 @@ export default function ProjectStagesPage() {
             </div>
             <div className="flex items-center gap-2">
               {hasChildren ? (
-                <Badge variant="outline">{stage.childStages.length} etapas</Badge>
+                <Badge variant="outline">{stage.childStages.length} tareas</Badge>
               ) : (
-                <Badge variant="outline">{stage.tasks?.length || 0} tareas</Badge>
+                <Badge variant="outline">{stage.tasks?.length || 0} ítems</Badge>
               )}
               <Badge variant="secondary">{stage.progress}%</Badge>
               <Button variant="ghost" size="icon" onClick={() => handleEditStage(stage)}>
@@ -505,10 +505,10 @@ export default function ProjectStagesPage() {
               {hasChildren && (
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-medium text-sm text-muted-foreground">Etapas</h4>
+                    <h4 className="font-medium text-sm text-muted-foreground">Tareas</h4>
                     <Button size="sm" variant="outline" onClick={() => handleAddChildStage(stage)}>
                       <Plus className="mr-1 h-3 w-3" />
-                      Agregar Etapa
+                      Agregar Tarea
                     </Button>
                   </div>
                   <div className="space-y-2">
@@ -525,10 +525,10 @@ export default function ProjectStagesPage() {
                   {hasDirectTasks ? (
                     <div>
                       <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-medium text-sm text-muted-foreground">Tareas</h4>
+                        <h4 className="font-medium text-sm text-muted-foreground">Ítems</h4>
                         <Button size="sm" variant="outline" onClick={() => handleAddTask(stage)}>
                           <Plus className="mr-1 h-3 w-3" />
-                          Agregar Tarea
+                          Agregar Ítem
                         </Button>
                       </div>
                       {renderTasks(stage.tasks, stage)}
@@ -536,16 +536,16 @@ export default function ProjectStagesPage() {
                   ) : (
                     <div className="text-center py-4">
                       <p className="text-sm text-muted-foreground mb-3">
-                        Esta categoría está vacía. Podés agregar etapas o tareas directas.
+                        Este rubro está vacío. Podés agregar tareas o ítems directos.
                       </p>
                       <div className="flex justify-center gap-2">
                         <Button size="sm" variant="outline" onClick={() => handleAddChildStage(stage)}>
                           <Plus className="mr-1 h-3 w-3" />
-                          Agregar Etapa
+                          Agregar Tarea
                         </Button>
                         <Button size="sm" variant="outline" onClick={() => handleAddTask(stage)}>
                           <Plus className="mr-1 h-3 w-3" />
-                          Agregar Tarea
+                          Agregar Ítem
                         </Button>
                       </div>
                     </div>
@@ -574,11 +574,11 @@ export default function ProjectStagesPage() {
 
   const stageDialogTitle = editingStage
     ? editingStage.parentStageId !== null
-      ? 'Editar Etapa'
-      : 'Editar Categoría'
+      ? 'Editar Tarea'
+      : 'Editar Rubro'
     : parentStageForNew
-      ? 'Nueva Etapa'
-      : 'Nueva Categoría';
+      ? 'Nueva Tarea'
+      : 'Nuevo Rubro';
 
   return (
     <div className="space-y-6">
@@ -591,7 +591,7 @@ export default function ProjectStagesPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold">Etapas y Tareas</h1>
+            <h1 className="text-3xl font-bold">Rubros y Tareas</h1>
             <p className="text-muted-foreground">
               {project?.code} - {project?.name}
             </p>
@@ -599,7 +599,7 @@ export default function ProjectStagesPage() {
         </div>
         <Button onClick={handleAddCategory}>
           <Plus className="mr-2 h-4 w-4" />
-          Nueva Categoría
+          Nuevo Rubro
         </Button>
       </div>
 
@@ -608,11 +608,11 @@ export default function ProjectStagesPage() {
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground mb-4">
-              No hay categorías definidas para este proyecto.
+              No hay rubros definidos para este proyecto.
             </p>
             <Button onClick={handleAddCategory}>
               <Plus className="mr-2 h-4 w-4" />
-              Crear Primera Categoría
+              Crear Primer Rubro
             </Button>
           </CardContent>
         </Card>
@@ -643,10 +643,10 @@ export default function ProjectStagesPage() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              {editingTask ? 'Editar Tarea' : 'Nueva Tarea'}
+              {editingTask ? 'Editar Ítem' : 'Nuevo Ítem'}
               {stageForTask && (
                 <span className="text-sm font-normal text-muted-foreground block">
-                  Etapa: {stageForTask.name}
+                  Tarea: {stageForTask.name}
                 </span>
               )}
             </DialogTitle>
@@ -665,11 +665,11 @@ export default function ProjectStagesPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Eliminar {stageToDelete?.parentStageId ? 'Etapa' : 'Categoría'}
+              Eliminar {stageToDelete?.parentStageId ? 'Tarea' : 'Rubro'}
             </AlertDialogTitle>
             <AlertDialogDescription>
               ¿Estás seguro de que deseas eliminar &quot;{stageToDelete?.name}&quot;?
-              Esta acción también eliminará todas las etapas y tareas asociadas.
+              Esta acción también eliminará todas las tareas e ítems asociados.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -688,9 +688,9 @@ export default function ProjectStagesPage() {
       <AlertDialog open={deleteTaskDialogOpen} onOpenChange={setDeleteTaskDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Eliminar Tarea</AlertDialogTitle>
+            <AlertDialogTitle>Eliminar Ítem</AlertDialogTitle>
             <AlertDialogDescription>
-              ¿Estás seguro de que deseas eliminar la tarea &quot;{taskToDelete?.name}&quot;?
+              ¿Estás seguro de que deseas eliminar el ítem &quot;{taskToDelete?.name}&quot;?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

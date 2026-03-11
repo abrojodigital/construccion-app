@@ -264,8 +264,8 @@ export default function ProjectDetailPage() {
                 <Settings className="h-6 w-6 text-orange-500" />
               </div>
               <div>
-                <h3 className="font-medium">Etapas y Tareas</h3>
-                <p className="text-sm text-muted-foreground">{project.stages.length} etapas</p>
+                <h3 className="font-medium">Rubros y Tareas</h3>
+                <p className="text-sm text-muted-foreground">{project.stages.length} rubros</p>
               </div>
             </CardContent>
           </Card>

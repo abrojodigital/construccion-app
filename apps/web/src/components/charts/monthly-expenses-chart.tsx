@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useTheme } from 'next-themes';
 import {
   ResponsiveContainer,
@@ -53,14 +54,17 @@ export function MonthlyExpensesChart({ data }: Props) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
 
-  const colors = {
-    bar: isDark ? '#f5a420' : '#d97706',
-    barHover: isDark ? '#fbbf24' : '#b45309',
-    grid: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)',
-    axis: isDark ? '#6b7280' : '#9ca3af',
-    tooltipBg: isDark ? '#1a2236' : '#ffffff',
-    tooltipText: isDark ? '#e2e8f0' : '#1a202c',
-  };
+  const colors = useMemo(
+    () => ({
+      bar: isDark ? '#f5a420' : '#d97706',
+      barHover: isDark ? '#fbbf24' : '#b45309',
+      grid: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)',
+      axis: isDark ? '#6b7280' : '#9ca3af',
+      tooltipBg: isDark ? '#1a2236' : '#ffffff',
+      tooltipText: isDark ? '#e2e8f0' : '#1a202c',
+    }),
+    [isDark]
+  );
 
   if (!data.length) {
     return (

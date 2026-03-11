@@ -790,7 +790,6 @@ export class BudgetVersionsService {
     }
 
     let createdStages = 0;
-    let createdTasks = 0;
 
     await prisma.$transaction(async (tx) => {
       if (mode === 'replace') {
@@ -849,7 +848,7 @@ export class BudgetVersionsService {
 
         for (const budgetStage of category.stages) {
           // Crear Stage hijo para cada Etapa
-          const childStage = await tx.stage.create({
+          await tx.stage.create({
             data: {
               name: budgetStage.description,
               description: `${budgetStage.number} - ${budgetStage.unit}`,
@@ -861,19 +860,6 @@ export class BudgetVersionsService {
             },
           });
           createdStages++;
-
-          for (const item of budgetStage.items) {
-            // Crear Task para cada Ítem
-            await tx.task.create({
-              data: {
-                name: item.description,
-                description: `${item.number} - ${item.quantity} ${item.unit} × $${item.unitPrice}`,
-                stageId: childStage.id,
-                budgetItemId: item.id,
-              },
-            });
-            createdTasks++;
-          }
         }
       }
     });
@@ -881,7 +867,6 @@ export class BudgetVersionsService {
     return {
       success: true,
       stagesCreated: createdStages,
-      tasksCreated: createdTasks,
     };
   }
 }

@@ -177,7 +177,7 @@ export default function DashboardPage() {
     <div className="space-y-8">
       {/* Header */}
       <div className="animate-fade-in-up">
-        <h1 className="font-display text-4xl text-foreground tracking-wide">Dashboard</h1>
+        <h1 className="font-display text-4xl text-foreground tracking-wide">Tablero</h1>
         <p className="mt-1 text-sm text-muted-foreground">Resumen operativo de obras y recursos</p>
       </div>
 

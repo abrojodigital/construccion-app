@@ -162,7 +162,7 @@ export default function BudgetVersionDetailPage() {
       const s = data?.scheduleGenerated;
       if (s) {
         toast.success(
-          `Presupuesto aprobado. Cronograma generado: ${s.stagesCreated} etapas, ${s.tasksCreated} tareas`
+          `Presupuesto aprobado. Cronograma generado: ${s.stagesCreated} rubros/tareas`
         );
       } else {
         toast.success('Presupuesto aprobado correctamente');
@@ -195,20 +195,20 @@ export default function BudgetVersionDetailPage() {
     mutationFn: (id: string) => api.delete(`/budget-versions/${versionId}/categories/${id}`),
     onSuccess: () => {
       invalidate();
-      toast.success('Categoria eliminada');
+      toast.success('Rubro eliminado');
       setDeleteCategoryId(null);
     },
-    onError: (error: any) => toast.error(error.message || 'Error al eliminar categoria'),
+    onError: (error: any) => toast.error(error.message || 'Error al eliminar rubro'),
   });
 
   const deleteStageMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/budget-versions/${versionId}/stages/${id}`),
     onSuccess: () => {
       invalidate();
-      toast.success('Etapa eliminada');
+      toast.success('Tarea eliminada');
       setDeleteStageId(null);
     },
-    onError: (error: any) => toast.error(error.message || 'Error al eliminar etapa'),
+    onError: (error: any) => toast.error(error.message || 'Error al eliminar tarea'),
   });
 
   const deleteItemMutation = useMutation({
@@ -226,7 +226,7 @@ export default function BudgetVersionDetailPage() {
       api.post(`/budget-versions/${versionId}/schedule/generate`, { mode }),
     onSuccess: (data: any) => {
       toast.success(
-        `Cronograma generado: ${data.stagesCreated || 0} etapas, ${data.tasksCreated || 0} tareas`
+        `Cronograma generado: ${data.stagesCreated || 0} rubros/tareas`
       );
       setScheduleDialogOpen(false);
     },
@@ -420,7 +420,7 @@ export default function BudgetVersionDetailPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Categorias</CardTitle>
+            <CardTitle className="text-sm font-medium">Rubros</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{sortedCategories.length}</div>
@@ -428,7 +428,7 @@ export default function BudgetVersionDetailPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Etapas / Items</CardTitle>
+            <CardTitle className="text-sm font-medium">Tareas / Items</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
@@ -441,11 +441,11 @@ export default function BudgetVersionDetailPage() {
       {/* 3-Level Hierarchy: Categories → Stages → Items */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold">Categorias, Etapas e Items</h2>
+          <h2 className="text-xl font-bold">Rubros, Tareas e Items</h2>
           {isDraft && (
             <Button onClick={() => setAddCategoryOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
-              Agregar Categoria
+              Agregar Rubro
             </Button>
           )}
         </div>
@@ -454,11 +454,11 @@ export default function BudgetVersionDetailPage() {
           <Card>
             <CardContent className="p-8 text-center">
               <FileSpreadsheet className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground mb-4">No hay categorias en esta version</p>
+              <p className="text-muted-foreground mb-4">No hay rubros en esta versión</p>
               {isDraft && (
                 <Button onClick={() => setAddCategoryOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" />
-                  Agregar primera categoria
+                  Agregar primer rubro
                 </Button>
               )}
             </CardContent>
@@ -485,10 +485,10 @@ export default function BudgetVersionDetailPage() {
                     )}
                     <div>
                       <h3 className="font-medium">
-                        Categoria {category.number}: {category.name}
+                        Rubro {category.number}: {category.name}
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        {sortedStages.length} etapas · Subtotal CC:{' '}
+                        {sortedStages.length} tareas · Subtotal CC:{' '}
                         {formatCurrency(Number(category.subtotalCostoCosto), { compact: true })}
                       </p>
                     </div>
@@ -502,7 +502,7 @@ export default function BudgetVersionDetailPage() {
                           onClick={() => setAddStageCategoryId(category.id)}
                         >
                           <Plus className="mr-1 h-3 w-3" />
-                          Etapa
+                          Tarea
                         </Button>
                         <Button
                           size="sm"
@@ -529,7 +529,7 @@ export default function BudgetVersionDetailPage() {
                   <CardContent className="p-0 pt-0">
                     {sortedStages.length === 0 ? (
                       <div className="px-6 py-4 text-center text-sm text-muted-foreground border-t">
-                        Sin etapas en esta categoria
+                        Sin tareas en este rubro
                       </div>
                     ) : (
                       sortedStages.map((stage) => {
@@ -622,7 +622,7 @@ export default function BudgetVersionDetailPage() {
                                           colSpan={isDraft ? 8 : 7}
                                           className="h-12 text-center text-muted-foreground text-sm"
                                         >
-                                          Sin items en esta etapa
+                                          Sin items en esta tarea
                                         </TableCell>
                                       </TableRow>
                                     ) : (
@@ -738,7 +738,7 @@ export default function BudgetVersionDetailPage() {
       <Dialog open={addCategoryOpen} onOpenChange={setAddCategoryOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Nueva Categoria</DialogTitle>
+            <DialogTitle>Nuevo Rubro</DialogTitle>
           </DialogHeader>
           <BudgetCategoryForm
             budgetVersionId={versionId}
@@ -746,7 +746,7 @@ export default function BudgetVersionDetailPage() {
             onSuccess={() => {
               setAddCategoryOpen(false);
               invalidate();
-              toast.success('Categoria creada');
+              toast.success('Rubro creado');
             }}
             onCancel={() => setAddCategoryOpen(false)}
           />
@@ -757,7 +757,7 @@ export default function BudgetVersionDetailPage() {
       <Dialog open={!!editCategory} onOpenChange={() => setEditCategory(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Editar Categoria</DialogTitle>
+            <DialogTitle>Editar Rubro</DialogTitle>
           </DialogHeader>
           {editCategory && (
             <BudgetCategoryForm
@@ -772,7 +772,7 @@ export default function BudgetVersionDetailPage() {
               onSuccess={() => {
                 setEditCategory(null);
                 invalidate();
-                toast.success('Categoria actualizada');
+                toast.success('Rubro actualizado');
               }}
               onCancel={() => setEditCategory(null)}
             />
@@ -784,7 +784,7 @@ export default function BudgetVersionDetailPage() {
       <Dialog open={!!addStageCategoryId} onOpenChange={() => setAddStageCategoryId(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Nueva Etapa</DialogTitle>
+            <DialogTitle>Nueva Tarea</DialogTitle>
           </DialogHeader>
           {addStageCategoryId && (
             <BudgetStageForm
@@ -793,7 +793,7 @@ export default function BudgetVersionDetailPage() {
               onSuccess={() => {
                 setAddStageCategoryId(null);
                 invalidate();
-                toast.success('Etapa creada');
+                toast.success('Tarea creada');
               }}
               onCancel={() => setAddStageCategoryId(null)}
             />
@@ -805,7 +805,7 @@ export default function BudgetVersionDetailPage() {
       <Dialog open={!!editStage} onOpenChange={() => setEditStage(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Editar Etapa</DialogTitle>
+            <DialogTitle>Editar Tarea</DialogTitle>
           </DialogHeader>
           {editStage && (
             <BudgetStageForm
@@ -822,7 +822,7 @@ export default function BudgetVersionDetailPage() {
               onSuccess={() => {
                 setEditStage(null);
                 invalidate();
-                toast.success('Etapa actualizada');
+                toast.success('Tarea actualizada');
               }}
               onCancel={() => setEditStage(null)}
             />
@@ -889,7 +889,7 @@ export default function BudgetVersionDetailPage() {
               ¿Estás seguro de que deseas aprobar esta versión del presupuesto? Una vez aprobada,
               no se podrá editar ni eliminar.
               <br /><br />
-              Al aprobar se generará automáticamente el cronograma de obra (Categorías → Etapas → Tareas)
+              Al aprobar se generará automáticamente el cronograma de obra (Rubros → Tareas)
               reemplazando el cronograma existente vinculado a este presupuesto.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -908,8 +908,8 @@ export default function BudgetVersionDetailPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Generar Cronograma</AlertDialogTitle>
             <AlertDialogDescription>
-              Se generaran etapas y tareas del proyecto a partir de la estructura del presupuesto
-              (Categorias → Etapas → Items).
+              Se generarán rubros y tareas del proyecto a partir de la estructura del presupuesto
+              (Rubros → Tareas).
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-3 py-2">
@@ -924,7 +924,7 @@ export default function BudgetVersionDetailPage() {
               <div>
                 <span className="font-medium">Reemplazar</span>
                 <p className="text-sm text-muted-foreground">
-                  Elimina las etapas y tareas existentes y las reemplaza
+                  Elimina los rubros y tareas existentes y los reemplaza
                 </p>
               </div>
             </label>
@@ -939,7 +939,7 @@ export default function BudgetVersionDetailPage() {
               <div>
                 <span className="font-medium">Agregar</span>
                 <p className="text-sm text-muted-foreground">
-                  Mantiene lo existente y agrega las nuevas etapas y tareas
+                  Mantiene lo existente y agrega los nuevos rubros y tareas
                 </p>
               </div>
             </label>
@@ -960,10 +960,9 @@ export default function BudgetVersionDetailPage() {
       <AlertDialog open={!!deleteCategoryId} onOpenChange={() => setDeleteCategoryId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Eliminar Categoria</AlertDialogTitle>
+            <AlertDialogTitle>Eliminar Rubro</AlertDialogTitle>
             <AlertDialogDescription>
-              Se eliminaran todas las etapas e items de la categoria. Esta accion no se puede
-              deshacer.
+              Se eliminarán todas las tareas e items del rubro. Esta acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -982,9 +981,9 @@ export default function BudgetVersionDetailPage() {
       <AlertDialog open={!!deleteStageId} onOpenChange={() => setDeleteStageId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Eliminar Etapa</AlertDialogTitle>
+            <AlertDialogTitle>Eliminar Tarea</AlertDialogTitle>
             <AlertDialogDescription>
-              Se eliminaran todos los items de la etapa. Esta accion no se puede deshacer.
+              Se eliminarán todos los items de la tarea. Esta acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import {
@@ -73,6 +73,20 @@ interface ExpensesResponse {
   };
 }
 
+function getStatusVariant(status: string) {
+  switch (status) {
+    case 'APPROVED':
+    case 'PAID':
+      return 'success';
+    case 'PENDING_APPROVAL':
+      return 'warning';
+    case 'REJECTED':
+      return 'destructive';
+    default:
+      return 'secondary';
+  }
+}
+
 export default function ExpensesPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -94,15 +108,19 @@ export default function ExpensesPage() {
   });
 
   // Flatten tasks from stages
-  const availableTasks: Task[] = tasksData
-    ? tasksData.flatMap((stage: any) =>
-        (stage.tasks || []).map((task: any) => ({
-          id: task.id,
-          name: task.name,
-          stage: { name: stage.name },
-        }))
-      )
-    : [];
+  const availableTasks = useMemo<Task[]>(
+    () =>
+      tasksData
+        ? tasksData.flatMap((stage: any) =>
+            (stage.tasks || []).map((task: any) => ({
+              id: task.id,
+              name: task.name,
+              stage: { name: stage.name },
+            }))
+          )
+        : [],
+    [tasksData]
+  );
 
   const { data, isLoading } = useQuery({
     queryKey: ['expenses', page, search, statusFilter, projectFilter, taskFilter],
@@ -125,21 +143,7 @@ export default function ExpensesPage() {
     setTaskFilter('all');
   };
 
-  const getStatusVariant = (status: string) => {
-    switch (status) {
-      case 'APPROVED':
-      case 'PAID':
-        return 'success';
-      case 'PENDING_APPROVAL':
-        return 'warning';
-      case 'REJECTED':
-        return 'destructive';
-      default:
-        return 'secondary';
-    }
-  };
-
-  const columns = [
+  const columns = useMemo(() => [
     {
       accessorKey: 'reference',
       header: 'Referencia',
@@ -272,7 +276,7 @@ export default function ExpensesPage() {
         </DropdownMenu>
       ),
     },
-  ];
+  ], []);
 
   return (
     <div className="space-y-6">

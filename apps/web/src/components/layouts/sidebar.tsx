@@ -29,7 +29,7 @@ const navGroups = [
   {
     label: 'Principal',
     items: [
-      { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+      { name: 'Tablero', href: '/dashboard', icon: LayoutDashboard },
       { name: 'Proyectos', href: '/projects', icon: FolderKanban },
       { name: 'Reportes', href: '/reports', icon: BarChart3 },
     ],

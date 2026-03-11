@@ -285,17 +285,11 @@ export class ProjectsService {
   async getGanttData(id: string, organizationId: string): Promise<GanttData> {
     const project = await this.findById(id, organizationId);
 
-    const tasks = await prisma.task.findMany({
-      where: {
-        stage: { projectId: id },
-        deletedAt: null,
-      },
+    const taskInclude = {
+      where: { deletedAt: null },
       include: {
-        stage: { select: { id: true, name: true } },
         dependencies: {
-          include: {
-            dependsOn: { select: { id: true, name: true } },
-          },
+          select: { dependsOnId: true, dependencyType: true, lagDays: true },
         },
         assignments: {
           include: {
@@ -304,42 +298,95 @@ export class ProjectsService {
           },
         },
       },
-      orderBy: [
-        { stage: { order: 'asc' } },
-        { plannedStartDate: 'asc' },
-      ],
+      orderBy: { plannedStartDate: 'asc' as const },
+    };
+
+    const rootStages = await prisma.stage.findMany({
+      where: { projectId: id, parentStageId: null, deletedAt: null },
+      include: {
+        tasks: taskInclude,
+        childStages: {
+          where: { deletedAt: null },
+          include: { tasks: taskInclude },
+          orderBy: { order: 'asc' as const },
+        },
+      },
+      orderBy: { order: 'asc' },
     });
+
+    const mapTask = (task: any, parentId: string, level: number) => ({
+      id: task.id,
+      name: task.name,
+      type: 'item' as const,
+      level,
+      parentId,
+      start: task.plannedStartDate?.toISOString() ?? null,
+      end: task.plannedEndDate?.toISOString() ?? null,
+      progress: task.progress,
+      status: task.status as string,
+      dependencies: task.dependencies.map((d: any) => ({
+        id: d.dependsOnId,
+        type: d.dependencyType,
+        lag: d.lagDays,
+      })),
+      assignees: task.assignments
+        .map((a: any) => a.user ?? a.employee)
+        .filter(Boolean)
+        .map((a: any) => ({ id: a.id, firstName: a.firstName, lastName: a.lastName })),
+    });
+
+    const rows: GanttData['rows'] = [];
+
+    for (const rubro of rootStages) {
+      rows.push({
+        id: rubro.id,
+        name: rubro.name,
+        type: 'rubro',
+        level: 0,
+        parentId: null,
+        start: rubro.plannedStartDate?.toISOString() ?? null,
+        end: rubro.plannedEndDate?.toISOString() ?? null,
+        progress: rubro.progress,
+        status: null,
+        dependencies: [],
+        assignees: [],
+      });
+
+      if (rubro.childStages.length > 0) {
+        for (const tarea of rubro.childStages) {
+          rows.push({
+            id: tarea.id,
+            name: tarea.name,
+            type: 'tarea',
+            level: 1,
+            parentId: rubro.id,
+            start: tarea.plannedStartDate?.toISOString() ?? null,
+            end: tarea.plannedEndDate?.toISOString() ?? null,
+            progress: tarea.progress,
+            status: null,
+            dependencies: [],
+            assignees: [],
+          });
+          for (const task of tarea.tasks) {
+            rows.push(mapTask(task, tarea.id, 2));
+          }
+        }
+      } else {
+        // Rubro with direct items (no child stages)
+        for (const task of rubro.tasks) {
+          rows.push(mapTask(task, rubro.id, 1));
+        }
+      }
+    }
 
     return {
       project: {
         id: project.id,
         name: project.name,
-        startDate: project.startDate?.toISOString() || null,
-        estimatedEndDate: project.estimatedEndDate?.toISOString() || null,
+        startDate: project.startDate?.toISOString() ?? null,
+        estimatedEndDate: project.estimatedEndDate?.toISOString() ?? null,
       },
-      tasks: tasks.map((task) => ({
-        id: task.id,
-        name: task.name,
-        start: task.plannedStartDate?.toISOString() || null,
-        end: task.plannedEndDate?.toISOString() || null,
-        progress: task.progress,
-        status: task.status as any,
-        stageId: task.stageId,
-        stageName: task.stage.name,
-        dependencies: task.dependencies.map((d) => ({
-          id: d.dependsOnId,
-          type: d.dependencyType as any,
-          lag: d.lagDays,
-        })),
-        assignees: task.assignments
-          .map((a) => a.user || a.employee)
-          .filter(Boolean)
-          .map((a) => ({
-            id: a!.id,
-            firstName: a!.firstName,
-            lastName: a!.lastName,
-          })),
-      })),
+      rows,
     };
   }
 
