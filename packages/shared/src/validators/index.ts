@@ -315,6 +315,7 @@ export const createExpenseSchema = z.object({
   projectId: z.string().min(1),
   taskId: z.string().optional(), // Vinculación opcional con tarea
   budgetId: z.string().optional(),
+  budgetItemId: z.string().optional(), // Imputación directa a ítem de presupuesto
   categoryId: z.string().min(1, { message: 'La categoría es requerida' }),
   supplierId: z.string().optional(),
 });

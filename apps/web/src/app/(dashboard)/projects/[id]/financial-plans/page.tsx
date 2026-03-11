@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import {
   ArrowLeft,
   Plus,
@@ -13,8 +14,8 @@ import {
   CheckCircle,
   Banknote,
   TrendingUp,
+  ChevronRight,
 } from 'lucide-react';
-import dynamic from 'next/dynamic';
 
 const SCurvePlan = dynamic(
   () => import('@/components/charts/scurve-plan').then((m) => m.SCurvePlan),
@@ -30,14 +31,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import {
   Dialog,
   DialogContent,
@@ -55,6 +48,14 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
 import { formatCurrency, formatPercentage } from '@/lib/utils';
@@ -510,9 +511,9 @@ export default function FinancialPlansPage() {
           {plans.map((plan) => (
             <Card key={plan.id} className="hover:shadow-md transition-shadow">
               <CardContent className="p-6 flex items-center justify-between">
-                <div
-                  className="flex-1 cursor-pointer"
-                  onClick={() => setSelectedPlan(plan)}
+                <Link
+                  href={`/projects/${projectId}/financial-plans/${plan.id}`}
+                  className="flex-1"
                 >
                   <div className="flex items-center gap-3 mb-1">
                     <h3 className="text-lg font-medium">{plan.name}</h3>
@@ -523,32 +524,20 @@ export default function FinancialPlansPage() {
                   <p className="text-sm text-muted-foreground">
                     Presupuesto: {plan.budgetVersion.code} · {plan._count?.periods ?? 0} períodos
                   </p>
-                </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon">
-                      <MoreHorizontal className="h-4 w-4" />
+                </Link>
+                <div className="flex items-center gap-1">
+                  {plan.status === 'DRAFT' && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:bg-destructive/10"
+                      onClick={() => setDeleteId(plan.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setSelectedPlan(plan)}>
-                      <Eye className="mr-2 h-4 w-4" />
-                      Ver Detalle
-                    </DropdownMenuItem>
-                    {plan.status === 'DRAFT' && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={() => setDeleteId(plan.id)}
-                          className="text-destructive"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Eliminar
-                        </DropdownMenuItem>
-                      </>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                  )}
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </div>
               </CardContent>
             </Card>
           ))}

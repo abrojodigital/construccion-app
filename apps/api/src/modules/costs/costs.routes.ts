@@ -127,6 +127,17 @@ router.post(
         if (!task) throw new ValidationError('La tarea seleccionada no pertenece al proyecto');
       }
 
+      // Validar que el ítem presupuestario pertenezca al proyecto (si se especifica)
+      if (req.body.budgetItemId) {
+        const budgetItem = await prisma.budgetItem.findFirst({
+          where: {
+            id: req.body.budgetItemId,
+            stage: { category: { budgetVersion: { projectId: req.body.projectId } } },
+          },
+        });
+        if (!budgetItem) throw new ValidationError('El ítem presupuestario no pertenece al proyecto');
+      }
+
       const reference = await generateCode('expense', req.user!.organizationId);
 
       const expense = await prisma.expense.create({
@@ -139,6 +150,7 @@ router.post(
           project: { select: { id: true, code: true, name: true } },
           task: { select: { id: true, name: true } },
           category: { select: { id: true, name: true } },
+          budgetItem: { select: { id: true, number: true, description: true } },
         },
       });
       sendCreated(res, expense);

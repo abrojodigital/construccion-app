@@ -523,6 +523,238 @@ router.get('/expenses', requirePermission('reports', 'read'), async (req, res, n
   }
 });
 
+// GET /api/v1/reports/projects/:id/budget-control
+router.get('/projects/:id/budget-control', requirePermission('reports', 'read'), async (req, res, next) => {
+  try {
+    const projectId = req.params.id;
+    const organizationId = req.user!.organizationId;
+
+    const project = await prisma.project.findFirst({
+      where: { id: projectId, organizationId, deletedAt: null },
+      select: { id: true, code: true, name: true, estimatedBudget: true, currentSpent: true },
+    });
+    if (!project) {
+      return res.status(404).json({ error: 'Proyecto no encontrado' });
+    }
+
+    // Versión de presupuesto aprobada
+    const budgetVersion = await prisma.budgetVersion.findFirst({
+      where: { projectId, organizationId, status: 'APPROVED', deletedAt: null },
+      orderBy: { version: 'desc' },
+      include: {
+        categories: {
+          orderBy: { order: 'asc' },
+          include: {
+            stages: {
+              orderBy: { number: 'asc' },
+              include: {
+                items: { orderBy: { number: 'asc' } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const allItemIds = budgetVersion
+      ? budgetVersion.categories.flatMap((c) => c.stages.flatMap((s) => s.items.map((i) => i.id)))
+      : [];
+
+    // Certificado acumulado por ítem (APPROVED + PAID)
+    const certifiedByItem = allItemIds.length > 0
+      ? await prisma.certificateItem.groupBy({
+          by: ['budgetItemId'],
+          where: {
+            budgetItemId: { in: allItemIds },
+            certificate: { projectId, status: { in: ['APPROVED', 'PAID'] } },
+          },
+          _sum: { currentAmount: true },
+        })
+      : [];
+    const certifiedMap = new Map(
+      certifiedByItem.map((c) => [c.budgetItemId, Number(c._sum.currentAmount || 0)])
+    );
+
+    // Avance físico más reciente por ítem
+    const allProgress = allItemIds.length > 0
+      ? await prisma.itemProgress.findMany({
+          where: { budgetItemId: { in: allItemIds } },
+          orderBy: { date: 'desc' },
+          select: { budgetItemId: true, advance: true },
+        })
+      : [];
+    const progressMap = new Map<string, number>();
+    for (const p of allProgress) {
+      if (!progressMap.has(p.budgetItemId)) {
+        progressMap.set(p.budgetItemId, Number(p.advance));
+      }
+    }
+
+    // Certificados del proyecto
+    const certificates = await prisma.certificate.findMany({
+      where: { projectId, organizationId, deletedAt: null },
+      orderBy: { number: 'asc' },
+      select: {
+        id: true, code: true, number: true, status: true,
+        periodStart: true, periodEnd: true,
+        subtotal: true, totalAmount: true,
+        acopioAmount: true, anticipoAmount: true, fondoReparoAmount: true, ivaAmount: true,
+      },
+    });
+
+    const certTotals = certificates
+      .filter((c) => ['APPROVED', 'PAID'].includes(c.status))
+      .reduce((acc, c) => ({
+        subtotal: acc.subtotal + Number(c.subtotal),
+        totalAmount: acc.totalAmount + Number(c.totalAmount),
+      }), { subtotal: 0, totalAmount: 0 });
+
+    // Gastos reales APPROVED + PAID — por categoría
+    const expensesRaw = await prisma.expense.groupBy({
+      by: ['categoryId'],
+      where: { projectId, deletedAt: null, status: { in: ['APPROVED', 'PAID'] } },
+      _sum: { totalAmount: true },
+      _count: true,
+    });
+    const expenseCategories = await prisma.expenseCategory.findMany({ where: { organizationId } });
+    const categoryMap = new Map(expenseCategories.map((c) => [c.id, c.name]));
+    const totalGastado = expensesRaw.reduce((s, e) => s + Number(e._sum.totalAmount || 0), 0);
+    const gastosPorCategoria = expensesRaw.map((e) => ({
+      categoria: categoryMap.get(e.categoryId) || 'Sin categoría',
+      monto: Number(e._sum.totalAmount || 0),
+      cantidad: e._count,
+    }));
+
+    // Gastos reales APPROVED + PAID — imputados por ítem de presupuesto
+    const gastadoByItem = allItemIds.length > 0
+      ? await prisma.expense.groupBy({
+          by: ['budgetItemId'],
+          where: {
+            projectId,
+            deletedAt: null,
+            status: { in: ['APPROVED', 'PAID'] },
+            budgetItemId: { in: allItemIds, not: null },
+          },
+          _sum: { totalAmount: true },
+        })
+      : [];
+    const gastadoMap = new Map(
+      gastadoByItem
+        .filter((e) => e.budgetItemId !== null)
+        .map((e) => [e.budgetItemId as string, Number(e._sum.totalAmount || 0)])
+    );
+
+    // Armar jerarquía con datos de certificación y avance
+    const categoriesResult = budgetVersion?.categories.map((cat) => {
+      const stages = cat.stages.map((stage) => {
+        const items = stage.items.map((item) => {
+          const certificado = certifiedMap.get(item.id) || 0;
+          const gastado = gastadoMap.get(item.id) || 0;
+          const avanceFisico = progressMap.get(item.id) || 0;
+          const totalPrice = Number(item.totalPrice);
+          return {
+            id: item.id,
+            number: item.number,
+            description: item.description,
+            unit: item.unit,
+            quantity: Number(item.quantity),
+            unitPrice: Number(item.unitPrice),
+            totalPrice,
+            certificado,
+            gastado,
+            avanceFisico,
+            porcentajeCertificado: totalPrice > 0 ? certificado / totalPrice : 0,
+            porcentajeGastado: totalPrice > 0 ? gastado / totalPrice : 0,
+          };
+        });
+        const stageCertificado = items.reduce((s, i) => s + i.certificado, 0);
+        const stageGastado = items.reduce((s, i) => s + i.gastado, 0);
+        const stageTotalPrice = Number(stage.totalPrice);
+        const stageAvanceFisico = stageTotalPrice > 0
+          ? items.reduce((s, i) => s + i.avanceFisico * i.totalPrice, 0) / stageTotalPrice
+          : 0;
+        return {
+          id: stage.id,
+          number: stage.number,
+          description: stage.description,
+          unit: stage.unit,
+          quantity: Number(stage.quantity),
+          unitPrice: Number(stage.unitPrice),
+          totalPrice: stageTotalPrice,
+          incidencePct: Number(stage.incidencePct),
+          certificado: stageCertificado,
+          gastado: stageGastado,
+          avanceFisico: stageAvanceFisico,
+          items,
+        };
+      });
+      const catCertificado = stages.reduce((s, st) => s + st.certificado, 0);
+      const catGastado = stages.reduce((s, st) => s + st.gastado, 0);
+      const catSubtotal = Number(cat.subtotalCostoCosto);
+      const catAvanceFisico = catSubtotal > 0
+        ? stages.reduce((s, st) => s + st.avanceFisico * st.totalPrice, 0) / catSubtotal
+        : 0;
+      return {
+        id: cat.id,
+        number: cat.number,
+        name: cat.name,
+        subtotalCostoCosto: catSubtotal,
+        certificado: catCertificado,
+        gastado: catGastado,
+        avanceFisico: catAvanceFisico,
+        stages,
+      };
+    }) || [];
+
+    const presupuesto = budgetVersion ? Number(budgetVersion.totalPrecio) : Number(project.estimatedBudget);
+    const presupuestoCostoCosto = budgetVersion ? Number(budgetVersion.totalCostoCosto) : null;
+
+    sendSuccess(res, {
+      project: { id: project.id, code: project.code, name: project.name },
+      budgetVersion: budgetVersion
+        ? {
+            id: budgetVersion.id,
+            code: budgetVersion.code,
+            name: budgetVersion.name,
+            version: budgetVersion.version,
+            status: budgetVersion.status,
+            coeficienteK: Number(budgetVersion.coeficienteK),
+            totalCostoCosto: Number(budgetVersion.totalCostoCosto),
+            totalPrecio: Number(budgetVersion.totalPrecio),
+          }
+        : null,
+      summary: {
+        presupuesto,
+        presupuestoCostoCosto,
+        gastado: totalGastado,
+        certificadoSubtotal: certTotals.subtotal,
+        certificadoTotal: certTotals.totalAmount,
+        variacionGasto: presupuesto - totalGastado,
+        porcentajeGastado: presupuesto > 0 ? totalGastado / presupuesto : 0,
+        porcentajeCertificado: presupuesto > 0 ? certTotals.subtotal / presupuesto : 0,
+      },
+      categories: categoriesResult,
+      gastosPorCategoria,
+      certificados: certificates.map((c) => ({
+        id: c.id,
+        code: c.code,
+        number: c.number,
+        status: c.status,
+        periodStart: c.periodStart,
+        periodEnd: c.periodEnd,
+        subtotal: Number(c.subtotal),
+        acopioAmount: Number(c.acopioAmount),
+        anticipoAmount: Number(c.anticipoAmount),
+        fondoReparoAmount: Number(c.fondoReparoAmount),
+        ivaAmount: Number(c.ivaAmount),
+        totalAmount: Number(c.totalAmount),
+      })),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // POST /api/v1/reports/export/pdf
 router.post('/export/pdf', requirePermission('reports', 'read'), async (req, res, next) => {
   try {

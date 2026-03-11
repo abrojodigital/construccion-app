@@ -534,6 +534,7 @@ model BudgetItem {
   certificateItems CertificateItem[]
   subcontractItems SubcontractItem[]
   generatedTasks   Task[]
+  expenses         Expense[]
 
   @@index([stageId])
   @@map("budget_items")
@@ -1079,6 +1080,10 @@ model Expense {
   budgetId String?
   budget   Budget? @relation(fields: [budgetId], references: [id])
 
+  // Imputación directa a ítem de presupuesto
+  budgetItemId String?
+  budgetItem   BudgetItem? @relation(fields: [budgetItemId], references: [id])
+
   categoryId String
   category   ExpenseCategory @relation(fields: [categoryId], references: [id])
 
@@ -1102,6 +1107,7 @@ model Expense {
 
   @@index([projectId])
   @@index([taskId])
+  @@index([budgetItemId])
   @@index([status])
   @@index([expenseDate])
   @@index([categoryId])

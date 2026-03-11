@@ -23,6 +23,7 @@ import {
   Workflow,
   TrendingUp,
   Banknote,
+  Scale,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -394,6 +395,20 @@ export default function ProjectDetailPage() {
               <div>
                 <h3 className="font-medium">Plan Financiero</h3>
                 <p className="text-sm text-muted-foreground">Cash flow mensual</p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href={`/projects/${project.id}/budget-control`}>
+          <Card className="hover:shadow-md transition-shadow cursor-pointer">
+            <CardContent className="p-6 flex items-center gap-4">
+              <div className="p-3 bg-cyan-500/10 rounded-lg">
+                <Scale className="h-6 w-6 text-cyan-500" />
+              </div>
+              <div>
+                <h3 className="font-medium">Control Presupuestario</h3>
+                <p className="text-sm text-muted-foreground">Presup. vs gasto vs cert.</p>
               </div>
             </CardContent>
           </Card>

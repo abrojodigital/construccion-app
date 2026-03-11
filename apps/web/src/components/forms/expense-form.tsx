@@ -25,6 +25,7 @@ const expenseSchema = z.object({
   expenseDate: z.string().min(1, 'La fecha es requerida'),
   projectId: z.string().min(1, 'Debe seleccionar un proyecto'),
   taskId: z.string().optional(),
+  budgetItemId: z.string().optional(),
   categoryId: z.string().min(1, 'Debe seleccionar una categoría'),
   supplierId: z.string().optional(),
   invoiceNumber: z.string().optional(),
@@ -43,8 +44,27 @@ interface Stage {
   }>;
 }
 
+interface BudgetItemOption {
+  id: string;
+  number: string;
+  description: string;
+  stageName: string;
+  categoryName: string;
+}
+
+interface BudgetVersionWithItems {
+  id: string;
+  categories: Array<{
+    name: string;
+    stages: Array<{
+      description: string;
+      items: Array<{ id: string; number: string; description: string }>;
+    }>;
+  }>;
+}
+
 interface ExpenseFormProps {
-  initialData?: ExpenseFormValues & { id: string };
+  initialData?: ExpenseFormValues & { id: string; budgetItemId?: string };
   onSuccess?: () => void;
   onCancel?: () => void;
 }
@@ -93,10 +113,42 @@ export function ExpenseForm({ initialData, onSuccess, onCancel }: ExpenseFormPro
     enabled: !!selectedProjectId,
   });
 
-  // Limpiar taskId cuando cambia el proyecto
+  // Cargar versión de presupuesto aprobada para imputación por ítem
+  const { data: budgetVersionData } = useQuery({
+    queryKey: ['budget-version-items', selectedProjectId],
+    queryFn: () =>
+      api.get<{ data: BudgetVersionWithItems[] }>(
+        `/projects/${selectedProjectId}/budget-versions?status=APPROVED&limit=1`
+      ),
+    enabled: !!selectedProjectId,
+    select: (res) => {
+      const version = res?.data?.[0];
+      if (!version) return [];
+      const items: BudgetItemOption[] = [];
+      for (const cat of version.categories) {
+        for (const stage of cat.stages) {
+          for (const item of stage.items) {
+            items.push({
+              id: item.id,
+              number: item.number,
+              description: item.description,
+              stageName: stage.description,
+              categoryName: cat.name,
+            });
+          }
+        }
+      }
+      return items;
+    },
+  });
+
+  const budgetItems: BudgetItemOption[] = budgetVersionData || [];
+
+  // Limpiar taskId y budgetItemId cuando cambia el proyecto
   useEffect(() => {
     if (!isEditing) {
       setValue('taskId', undefined);
+      setValue('budgetItemId', undefined);
     }
   }, [selectedProjectId, isEditing, setValue]);
 
@@ -105,8 +157,8 @@ export function ExpenseForm({ initialData, onSuccess, onCancel }: ExpenseFormPro
       const payload = {
         ...data,
         totalAmount,
-        // Si taskId está vacío, no enviarlo
         taskId: data.taskId || undefined,
+        budgetItemId: data.budgetItemId || undefined,
       };
 
       if (isEditing) {
@@ -184,6 +236,41 @@ export function ExpenseForm({ initialData, onSuccess, onCancel }: ExpenseFormPro
           </Select>
           <p className="text-xs text-muted-foreground">
             Vincular el gasto a una tarea especifica permite mejor seguimiento de costos
+          </p>
+        </div>
+
+        {/* Ítem de presupuesto (opcional) */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Ítem Presupuestario</label>
+          <Select
+            value={watch('budgetItemId') || ''}
+            onValueChange={(value) => setValue('budgetItemId', value === '_none' ? undefined : value)}
+            disabled={!selectedProjectId || budgetItems.length === 0}
+          >
+            <SelectTrigger>
+              <SelectValue
+                placeholder={
+                  !selectedProjectId
+                    ? 'Primero seleccione un proyecto'
+                    : budgetItems.length === 0
+                    ? 'Sin presupuesto aprobado'
+                    : 'Imputar a ítem (opcional)'
+                }
+              />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="_none">Sin imputación presupuestaria</SelectItem>
+              {budgetItems.map((item) => (
+                <SelectItem key={item.id} value={item.id}>
+                  <span className="text-muted-foreground text-xs">{item.number}</span>{' '}
+                  {item.description}
+                  <span className="text-muted-foreground text-xs ml-1">· {item.categoryName}</span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Imputar el gasto a un ítem permite ver el comparativo presupuesto vs gasto real
           </p>
         </div>
 
