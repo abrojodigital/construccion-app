@@ -14,12 +14,14 @@
 10. [Subcontrataciones](#10-subcontrataciones)
 11. [Monedas y Tipos de Cambio](#11-monedas-y-tipos-de-cambio)
 12. [Redeterminación de Precios](#12-redeterminación-de-precios)
-13. [Control de Gastos](#13-control-de-gastos)
-14. [Proveedores](#14-proveedores)
-15. [Materiales e Inventario](#15-materiales-e-inventario)
-16. [Empleados y Asistencia](#16-empleados-y-asistencia)
-17. [Reportes](#17-reportes)
-18. [Configuración y Usuarios](#18-configuración-y-usuarios)
+13. [Control Presupuestario](#13-control-presupuestario)
+14. [Plan Financiero](#14-plan-financiero)
+15. [Control de Gastos](#15-control-de-gastos)
+16. [Proveedores](#16-proveedores)
+17. [Materiales e Inventario](#17-materiales-e-inventario)
+18. [Empleados y Asistencia](#18-empleados-y-asistencia)
+19. [Reportes](#19-reportes)
+20. [Configuración y Usuarios](#20-configuración-y-usuarios)
 
 ---
 
@@ -109,7 +111,7 @@ Desde la lista, click en el nombre del proyecto. Se muestran:
 
 - **Información general**: estado, código, responsable, presupuesto, avance
 - **KPIs**: gasto ejecutado, tareas pendientes, empleados asignados, documentos
-- **Accesos rápidos**: Rubros y Tareas, Diagrama Gantt, Presupuesto, Gastos, Equipo, Certificaciones, Subcontratos, Documentos
+- **Accesos rápidos**: Rubros y Tareas, Diagrama Gantt, Presupuesto, Gastos, Equipo, Certificaciones, Subcontratos, **Control Presupuestario**, **Plan Financiero**, Documentos
 
 ### Estados de un proyecto
 
@@ -442,7 +444,159 @@ Menú: Proyecto → **Calcular Redeterminación**
 
 ---
 
-## 13. Control de Gastos
+## 13. Control Presupuestario
+
+Menú: Proyecto → **Control Presupuestario**
+
+Permite comparar, ítem por ítem, lo presupuestado contra lo certificado al comitente y lo realmente gastado. Es la principal herramienta de seguimiento financiero de la obra.
+
+> Requiere que el proyecto tenga al menos una versión de presupuesto **aprobada**.
+
+### Resumen en tarjetas
+
+| Tarjeta | Descripción |
+|---------|-------------|
+| Presupuesto Total | Monto total de la versión aprobada (con coeficiente K) |
+| Gastado Real | Suma de gastos APPROVED + PAID · % ejecutado |
+| Certificado | Suma de certificaciones aprobadas · % certificado |
+| Variación | Diferencia presupuesto − gastado (positiva = superávit) |
+
+### Tabla jerárquica
+
+La tabla despliega la misma estructura del presupuesto aprobado en tres niveles expandibles:
+
+```
+Rubro
+└── Tarea (presupuestaria)
+    └── Ítem
+```
+
+Para cada nivel se muestran las columnas:
+
+| Columna | Descripción |
+|---------|-------------|
+| N° | Número del ítem en el presupuesto |
+| Descripción | Nombre del rubro / tarea / ítem |
+| Ud. | Unidad de medida |
+| Cant. | Cantidad presupuestada |
+| P. Unit. | Precio unitario (con K) |
+| Presupuesto | Monto total presupuestado |
+| Certificado | Monto certificado al comitente |
+| Gastado Real | Gastos reales imputados (en ámbar) |
+| Av. Físico | Porcentaje de avance registrado |
+| Variación | Presupuesto − Gastado Real |
+
+- Click en la fila de un **Rubro** o **Tarea** para expandir/colapsar sus hijos.
+- Las filas con variación negativa (sobrecosto) se resaltan en rojo.
+
+### Gastos por categoría
+
+Debajo de la tabla jerárquica se muestra un gráfico de barras con el gasto real agrupado por categoría (materiales, mano de obra, equipos, etc.).
+
+### Historial de certificados
+
+Listado de todos los certificados del proyecto con:
+- Número de certificado, período, estado y monto neto
+- Enlace directo al detalle de cada certificado
+
+### Imputar gastos a ítems presupuestarios
+
+Para que un gasto aparezca en la columna **Gastado Real** del ítem correcto, al registrar el gasto se debe completar el campo **Ítem Presupuestario**. Ver sección [15. Control de Gastos](#15-control-de-gastos).
+
+---
+
+## 14. Plan Financiero
+
+Menú: Proyecto → **Plan Financiero**
+
+Permite planificar el flujo de fondos de la obra mes a mes, comparando lo proyectado con lo certificado y ejecutado.
+
+### Crear un plan financiero
+
+1. Click en **Nuevo Plan**
+2. Ingresar nombre y descripción
+3. Guardar como borrador
+
+### Lista de planes
+
+Desde la pantalla de lista se puede:
+- Ver todos los planes del proyecto (DRAFT / APPROVED)
+- Hacer click en la tarjeta de un plan para ingresar al detalle
+- Eliminar planes en borrador con el ícono de papelera
+
+### Detalle del plan
+
+La pantalla de detalle muestra:
+
+#### Tarjetas resumen
+
+| Tarjeta | Descripción |
+|---------|-------------|
+| Total Proyectado | Suma de todos los períodos planificados |
+| Certificado | Monto real certificado · % sobre lo proyectado |
+| Ejecutado | Gasto real ejecutado · % sobre lo proyectado |
+| Desglose por Rubro | Resumen de lo proyectado por categoría |
+
+#### Gráficos
+
+- **Curva S** — Acumulado proyectado vs. certificado vs. ejecutado a lo largo del tiempo
+- **Gráfico de barras mensual** — Proyectado / Certificado / Ejecutado por período
+
+#### Tabla de períodos
+
+Muestra todos los meses del plan con columnas:
+
+| Columna | Descripción |
+|---------|-------------|
+| Período | Año y mes |
+| Proyectado | Monto planificado |
+| Certificado | Monto realmente certificado |
+| Ejecutado | Gasto real del período |
+| Av. Planificado | % de avance planificado acumulado |
+| Av. Real | % de avance físico real acumulado |
+| Diferencia | Proyectado − Ejecutado |
+
+En modo **BORRADOR** cada fila tiene botones de edición y eliminación.
+
+### Agregar períodos manualmente
+
+1. Click en **+ Agregar Período**
+2. Completar:
+   - Año y mes
+   - Montos proyectados: obras civiles, materiales, mano de obra, equipos, gastos generales, subcontratos, imprevistos
+   - Avance planificado (0–100 %)
+   - Notas opcionales
+
+### Generar períodos en lote
+
+Para crear rápidamente un rango de meses:
+
+1. Click en **Generar en Lote**
+2. Seleccionar mes/año de inicio y de fin
+3. Ingresar el monto total a distribuir
+4. Elegir el método de distribución:
+   - **Igual** — divide el monto en partes iguales entre todos los meses
+   - **Lineal** — el sistema calcula una distribución triangular (arranque gradual, pico en el centro, reducción al final)
+5. Click en **Generar**
+
+El sistema crea un período por mes. Si algún mes ya existe, lo omite automáticamente.
+
+### Aprobar un plan financiero
+
+1. En el detalle del plan, click en **Aprobar Plan**
+2. Confirmar la acción
+3. Una vez aprobado, el plan queda en modo solo lectura y no se pueden agregar ni editar períodos
+
+### Estados del plan
+
+| Estado | Descripción |
+|--------|-------------|
+| DRAFT | En edición, se pueden agregar y modificar períodos |
+| APPROVED | Aprobado, solo lectura |
+
+---
+
+## 15. Control de Gastos
 
 Menú: **Gastos**
 
@@ -456,9 +610,12 @@ Menú: **Gastos**
    - Descripción e importe
    - Tipo de comprobante (Factura A, B o C) y número
    - Fecha
+   - **Ítem Presupuestario** _(opcional)_ — vincula el gasto a un ítem del presupuesto aprobado para que aparezca en el Control Presupuestario
 3. Guardar como **Borrador** o enviar a aprobación directamente
 
 El sistema genera código automático (`GAS-YYYY-NNNNN`).
+
+> **Tip:** Imputar cada gasto a su ítem presupuestario correspondiente permite obtener el reporte de Control Presupuestario con máximo detalle (columna **Gastado Real** por ítem).
 
 ### Flujo de aprobación
 
@@ -481,7 +638,7 @@ DRAFT → PENDING_APPROVAL → APPROVED → PAID
 
 ---
 
-## 14. Proveedores
+## 16. Proveedores
 
 Menú: **Proveedores**
 
@@ -500,7 +657,7 @@ Desde el detalle del proveedor se pueden ver todos los gastos y órdenes de comp
 
 ---
 
-## 15. Materiales e Inventario
+## 17. Materiales e Inventario
 
 Menú: **Materiales**
 
@@ -520,7 +677,7 @@ Desde el detalle del material se registran entradas y salidas con fecha y motivo
 
 ---
 
-## 16. Empleados y Asistencia
+## 18. Empleados y Asistencia
 
 Menú: **Empleados**
 
@@ -552,7 +709,7 @@ Desde el detalle del empleado → **Asistencia** → registrar por día:
 
 ---
 
-## 17. Reportes
+## 19. Reportes
 
 Menú: **Reportes**
 
@@ -570,7 +727,7 @@ Desde el detalle de cada proyecto:
 
 ---
 
-## 18. Configuración y Usuarios
+## 20. Configuración y Usuarios
 
 Menú: **Configuración**
 
@@ -608,21 +765,30 @@ Desde el listado de usuarios, usar el toggle de estado. Un usuario inactivo no p
    └── Completar APU por ítem si es necesario
    └── Aprobar la versión
 
-3. Generar Cronograma desde el presupuesto
+3. Crear Plan Financiero
+   └── Generar períodos mensuales (manual o en lote)
+   └── Distribuir el presupuesto aprobado mes a mes
+   └── Aprobar el plan financiero
+
+4. Generar Cronograma desde el presupuesto
    └── Se crean Rubros y Tareas automáticamente
 
-4. Ajustar el plan de trabajo
+5. Ajustar el plan de trabajo
    └── Agregar fechas planificadas a cada ítem
    └── Asignar empleados
    └── Verificar en el Diagrama Gantt
 
-5. Ejecutar la obra
-   └── Registrar gastos (con aprobación)
-   └── Actualizar avance de ítems
+6. Ejecutar la obra
+   └── Registrar gastos imputados al ítem presupuestario correspondiente
+   └── Actualizar avance físico de ítems
    └── Registrar asistencia de personal
    └── Emitir certificados de avance al comitente
 
-6. Cierre
+7. Seguimiento financiero (continuo)
+   └── Control Presupuestario: presupuestado vs. certificado vs. gastado real
+   └── Plan Financiero: seguimiento de la curva S proyectada vs. real
+
+8. Cierre
    └── Marcar el proyecto como COMPLETED
    └── Generar reporte final
 ```
