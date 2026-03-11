@@ -587,13 +587,23 @@ export const updateItemProgressSchema = createItemProgressSchema.partial();
 // CERTIFICATE SCHEMAS - Fase 4
 // ============================================
 
-export const createCertificateSchema = z.object({
-  periodStart: z.coerce.date(),
-  periodEnd: z.coerce.date(),
-  acopioPct: nonNegativeDecimalSchema.default(0),
-  anticipoPct: nonNegativeDecimalSchema.default(0),
-  fondoReparoPct: nonNegativeDecimalSchema.default(0),
-  ivaPct: nonNegativeDecimalSchema.default(0),
+export const createCertificateSchema = z
+  .object({
+    periodStart: z.coerce.date(),
+    periodEnd: z.coerce.date(),
+    acopioPct: nonNegativeDecimalSchema.default(0),
+    anticipoPct: nonNegativeDecimalSchema.default(0),
+    fondoReparoPct: nonNegativeDecimalSchema.default(0),
+    ivaPct: nonNegativeDecimalSchema.default(0),
+    adjustmentFactor: z.coerce.number().positive().default(1),
+  })
+  .refine((data) => data.periodEnd >= data.periodStart, {
+    message: 'La fecha de fin debe ser igual o posterior a la fecha de inicio',
+    path: ['periodEnd'],
+  });
+
+export const updateCertificateSchema = z.object({
+  adjustmentFactor: z.coerce.number().positive({ message: 'El factor debe ser mayor a 0' }),
 });
 
 export const updateCertificateItemSchema = z.object({

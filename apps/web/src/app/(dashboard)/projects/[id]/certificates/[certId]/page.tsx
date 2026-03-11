@@ -12,6 +12,9 @@ import {
   Download,
   DollarSign,
   Printer,
+  Pencil,
+  Check,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -115,6 +118,8 @@ export default function CertificateDetailPage() {
   const certId = params.certId as string;
 
   const [confirmAction, setConfirmAction] = useState<'submit' | 'approve' | 'paid' | null>(null);
+  const [editingFactor, setEditingFactor] = useState(false);
+  const [factorValue, setFactorValue] = useState('');
   const accessToken = useAuthStore((s) => s.accessToken);
 
   const { data: certificate, isLoading } = useQuery({
@@ -131,7 +136,21 @@ export default function CertificateDetailPage() {
     mutationFn: ({ itemId, currentAdvance }: { itemId: string; currentAdvance: number }) =>
       api.put(`/certificates/${certId}/items/${itemId}`, { currentAdvance }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['certificate', certId] }),
-    onError: () => toast.error('Error al actualizar avance'),
+    onError: (error: any) => {
+      const msg = error?.response?.data?.error?.message || 'Error al actualizar avance';
+      toast.error(msg);
+    },
+  });
+
+  const updateFactorMutation = useMutation({
+    mutationFn: (adjustmentFactor: number) =>
+      api.put(`/certificates/${certId}`, { adjustmentFactor }),
+    onSuccess: () => {
+      invalidate();
+      setEditingFactor(false);
+      toast.success('Factor de ajuste actualizado');
+    },
+    onError: () => toast.error('Error al actualizar el factor'),
   });
 
   const submitMutation = useMutation({
@@ -192,6 +211,15 @@ export default function CertificateDetailPage() {
     const maxPct = (1 - Number(previousAdvance)) * 100;
     const clamped = Math.min(pct, maxPct);
     updateItemMutation.mutate({ itemId, currentAdvance: clamped / 100 });
+  };
+
+  const handleSaveFactor = () => {
+    const val = parseFloat(factorValue);
+    if (isNaN(val) || val <= 0) {
+      toast.error('El factor debe ser un número mayor a 0');
+      return;
+    }
+    updateFactorMutation.mutate(val);
   };
 
   if (isLoading) {
@@ -317,17 +345,64 @@ export default function CertificateDetailPage() {
             <p className="text-2xl font-bold font-mono">{formatCurrency(subtotal, { compact: true })}</p>
           </CardContent>
         </Card>
+
+        {/* Factor de ajuste — editable en DRAFT */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Factor de Ajuste</CardTitle>
+            <CardTitle className="text-sm font-medium flex items-center justify-between">
+              Factor de Ajuste
+              {isDraft && !editingFactor && (
+                <button
+                  onClick={() => { setFactorValue(adjustmentFactor.toFixed(4)); setEditingFactor(true); }}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  title="Editar factor de ajuste"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold font-mono">{adjustmentFactor.toFixed(4)}</p>
-            {certificate.budgetVersion && (
-              <p className="text-xs text-muted-foreground mt-1">{certificate.budgetVersion.code}</p>
+            {editingFactor ? (
+              <div className="flex items-center gap-1.5">
+                <Input
+                  type="number"
+                  step="0.0001"
+                  min="0.0001"
+                  value={factorValue}
+                  onChange={(e) => setFactorValue(e.target.value)}
+                  className="h-8 font-mono text-sm w-28"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSaveFactor();
+                    if (e.key === 'Escape') setEditingFactor(false);
+                  }}
+                />
+                <button
+                  onClick={handleSaveFactor}
+                  disabled={updateFactorMutation.isPending}
+                  className="text-green-600 hover:text-green-700 disabled:opacity-50"
+                >
+                  <Check className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setEditingFactor(false)}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <>
+                <p className="text-2xl font-bold font-mono">{adjustmentFactor.toFixed(4)}</p>
+                {certificate.budgetVersion && (
+                  <p className="text-xs text-muted-foreground mt-1">{certificate.budgetVersion.code}</p>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
+
         <Card className="border-primary/30">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-primary">Total Certificado</CardTitle>
@@ -392,7 +467,7 @@ export default function CertificateDetailPage() {
           <CardTitle>Ítems del Certificado</CardTitle>
           {isDraft && (
             <p className="text-sm text-muted-foreground">
-              Ingresá el avance del período actual para cada ítem (en %).
+              Ingresá el avance del período actual para cada ítem (en %). El sistema acumula automáticamente el avance anterior.
             </p>
           )}
         </CardHeader>
@@ -408,10 +483,14 @@ export default function CertificateDetailPage() {
                   <TableHead className="text-right w-24">P.U.</TableHead>
                   <TableHead className="text-right w-20">Av. Ant.</TableHead>
                   <TableHead className="text-right w-28">
-                    {isDraft ? 'Av. Período %' : 'Av. Período'}
+                    Av. Período {isDraft && <span className="text-muted-foreground font-normal">(%)</span>}
                   </TableHead>
                   <TableHead className="text-right w-24">Av. Total</TableHead>
-                  <TableHead className="text-right w-24">Acopio</TableHead>
+                  <TableHead className="text-right w-24">
+                    <span title="Referencial: muestra cuánto corresponde al acopio por ítem. El descuento se aplica sobre el total del certificado.">
+                      Acopio *
+                    </span>
+                  </TableHead>
                   <TableHead className="text-right w-28">Monto Per.</TableHead>
                   <TableHead className="text-right w-28">Monto Acum.</TableHead>
                 </TableRow>
@@ -420,7 +499,6 @@ export default function CertificateDetailPage() {
                 {Array.from(stageGroups.entries()).map(([stageKey, items]) => {
                   const stageTotal = items.reduce((s, i) => s + Number(i.currentAmount), 0);
                   const stageTotalAccum = items.reduce((s, i) => s + Number(i.totalAmount), 0);
-                  const stageAcopio = stageTotal * acopioPct;
                   return [
                     // Fila de cabecera de etapa
                     <TableRow key={`stage-${stageKey}`} className="bg-muted/50 hover:bg-muted/50">
@@ -438,6 +516,7 @@ export default function CertificateDetailPage() {
                     ...items.map((item) => {
                       const acopioItem = Number(item.currentAmount) * acopioPct;
                       const totalAdv = Number(item.totalAdvance);
+                      const currentAdvancePct = (Number(item.currentAdvance) * 100).toFixed(1);
                       return (
                         <TableRow key={item.id}>
                           <TableCell className="font-mono text-xs">{item.itemNumber}</TableCell>
@@ -456,12 +535,14 @@ export default function CertificateDetailPage() {
                           </TableCell>
                           <TableCell className="text-right">
                             {isDraft ? (
+                              // key fuerza re-montaje del input después de que la mutación actualiza el dato
                               <Input
+                                key={`${item.id}-${item.currentAdvance}`}
                                 type="number"
                                 step="0.1"
                                 min="0"
                                 max={((1 - Number(item.previousAdvance)) * 100).toFixed(1)}
-                                defaultValue={(Number(item.currentAdvance) * 100).toFixed(1)}
+                                defaultValue={currentAdvancePct}
                                 className="w-20 text-right font-mono text-xs ml-auto h-7"
                                 onBlur={(e) =>
                                   handleAdvanceChange(item.id, e.target.value, item.previousAdvance)
@@ -469,7 +550,7 @@ export default function CertificateDetailPage() {
                               />
                             ) : (
                               <span className="font-mono text-xs">
-                                {(Number(item.currentAdvance) * 100).toFixed(1)}%
+                                {currentAdvancePct}%
                               </span>
                             )}
                           </TableCell>
@@ -506,15 +587,24 @@ export default function CertificateDetailPage() {
             </Table>
           </div>
           {/* Totals footer */}
-          <div className="border-t bg-muted/30 px-4 py-3 flex justify-end gap-8 text-sm font-semibold">
-            <span>
-              Total Acopio:{' '}
-              <span className="font-mono text-amber-600">{formatCurrency(acopioAmount, { compact: true })}</span>
-            </span>
-            <span>
-              Total Período:{' '}
-              <span className="font-mono">{formatCurrency(subtotal, { compact: true })}</span>
-            </span>
+          <div className="border-t bg-muted/30 px-4 py-3 space-y-1">
+            <div className="flex justify-end gap-8 text-sm font-semibold">
+              {acopioPct > 0 && (
+                <span>
+                  Total Acopio:{' '}
+                  <span className="font-mono text-amber-600">{formatCurrency(acopioAmount, { compact: true })}</span>
+                </span>
+              )}
+              <span>
+                Total Período:{' '}
+                <span className="font-mono">{formatCurrency(subtotal, { compact: true })}</span>
+              </span>
+            </div>
+            {acopioPct > 0 && (
+              <p className="text-xs text-muted-foreground text-right">
+                * Acopio por ítem es referencial. El descuento se aplica sobre el total del certificado (ver Resumen Financiero).
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>

@@ -63,6 +63,23 @@ export class CertificatesController {
   }
 
   /**
+   * PUT /certificates/:id
+   * Actualizar campos editables de un certificado (solo DRAFT).
+   */
+  async update(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const certificate = await certificatesService.update(
+        req.params.id,
+        req.body,
+        req.user!.organizationId
+      );
+      sendSuccess(res, certificate);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * PUT /certificates/:id/items/:itemId
    * Actualizar el avance de un item de certificacion.
    */

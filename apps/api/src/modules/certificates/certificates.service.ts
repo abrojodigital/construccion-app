@@ -13,6 +13,7 @@ interface CreateCertificateInput {
   anticipoPct?: number;
   fondoReparoPct?: number;
   ivaPct?: number;
+  adjustmentFactor?: number;
 }
 
 interface CertificateFilters {
@@ -25,6 +26,10 @@ interface CertificateFilters {
 
 interface UpdateCertificateItemInput {
   currentAdvance: number;
+}
+
+interface UpdateCertificateInput {
+  adjustmentFactor: number;
 }
 
 // ============================================
@@ -142,6 +147,7 @@ export class CertificatesService {
         anticipoPct: data.anticipoPct || 0,
         fondoReparoPct: data.fondoReparoPct || 0,
         ivaPct: data.ivaPct || 0,
+        adjustmentFactor: data.adjustmentFactor || 1,
         budgetVersionId: budgetVersion.id,
         projectId,
         organizationId,
@@ -210,6 +216,28 @@ export class CertificatesService {
 
     if (!certificate) throw new NotFoundError('Certificado', id);
     return certificate;
+  }
+
+  /**
+   * Actualizar campos editables de un certificado (solo DRAFT).
+   * Actualmente permite cambiar el factor de ajuste (redeterminación).
+   */
+  async update(id: string, data: UpdateCertificateInput, organizationId: string) {
+    const certificate = await this.findById(id, organizationId);
+
+    if (certificate.status !== 'DRAFT') {
+      throw new ValidationError('Solo se pueden editar certificados en estado Borrador');
+    }
+
+    await prisma.certificate.update({
+      where: { id },
+      data: { adjustmentFactor: new Prisma.Decimal(data.adjustmentFactor) },
+    });
+
+    // Recalcular totales con el nuevo factor
+    await this.recalculateTotals(id, organizationId);
+
+    return this.findById(id, organizationId);
   }
 
   /**

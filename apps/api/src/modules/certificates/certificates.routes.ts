@@ -5,6 +5,7 @@ import { requirePermission } from '../../middleware/rbac.middleware';
 import { validateBody, validateQuery, validateId } from '../../middleware/validation.middleware';
 import {
   createCertificateSchema,
+  updateCertificateSchema,
   updateCertificateItemSchema,
   certificateQuerySchema,
 } from '@construccion/shared';
@@ -44,6 +45,15 @@ router.get(
   requirePermission('certificates', 'read'),
   validateId,
   certificatesController.findById.bind(certificatesController)
+);
+
+// PUT /certificates/:id - Actualizar campos editables (factor de ajuste, solo DRAFT)
+router.put(
+  '/:id',
+  requirePermission('certificates', 'write'),
+  validateId,
+  validateBody(updateCertificateSchema),
+  certificatesController.update.bind(certificatesController)
 );
 
 // PUT /certificates/:id/items/:itemId - Actualizar avance de un item
