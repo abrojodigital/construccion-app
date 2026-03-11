@@ -131,6 +131,58 @@ export class CertificatesController {
   }
 
   /**
+   * POST /certificates/:id/reject
+   * Rechazar certificado enviado (SUBMITTED -> REJECTED).
+   */
+  async reject(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const certificate = await certificatesService.reject(
+        req.params.id,
+        req.body.reason,
+        req.user!.id,
+        req.user!.organizationId
+      );
+      sendSuccess(res, certificate);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * POST /certificates/:id/reopen
+   * Reabrir certificado rechazado (REJECTED -> DRAFT).
+   */
+  async reopen(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const certificate = await certificatesService.reopen(
+        req.params.id,
+        req.user!.organizationId
+      );
+      sendSuccess(res, certificate);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * POST /certificates/:id/annul
+   * Anular certificado aprobado o pagado (irreversible).
+   */
+  async annul(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const certificate = await certificatesService.annul(
+        req.params.id,
+        req.body.reason,
+        req.user!.id,
+        req.user!.organizationId
+      );
+      sendSuccess(res, certificate);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * POST /certificates/:id/mark-paid
    * Marcar certificado aprobado como pagado.
    */

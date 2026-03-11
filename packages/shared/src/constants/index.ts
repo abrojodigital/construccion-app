@@ -361,20 +361,26 @@ export const CERTIFICATE_STATUS = {
   SUBMITTED: 'SUBMITTED',
   APPROVED: 'APPROVED',
   PAID: 'PAID',
+  REJECTED: 'REJECTED',
+  ANNULLED: 'ANNULLED',
 } as const;
 
-export const CERTIFICATE_STATUS_LABELS: Record<keyof typeof CERTIFICATE_STATUS, string> = {
+export const CERTIFICATE_STATUS_LABELS: Record<string, string> = {
   DRAFT: 'Borrador',
   SUBMITTED: 'Enviado',
   APPROVED: 'Aprobado',
   PAID: 'Pagado',
+  REJECTED: 'Rechazado',
+  ANNULLED: 'Anulado',
 };
 
-export const CERTIFICATE_STATUS_COLORS: Record<keyof typeof CERTIFICATE_STATUS, string> = {
+export const CERTIFICATE_STATUS_COLORS: Record<string, string> = {
   DRAFT: 'gray',
   SUBMITTED: 'yellow',
   APPROVED: 'green',
   PAID: 'blue',
+  REJECTED: 'red',
+  ANNULLED: 'gray',
 };
 
 // Estados de Subcontrato

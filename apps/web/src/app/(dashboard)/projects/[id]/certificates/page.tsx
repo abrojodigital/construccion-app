@@ -54,7 +54,7 @@ import {
   CERTIFICATE_STATUS_COLORS,
 } from '@construccion/shared/constants';
 
-type CertificateStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'PAID';
+type CertificateStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'PAID' | 'REJECTED' | 'ANNULLED';
 
 interface Certificate {
   id: string;
@@ -316,6 +316,8 @@ export default function CertificatesPage() {
             <SelectItem value="SUBMITTED">Presentado</SelectItem>
             <SelectItem value="APPROVED">Aprobado</SelectItem>
             <SelectItem value="PAID">Pagado</SelectItem>
+            <SelectItem value="REJECTED">Rechazado</SelectItem>
+            <SelectItem value="ANNULLED">Anulado</SelectItem>
           </SelectContent>
         </Select>
         {filtered.length !== allCertificates.length && (

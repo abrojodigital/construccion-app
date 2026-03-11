@@ -606,6 +606,14 @@ export const updateCertificateSchema = z.object({
   adjustmentFactor: z.coerce.number().positive({ message: 'El factor debe ser mayor a 0' }),
 });
 
+export const rejectCertificateSchema = z.object({
+  reason: z.string().min(1, { message: 'El motivo del rechazo es requerido' }).max(500),
+});
+
+export const annulCertificateSchema = z.object({
+  reason: z.string().min(1, { message: 'El motivo de la anulación es requerido' }).max(500),
+});
+
 export const updateCertificateItemSchema = z.object({
   currentAdvance: z.number().min(0).max(1),
 });
@@ -615,7 +623,7 @@ export const certificateQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(100).default(20),
   sortBy: z.string().optional(),
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
-  status: z.enum(['DRAFT', 'SUBMITTED', 'APPROVED', 'PAID']).optional(),
+  status: z.enum(['DRAFT', 'SUBMITTED', 'APPROVED', 'PAID', 'REJECTED', 'ANNULLED']).optional(),
 });
 
 // ============================================

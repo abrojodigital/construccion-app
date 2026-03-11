@@ -7,6 +7,8 @@ import {
   createCertificateSchema,
   updateCertificateSchema,
   updateCertificateItemSchema,
+  rejectCertificateSchema,
+  annulCertificateSchema,
   certificateQuerySchema,
 } from '@construccion/shared';
 
@@ -87,6 +89,32 @@ router.post(
   requirePermission('certificates', 'approve'),
   validateId,
   certificatesController.markAsPaid.bind(certificatesController)
+);
+
+// POST /certificates/:id/reject - Rechazar certificado enviado (SUBMITTED -> REJECTED)
+router.post(
+  '/:id/reject',
+  requirePermission('certificates', 'approve'),
+  validateId,
+  validateBody(rejectCertificateSchema),
+  certificatesController.reject.bind(certificatesController)
+);
+
+// POST /certificates/:id/reopen - Reabrir certificado rechazado (REJECTED -> DRAFT)
+router.post(
+  '/:id/reopen',
+  requirePermission('certificates', 'write'),
+  validateId,
+  certificatesController.reopen.bind(certificatesController)
+);
+
+// POST /certificates/:id/annul - Anular certificado aprobado o pagado (irreversible)
+router.post(
+  '/:id/annul',
+  requirePermission('certificates', 'approve'),
+  validateId,
+  validateBody(annulCertificateSchema),
+  certificatesController.annul.bind(certificatesController)
 );
 
 // GET /certificates/:id/export/pdf - Exportar como HTML/PDF

@@ -15,6 +15,10 @@ import {
   Pencil,
   Check,
   X,
+  XCircle,
+  Ban,
+  RotateCcw,
+  AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -49,7 +53,7 @@ import { useAuthStore } from '@/store/auth.store';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
 
-type CertificateStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'PAID';
+type CertificateStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'PAID' | 'REJECTED' | 'ANNULLED';
 
 interface CertificateItem {
   id: string;
@@ -87,6 +91,10 @@ interface CertificateDetail {
   totalAmount: string;
   submittedAt: string | null;
   approvedAt: string | null;
+  rejectedAt: string | null;
+  rejectionReason: string | null;
+  annulledAt: string | null;
+  annulmentReason: string | null;
   createdAt: string;
   items: CertificateItem[];
   budgetVersion?: { id: string; name: string; code: string };
@@ -95,7 +103,7 @@ interface CertificateDetail {
 
 const statusBadgeVariant = (color: string): 'default' | 'secondary' | 'destructive' | 'outline' => {
   const map: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-    gray: 'secondary', yellow: 'outline', green: 'default', blue: 'default',
+    gray: 'secondary', yellow: 'outline', green: 'default', blue: 'default', red: 'destructive',
   };
   return map[color] || 'secondary';
 };
@@ -118,6 +126,8 @@ export default function CertificateDetailPage() {
   const certId = params.certId as string;
 
   const [confirmAction, setConfirmAction] = useState<'submit' | 'approve' | 'paid' | null>(null);
+  const [reasonDialog, setReasonDialog] = useState<'reject' | 'annul' | null>(null);
+  const [reasonText, setReasonText] = useState('');
   const [editingFactor, setEditingFactor] = useState(false);
   const [factorValue, setFactorValue] = useState('');
   const accessToken = useAuthStore((s) => s.accessToken);
@@ -169,6 +179,24 @@ export default function CertificateDetailPage() {
     mutationFn: () => api.post(`/certificates/${certId}/mark-paid`),
     onSuccess: () => { invalidate(); toast.success('Certificado marcado como pagado'); setConfirmAction(null); },
     onError: () => toast.error('Error al marcar como pagado'),
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: (reason: string) => api.post(`/certificates/${certId}/reject`, { reason }),
+    onSuccess: () => { invalidate(); toast.success('Certificado rechazado'); setReasonDialog(null); setReasonText(''); },
+    onError: () => toast.error('Error al rechazar certificado'),
+  });
+
+  const reopenMutation = useMutation({
+    mutationFn: () => api.post(`/certificates/${certId}/reopen`),
+    onSuccess: () => { invalidate(); toast.success('Certificado reabierto para edición'); },
+    onError: () => toast.error('Error al reabrir certificado'),
+  });
+
+  const annulMutation = useMutation({
+    mutationFn: (reason: string) => api.post(`/certificates/${certId}/annul`, { reason }),
+    onSuccess: () => { invalidate(); toast.success('Certificado anulado'); setReasonDialog(null); setReasonText(''); },
+    onError: () => toast.error('Error al anular certificado'),
   });
 
   // Exports usando fetch directo (respuestas no-JSON)
@@ -244,6 +272,8 @@ export default function CertificateDetailPage() {
   const isDraft = certificate.status === 'DRAFT';
   const isSubmitted = certificate.status === 'SUBMITTED';
   const isApproved = certificate.status === 'APPROVED';
+  const isRejected = certificate.status === 'REJECTED';
+  const isAnnulled = certificate.status === 'ANNULLED';
   const statusColor = CERTIFICATE_STATUS_COLORS[certificate.status] || 'gray';
   const statusLabel = CERTIFICATE_STATUS_LABELS[certificate.status] || certificate.status;
 
@@ -312,15 +342,55 @@ export default function CertificateDetailPage() {
             </Button>
           )}
           {isSubmitted && (
-            <Button onClick={() => setConfirmAction('approve')}>
-              <CheckCircle className="mr-2 h-4 w-4" />
-              Aprobar
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                className="border-destructive text-destructive hover:bg-destructive/10"
+                onClick={() => { setReasonText(''); setReasonDialog('reject'); }}
+              >
+                <XCircle className="mr-2 h-4 w-4" />
+                Rechazar
+              </Button>
+              <Button onClick={() => setConfirmAction('approve')}>
+                <CheckCircle className="mr-2 h-4 w-4" />
+                Aprobar
+              </Button>
+            </>
           )}
           {isApproved && (
-            <Button variant="default" onClick={() => setConfirmAction('paid')}>
-              <DollarSign className="mr-2 h-4 w-4" />
-              Marcar como Pagado
+            <>
+              <Button
+                variant="outline"
+                className="border-destructive text-destructive hover:bg-destructive/10"
+                onClick={() => { setReasonText(''); setReasonDialog('annul'); }}
+              >
+                <Ban className="mr-2 h-4 w-4" />
+                Anular
+              </Button>
+              <Button variant="default" onClick={() => setConfirmAction('paid')}>
+                <DollarSign className="mr-2 h-4 w-4" />
+                Marcar como Pagado
+              </Button>
+            </>
+          )}
+          {certificate.status === 'PAID' && (
+            <Button
+              variant="outline"
+              className="border-destructive text-destructive hover:bg-destructive/10"
+              onClick={() => { setReasonText(''); setReasonDialog('annul'); }}
+            >
+              <Ban className="mr-2 h-4 w-4" />
+              Anular
+            </Button>
+          )}
+          {isRejected && (
+            <Button
+              variant="outline"
+              onClick={() => reopenMutation.mutate()}
+              disabled={reopenMutation.isPending}
+            >
+              <RotateCcw className="mr-2 h-4 w-4" />
+              {reopenMutation.isPending ? 'Reabriendo...' : 'Reabrir para Edición'}
             </Button>
           )}
         </div>
@@ -417,6 +487,28 @@ export default function CertificateDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Banner de rechazo */}
+      {isRejected && certificate.rejectionReason && (
+        <div className="flex gap-3 rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3">
+          <AlertTriangle className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-destructive">Certificado rechazado</p>
+            <p className="text-sm text-muted-foreground mt-0.5">{certificate.rejectionReason}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Banner de anulación */}
+      {isAnnulled && certificate.annulmentReason && (
+        <div className="flex gap-3 rounded-lg border border-muted bg-muted/40 px-4 py-3">
+          <Ban className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm font-semibold">Certificado anulado</p>
+            <p className="text-sm text-muted-foreground mt-0.5">{certificate.annulmentReason}</p>
+          </div>
+        </div>
+      )}
 
       {/* Financial Breakdown */}
       <Card>
@@ -608,6 +700,51 @@ export default function CertificateDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Diálogo de motivo (rechazar / anular) */}
+      <AlertDialog open={!!reasonDialog} onOpenChange={(open) => { if (!open) { setReasonDialog(null); setReasonText(''); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {reasonDialog === 'reject' ? 'Rechazar Certificado' : 'Anular Certificado'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {reasonDialog === 'reject'
+                ? 'El certificado volverá al emisor para correcciones. Ingresá el motivo del rechazo.'
+                : 'Esta acción es irreversible. El certificado quedará anulado definitivamente. Ingresá el motivo.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="px-1 py-2">
+            <textarea
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
+              rows={3}
+              placeholder={reasonDialog === 'reject' ? 'Ej: Los avances del ítem 2.1.3 no coinciden con lo inspeccionado...' : 'Ej: Error en el período de facturación, se emitirá un nuevo certificado...'}
+              value={reasonText}
+              onChange={(e) => setReasonText(e.target.value)}
+            />
+            {reasonText.trim().length === 0 && (
+              <p className="text-xs text-muted-foreground mt-1">El motivo es obligatorio</p>
+            )}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={reasonText.trim().length === 0 || rejectMutation.isPending || annulMutation.isPending}
+              className={reasonDialog === 'annul' ? 'bg-destructive hover:bg-destructive/90' : ''}
+              onClick={() => {
+                if (reasonDialog === 'reject') rejectMutation.mutate(reasonText.trim());
+                else if (reasonDialog === 'annul') annulMutation.mutate(reasonText.trim());
+              }}
+            >
+              {(rejectMutation.isPending || annulMutation.isPending)
+                ? 'Procesando...'
+                : reasonDialog === 'reject'
+                  ? 'Confirmar Rechazo'
+                  : 'Confirmar Anulación'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Confirm Action Dialog */}
       <AlertDialog open={!!confirmAction} onOpenChange={() => setConfirmAction(null)}>

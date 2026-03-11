@@ -113,6 +113,8 @@ enum CertificateStatus {
   SUBMITTED
   APPROVED
   PAID
+  REJECTED
+  ANNULLED
 }
 
 enum SubcontractStatus {
@@ -720,6 +722,14 @@ model Certificate {
   submittedAt  DateTime?
   approvedAt   DateTime?
   approvedById String?
+
+  rejectedAt     DateTime?
+  rejectedById   String?
+  rejectionReason String?
+
+  annulledAt     DateTime?
+  annulledById   String?
+  annulmentReason String?
 
   budgetVersionId String
   budgetVersion   BudgetVersion @relation(fields: [budgetVersionId], references: [id])

@@ -430,6 +430,87 @@ export class CertificatesService {
   }
 
   /**
+   * Rechazar certificado (SUBMITTED -> REJECTED).
+   * Requiere motivo. El certificado puede reabrirse a DRAFT posteriormente.
+   */
+  async reject(id: string, reason: string, userId: string, organizationId: string) {
+    const certificate = await this.findById(id, organizationId);
+
+    if (certificate.status !== 'SUBMITTED') {
+      throw new ConflictError('Solo se pueden rechazar certificados en estado Enviado');
+    }
+
+    return prisma.certificate.update({
+      where: { id },
+      data: {
+        status: 'REJECTED',
+        rejectedAt: new Date(),
+        rejectedById: userId,
+        rejectionReason: reason,
+      },
+      include: {
+        items: { orderBy: { itemNumber: 'asc' } },
+        budgetVersion: { select: { id: true, code: true, name: true, version: true } },
+        project: { select: { id: true, code: true, name: true } },
+      },
+    });
+  }
+
+  /**
+   * Reabrir certificado rechazado (REJECTED -> DRAFT).
+   * Permite al emisor corregir y volver a presentar.
+   */
+  async reopen(id: string, organizationId: string) {
+    const certificate = await this.findById(id, organizationId);
+
+    if (certificate.status !== 'REJECTED') {
+      throw new ConflictError('Solo se pueden reabrir certificados en estado Rechazado');
+    }
+
+    return prisma.certificate.update({
+      where: { id },
+      data: {
+        status: 'DRAFT',
+        rejectedAt: null,
+        rejectedById: null,
+        rejectionReason: null,
+      },
+      include: {
+        items: { orderBy: { itemNumber: 'asc' } },
+        budgetVersion: { select: { id: true, code: true, name: true, version: true } },
+        project: { select: { id: true, code: true, name: true } },
+      },
+    });
+  }
+
+  /**
+   * Anular certificado (APPROVED/PAID -> ANNULLED).
+   * Acción irreversible. Requiere motivo.
+   */
+  async annul(id: string, reason: string, userId: string, organizationId: string) {
+    const certificate = await this.findById(id, organizationId);
+
+    if (certificate.status !== 'APPROVED' && certificate.status !== 'PAID') {
+      throw new ConflictError('Solo se pueden anular certificados aprobados o pagados');
+    }
+
+    return prisma.certificate.update({
+      where: { id },
+      data: {
+        status: 'ANNULLED',
+        annulledAt: new Date(),
+        annulledById: userId,
+        annulmentReason: reason,
+      },
+      include: {
+        items: { orderBy: { itemNumber: 'asc' } },
+        budgetVersion: { select: { id: true, code: true, name: true, version: true } },
+        project: { select: { id: true, code: true, name: true } },
+      },
+    });
+  }
+
+  /**
    * Marcar certificado como Pagado (APPROVED -> PAID).
    */
   async markAsPaid(id: string, organizationId: string) {
