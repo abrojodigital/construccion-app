@@ -27,9 +27,10 @@ interface EquipmentCatalogFormProps {
     lubricantsPerHour: string;
   };
   onSuccess: () => void;
+  onCancel?: () => void;
 }
 
-export function EquipmentCatalogForm({ initialData, onSuccess }: EquipmentCatalogFormProps) {
+export function EquipmentCatalogForm({ initialData, onSuccess, onCancel }: EquipmentCatalogFormProps) {
   const isEdit = !!initialData;
 
   const {
@@ -180,6 +181,11 @@ export function EquipmentCatalogForm({ initialData, onSuccess }: EquipmentCatalo
       </div>
 
       <div className="flex justify-end gap-2 pt-4">
+        {onCancel && (
+          <Button type="button" variant="outline" onClick={onCancel}>
+            Cancelar
+          </Button>
+        )}
         <Button type="submit" disabled={isSubmitting || mutation.isPending}>
           {isSubmitting || mutation.isPending
             ? 'Guardando...'

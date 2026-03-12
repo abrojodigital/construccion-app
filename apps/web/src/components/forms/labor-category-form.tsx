@@ -22,9 +22,10 @@ interface LaborCategoryFormProps {
     artPct: string;
   };
   onSuccess: () => void;
+  onCancel?: () => void;
 }
 
-export function LaborCategoryForm({ initialData, onSuccess }: LaborCategoryFormProps) {
+export function LaborCategoryForm({ initialData, onSuccess, onCancel }: LaborCategoryFormProps) {
   const isEdit = !!initialData;
 
   const {
@@ -152,6 +153,11 @@ export function LaborCategoryForm({ initialData, onSuccess }: LaborCategoryFormP
       </div>
 
       <div className="flex justify-end gap-2 pt-4">
+        {onCancel && (
+          <Button type="button" variant="outline" onClick={onCancel}>
+            Cancelar
+          </Button>
+        )}
         <Button type="submit" disabled={isSubmitting || mutation.isPending}>
           {isSubmitting || mutation.isPending
             ? 'Guardando...'

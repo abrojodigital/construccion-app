@@ -24,8 +24,11 @@ DB_PORT=${DB_PORT:-5432}
 
 echo "   Connecting to ${DB_HOST}:${DB_PORT}..."
 
+# Brief pause to allow Docker's internal DNS to resolve container hostnames
+sleep 2
+
 # Use node for TCP check (works on any Alpine image without extra packages)
-until node -e "const s=require('net').connect(${DB_PORT},'${DB_HOST}',()=>{s.end();process.exit(0)});s.on('error',()=>process.exit(1));s.setTimeout(2000,()=>{s.destroy();process.exit(1)})" 2>/dev/null; do
+until node -e "const s=require('net').connect(${DB_PORT},'${DB_HOST}',()=>{s.end();process.exit(0)});s.on('error',()=>process.exit(1));s.setTimeout(5000,()=>{s.destroy();process.exit(1)})" 2>/dev/null; do
   RETRY_COUNT=$((RETRY_COUNT + 1))
   if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
     echo "ERROR: PostgreSQL not available at ${DB_HOST}:${DB_PORT} after ${MAX_RETRIES} attempts. Exiting."

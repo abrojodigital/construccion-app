@@ -178,7 +178,7 @@ export default function ApuPage() {
           <CardContent className="p-8 text-center">
             <Calculator className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-muted-foreground mb-4">
-              Este item no tiene un APU creado todavia
+              Este item análisis no tiene un APU creado todavia
             </p>
             <Button onClick={() => createApuMutation.mutate()}>
               <Plus className="mr-2 h-4 w-4" />

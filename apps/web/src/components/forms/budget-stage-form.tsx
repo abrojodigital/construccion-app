@@ -152,7 +152,7 @@ export function BudgetStageForm({
           </Button>
         )}
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Guardando...' : isEditing ? 'Guardar Cambios' : 'Crear Etapa'}
+          {isSubmitting ? 'Guardando...' : isEditing ? 'Guardar Cambios' : 'Crear Item'}
         </Button>
       </div>
     </form>
