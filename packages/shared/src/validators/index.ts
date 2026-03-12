@@ -302,6 +302,12 @@ export const createTaskDependencySchema = z.object({
 // EXPENSE SCHEMAS
 // ============================================
 
+export const expenseItemSchema = z.object({
+  budgetItemId: z.string().optional(),
+  description: z.string().optional(),
+  amount: positiveDecimalSchema,
+});
+
 export const createExpenseSchema = z.object({
   description: z.string().min(1, { message: 'La descripción es requerida' }),
   amount: positiveDecimalSchema,
@@ -313,11 +319,11 @@ export const createExpenseSchema = z.object({
   invoiceDate: z.coerce.date().optional(),
   invoiceType: z.string().optional(),
   projectId: z.string().min(1),
-  taskId: z.string().optional(), // Vinculación opcional con tarea
-  budgetId: z.string().optional(),
-  budgetItemId: z.string().optional(), // Imputación directa a ítem de presupuesto
+  stageId: z.string().optional(),
+  taskId: z.string().optional(),
   categoryId: z.string().min(1, { message: 'La categoría es requerida' }),
   supplierId: z.string().optional(),
+  items: z.array(expenseItemSchema).optional().default([]),
 });
 
 export const updateExpenseSchema = createExpenseSchema.partial();
@@ -829,6 +835,7 @@ export type CreateStageInput = z.infer<typeof createStageSchema>;
 export type UpdateStageInput = z.infer<typeof updateStageSchema>;
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
+export type ExpenseItemInput = z.infer<typeof expenseItemSchema>;
 export type CreateExpenseInput = z.infer<typeof createExpenseSchema>;
 export type UpdateExpenseInput = z.infer<typeof updateExpenseSchema>;
 export type CreateSupplierInput = z.infer<typeof createSupplierSchema>;

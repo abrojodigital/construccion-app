@@ -625,23 +625,25 @@ router.get('/projects/:id/budget-control', requirePermission('reports', 'read'),
       cantidad: e._count,
     }));
 
-    // Gastos reales APPROVED + PAID — imputados por ítem de presupuesto
+    // Gastos reales APPROVED + PAID — imputados por ítem de presupuesto via ExpenseItem
     const gastadoByItem = allItemIds.length > 0
-      ? await prisma.expense.groupBy({
+      ? await prisma.expenseItem.groupBy({
           by: ['budgetItemId'],
           where: {
-            projectId,
-            deletedAt: null,
-            status: { in: ['APPROVED', 'PAID'] },
             budgetItemId: { in: allItemIds, not: null },
+            expense: {
+              projectId,
+              deletedAt: null,
+              status: { in: ['APPROVED', 'PAID'] },
+            },
           },
-          _sum: { totalAmount: true },
+          _sum: { amount: true },
         })
       : [];
     const gastadoMap = new Map(
       gastadoByItem
         .filter((e) => e.budgetItemId !== null)
-        .map((e) => [e.budgetItemId as string, Number(e._sum.totalAmount || 0)])
+        .map((e) => [e.budgetItemId as string, Number(e._sum.amount || 0)])
     );
 
     // Armar jerarquía con datos de certificación y avance

@@ -328,7 +328,8 @@ model Stage {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  tasks Task[]
+  tasks    Task[]
+  expenses Expense[]
 
   @@index([projectId])
   @@index([order])
@@ -536,7 +537,7 @@ model BudgetItem {
   certificateItems CertificateItem[]
   subcontractItems SubcontractItem[]
   generatedTasks   Task[]
-  expenses         Expense[]
+  expenseItems     ExpenseItem[]
 
   @@index([stageId])
   @@map("budget_items")
@@ -1035,8 +1036,6 @@ model Budget {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  expenses Expense[]
-
   @@index([projectId])
   @@map("budgets")
 }
@@ -1083,16 +1082,12 @@ model Expense {
   projectId String
   project   Project @relation(fields: [projectId], references: [id])
 
-  // Vinculación opcional con tarea específica
+  // Vinculación opcional con etapa y tarea
+  stageId String?
+  stage   Stage?  @relation(fields: [stageId], references: [id])
+
   taskId String?
   task   Task?   @relation(fields: [taskId], references: [id])
-
-  budgetId String?
-  budget   Budget? @relation(fields: [budgetId], references: [id])
-
-  // Imputación directa a ítem de presupuesto
-  budgetItemId String?
-  budgetItem   BudgetItem? @relation(fields: [budgetItemId], references: [id])
 
   categoryId String
   category   ExpenseCategory @relation(fields: [categoryId], references: [id])
@@ -1114,14 +1109,33 @@ model Expense {
   deletedAt DateTime?
 
   attachments Attachment[]
+  items       ExpenseItem[]
 
   @@index([projectId])
+  @@index([stageId])
   @@index([taskId])
-  @@index([budgetItemId])
   @@index([status])
   @@index([expenseDate])
   @@index([categoryId])
   @@map("expenses")
+}
+
+model ExpenseItem {
+  id          String  @id @default(cuid())
+  description String?
+  amount      Decimal @db.Decimal(15, 2)
+
+  expenseId String
+  expense   Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+
+  budgetItemId String?
+  budgetItem   BudgetItem? @relation(fields: [budgetItemId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([expenseId])
+  @@index([budgetItemId])
+  @@map("expense_items")
 }
 
 model PurchaseOrder {

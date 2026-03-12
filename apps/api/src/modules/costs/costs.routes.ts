@@ -53,6 +53,7 @@ router.get(
         }),
       };
 
+
       const [expenses, total] = await Promise.all([
         prisma.expense.findMany({
           where,
@@ -61,7 +62,8 @@ router.get(
           orderBy: { [sortBy]: sortOrder },
           include: {
             project: { select: { id: true, code: true, name: true } },
-            task: { select: { id: true, name: true, stage: { select: { id: true, name: true } } } },
+            stage: { select: { id: true, name: true } },
+            task: { select: { id: true, name: true } },
             category: { select: { id: true, name: true, code: true } },
             supplier: { select: { id: true, name: true } },
             createdBy: { select: { id: true, firstName: true, lastName: true } },
@@ -88,13 +90,18 @@ router.get('/expenses/:id', requirePermission('expenses', 'read'), validateId, a
       },
       include: {
         project: { select: { id: true, code: true, name: true } },
-        task: { select: { id: true, name: true, stage: { select: { id: true, name: true } } } },
+        stage: { select: { id: true, name: true } },
+        task: { select: { id: true, name: true } },
         category: true,
         supplier: true,
-        budget: true,
         createdBy: { select: { id: true, firstName: true, lastName: true } },
         approvedBy: { select: { id: true, firstName: true, lastName: true } },
         attachments: true,
+        items: {
+          include: {
+            budgetItem: { select: { id: true, number: true, description: true, unit: true } },
+          },
+        },
       },
     });
     if (!expense) throw new NotFoundError('Gasto', req.params.id);
@@ -116,41 +123,40 @@ router.post(
       });
       if (!project) throw new NotFoundError('Proyecto', req.body.projectId);
 
+      // Validar que la etapa pertenezca al proyecto (si se especifica)
+      if (req.body.stageId) {
+        const stage = await prisma.stage.findFirst({
+          where: { id: req.body.stageId, projectId: req.body.projectId },
+        });
+        if (!stage) throw new ValidationError('La etapa seleccionada no pertenece al proyecto');
+      }
+
       // Validar que la tarea pertenezca al proyecto (si se especifica)
       if (req.body.taskId) {
         const task = await prisma.task.findFirst({
-          where: {
-            id: req.body.taskId,
-            stage: { projectId: req.body.projectId }
-          },
+          where: { id: req.body.taskId, stage: { projectId: req.body.projectId } },
         });
         if (!task) throw new ValidationError('La tarea seleccionada no pertenece al proyecto');
       }
 
-      // Validar que el ítem presupuestario pertenezca al proyecto (si se especifica)
-      if (req.body.budgetItemId) {
-        const budgetItem = await prisma.budgetItem.findFirst({
-          where: {
-            id: req.body.budgetItemId,
-            stage: { category: { budgetVersion: { projectId: req.body.projectId } } },
-          },
-        });
-        if (!budgetItem) throw new ValidationError('El ítem presupuestario no pertenece al proyecto');
-      }
-
+      const { items = [], ...expenseData } = req.body;
       const reference = await generateCode('expense', req.user!.organizationId);
 
       const expense = await prisma.expense.create({
         data: {
-          ...req.body,
+          ...expenseData,
           reference,
           createdById: req.user!.id,
+          items: items.length > 0 ? { createMany: { data: items } } : undefined,
         },
         include: {
           project: { select: { id: true, code: true, name: true } },
+          stage: { select: { id: true, name: true } },
           task: { select: { id: true, name: true } },
           category: { select: { id: true, name: true } },
-          budgetItem: { select: { id: true, number: true, description: true } },
+          items: {
+            include: { budgetItem: { select: { id: true, number: true, description: true, unit: true } } },
+          },
         },
       });
       sendCreated(res, expense);
@@ -181,9 +187,26 @@ router.put(
         throw new ValidationError('No se puede modificar un gasto aprobado o pagado');
       }
 
+      const { items, ...expenseData } = req.body;
+
       const expense = await prisma.expense.update({
         where: { id: req.params.id },
-        data: req.body,
+        data: {
+          ...expenseData,
+          ...(items !== undefined && {
+            items: {
+              deleteMany: {},
+              createMany: { data: items },
+            },
+          }),
+        },
+        include: {
+          stage: { select: { id: true, name: true } },
+          task: { select: { id: true, name: true } },
+          items: {
+            include: { budgetItem: { select: { id: true, number: true, description: true, unit: true } } },
+          },
+        },
       });
       sendSuccess(res, expense);
     } catch (error) {

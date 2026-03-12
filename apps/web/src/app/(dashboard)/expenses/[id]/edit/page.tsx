@@ -11,6 +11,13 @@ import { ExpenseForm } from '@/components/forms/expense-form';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
 
+interface ExpenseItem {
+  id: string;
+  description: string | null;
+  amount: string;
+  budgetItemId: string | null;
+}
+
 interface ExpenseDetail {
   id: string;
   description: string;
@@ -18,12 +25,14 @@ interface ExpenseDetail {
   taxAmount: string;
   expenseDate: string;
   projectId: string;
+  stageId: string | null;
   taskId: string | null;
   categoryId: string;
   supplierId: string | null;
   invoiceNumber: string | null;
   invoiceType: string | null;
   dueDate: string | null;
+  items: ExpenseItem[];
 }
 
 export default function EditExpensePage() {
@@ -90,12 +99,18 @@ export default function EditExpensePage() {
     taxAmount: Number(expense.taxAmount),
     expenseDate: expense.expenseDate.split('T')[0],
     projectId: expense.projectId,
+    stageId: expense.stageId || undefined,
     taskId: expense.taskId || undefined,
     categoryId: expense.categoryId,
     supplierId: expense.supplierId || undefined,
     invoiceNumber: expense.invoiceNumber || undefined,
     invoiceType: expense.invoiceType || undefined,
     dueDate: expense.dueDate ? expense.dueDate.split('T')[0] : undefined,
+    items: expense.items.map(item => ({
+      budgetItemId: item.budgetItemId || undefined,
+      description: item.description || undefined,
+      amount: Number(item.amount),
+    })),
   };
 
   return (

@@ -37,6 +37,13 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import { EXPENSE_STATUS_LABELS } from '@construccion/shared';
 import { toast } from 'sonner';
 
+interface ExpenseItem {
+  id: string;
+  description: string | null;
+  amount: string;
+  budgetItem: { id: string; number: string; description: string; unit: string } | null;
+}
+
 interface ExpenseDetail {
   id: string;
   reference: string;
@@ -53,11 +60,13 @@ interface ExpenseDetail {
   approvedAt: string | null;
   createdAt: string;
   project: { id: string; code: string; name: string };
-  task: { id: string; name: string; stage: { id: string; name: string } } | null;
+  stage: { id: string; name: string } | null;
+  task: { id: string; name: string } | null;
   category: { id: string; name: string; code: string; color: string };
   supplier: { id: string; name: string; cuit: string } | null;
   createdBy: { id: string; firstName: string; lastName: string };
   approvedBy: { id: string; firstName: string; lastName: string } | null;
+  items: ExpenseItem[];
 }
 
 export default function ExpenseDetailPage() {
@@ -341,18 +350,24 @@ export default function ExpenseDetailPage() {
                 {expense.project.code} - {expense.project.name}
               </Link>
             </div>
+            {expense.stage && (
+              <>
+                <Separator />
+                <div>
+                  <p className="text-sm text-muted-foreground">Etapa</p>
+                  <p className="font-medium">{expense.stage.name}</p>
+                </div>
+              </>
+            )}
             {expense.task && (
               <>
                 <Separator />
                 <div>
                   <p className="text-sm text-muted-foreground flex items-center gap-1">
                     <ClipboardList className="h-3 w-3" />
-                    Tarea Asociada
+                    Tarea
                   </p>
                   <p className="font-medium">{expense.task.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Etapa: {expense.task.stage.name}
-                  </p>
                 </div>
               </>
             )}
@@ -433,6 +448,55 @@ export default function ExpenseDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Ítems presupuestarios */}
+      {expense.items && expense.items.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ClipboardList className="h-5 w-5" />
+              Ítems Presupuestarios
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-muted-foreground">
+                    <th className="text-left py-2 pr-4 font-medium">Ítem</th>
+                    <th className="text-left py-2 pr-4 font-medium">Descripción</th>
+                    <th className="text-left py-2 pr-4 font-medium">Nota</th>
+                    <th className="text-right py-2 font-medium">Monto</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {expense.items.map((item) => (
+                    <tr key={item.id} className="border-b last:border-0">
+                      <td className="py-2 pr-4 font-mono text-xs text-muted-foreground">
+                        {item.budgetItem?.number || '—'}
+                      </td>
+                      <td className="py-2 pr-4">
+                        {item.budgetItem?.description || '—'}
+                        {item.budgetItem?.unit && (
+                          <span className="text-muted-foreground text-xs ml-1">
+                            ({item.budgetItem.unit})
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-2 pr-4 text-muted-foreground">
+                        {item.description || '—'}
+                      </td>
+                      <td className="py-2 text-right font-medium">
+                        {formatCurrency(Number(item.amount))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
