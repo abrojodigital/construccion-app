@@ -66,10 +66,12 @@ export function MonthlyExpensesChart({ data }: Props) {
     [isDark]
   );
 
-  if (!data.length) {
+  const hasData = data.some((d) => d.amount > 0);
+
+  if (!data.length || !hasData) {
     return (
       <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
-        Sin datos de gastos registrados
+        Sin gastos aprobados o pagados en los últimos 12 meses
       </div>
     );
   }

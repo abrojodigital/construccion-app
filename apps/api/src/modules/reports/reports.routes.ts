@@ -137,15 +137,14 @@ router.get('/dashboard', requirePermission('reports', 'read'), async (req, res, 
       spent: Number(p.currentSpent),
     }));
 
-    // Get monthly expenses for chart — respect the period filter
+    // Get monthly expenses for chart — siempre últimos 12 meses (independiente del filtro de período)
+    const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
     const monthlyExpenseWhere: any = {
       project: { organizationId },
       deletedAt: null,
       status: { in: ['APPROVED', 'PAID'] },
+      expenseDate: { gte: twelveMonthsAgo },
     };
-    if (startDate) {
-      monthlyExpenseWhere.expenseDate = { gte: startDate };
-    }
     if (projectId) {
       monthlyExpenseWhere.projectId = projectId;
     }
@@ -156,23 +155,34 @@ router.get('/dashboard', requirePermission('reports', 'read'), async (req, res, 
       orderBy: { expenseDate: 'asc' },
     });
 
-    // Group by month
-    const monthlyMap = new Map<string, number>();
+    // Construir mapa con los últimos 12 meses (incluyendo meses sin gastos como 0)
     const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const monthlyMap = new Map<string, number>();
+
+    // Inicializar todos los meses del rango con 0
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      monthlyMap.set(key, 0);
+    }
 
     recentExpenses.forEach((expense) => {
       if (expense.expenseDate) {
         const key = `${expense.expenseDate.getFullYear()}-${String(expense.expenseDate.getMonth() + 1).padStart(2, '0')}`;
-        const current = monthlyMap.get(key) || 0;
-        monthlyMap.set(key, current + Number(expense.totalAmount));
+        if (monthlyMap.has(key)) {
+          monthlyMap.set(key, (monthlyMap.get(key) || 0) + Number(expense.totalAmount));
+        }
       }
     });
 
     const monthlyExpenses = Array.from(monthlyMap.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([key, amount]) => {
-        const [, month] = key.split('-');
-        return { month: monthNames[parseInt(month, 10) - 1], amount };
+        const [year, month] = key.split('-');
+        const label = now.getFullYear() !== parseInt(year)
+          ? `${monthNames[parseInt(month, 10) - 1]} ${year.slice(2)}`
+          : monthNames[parseInt(month, 10) - 1];
+        return { month: label, amount };
       });
 
     // Calculate KPIs

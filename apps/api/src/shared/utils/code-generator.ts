@@ -4,11 +4,19 @@ interface CodeConfig {
   prefix: string;
   table: string;
   field: string;
+  // Reemplaza el filtro por defecto AND "organizationId" = $2
+  // cuando la tabla no tiene organizationId directamente
+  orgFilter?: string;
 }
 
 const CODE_CONFIGS: Record<string, CodeConfig> = {
   project: { prefix: 'OBR', table: 'projects', field: 'code' },
-  expense: { prefix: 'GAS', table: 'expenses', field: 'reference' },
+  expense: {
+    prefix: 'GAS',
+    table: 'expenses',
+    field: 'reference',
+    orgFilter: `AND "projectId" IN (SELECT id FROM projects WHERE "organizationId" = $2)`,
+  },
   purchaseOrder: { prefix: 'OC', table: 'purchase_orders', field: 'orderNumber' },
   quote: { prefix: 'COT', table: 'quotes', field: 'quoteNumber' },
   supplier: { prefix: 'PROV', table: 'suppliers', field: 'code' },
@@ -37,11 +45,12 @@ export async function generateCode(
   const year = new Date().getFullYear();
   const prefix = `${config.prefix}-${year}-`;
 
-  // Get the last code for this year and organization
+  const orgCondition = config.orgFilter ?? `AND "organizationId" = $2`;
+
   const lastRecord = await prisma.$queryRawUnsafe<{ code: string }[]>(
     `SELECT "${config.field}" as code FROM ${config.table}
      WHERE "${config.field}" LIKE $1
-     AND "organizationId" = $2
+     ${orgCondition}
      ORDER BY "${config.field}" DESC
      LIMIT 1`,
     `${prefix}%`,
@@ -74,11 +83,12 @@ export async function generateSimpleCode(
 
   const prefix = `${config.prefix}-`;
 
-  // Get the last code for this organization
+  const orgCondition = config.orgFilter ?? `AND "organizationId" = $2`;
+
   const lastRecord = await prisma.$queryRawUnsafe<{ code: string }[]>(
     `SELECT "${config.field}" as code FROM ${config.table}
      WHERE "${config.field}" LIKE $1
-     AND "organizationId" = $2
+     ${orgCondition}
      ORDER BY "${config.field}" DESC
      LIMIT 1`,
     `${prefix}%`,

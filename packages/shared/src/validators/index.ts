@@ -303,6 +303,7 @@ export const createTaskDependencySchema = z.object({
 // ============================================
 
 export const expenseItemSchema = z.object({
+  taskId: z.string().optional(),
   budgetItemId: z.string().optional(),
   description: z.string().optional(),
   amount: positiveDecimalSchema,

@@ -15,6 +15,9 @@ import {
   User,
   Receipt,
   ClipboardList,
+  Send,
+  Banknote,
+  RotateCcw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -41,6 +44,7 @@ interface ExpenseItem {
   id: string;
   description: string | null;
   amount: string;
+  task: { id: string; name: string } | null;
   budgetItem: { id: string; number: string; description: string; unit: string } | null;
 }
 
@@ -80,28 +84,39 @@ export default function ExpenseDetailPage() {
     queryFn: () => api.get<ExpenseDetail>(`/expenses/${expenseId}`),
   });
 
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['expense', expenseId] });
+    queryClient.invalidateQueries({ queryKey: ['expenses'] });
+  };
+
+  const submitMutation = useMutation({
+    mutationFn: () => api.patch(`/expenses/${expenseId}/submit`),
+    onSuccess: () => { invalidate(); toast.success('Gasto enviado a aprobación'); },
+    onError: () => toast.error('Error al enviar el gasto'),
+  });
+
   const approveMutation = useMutation({
     mutationFn: () => api.patch(`/expenses/${expenseId}/approve`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['expense', expenseId] });
-      queryClient.invalidateQueries({ queryKey: ['expenses'] });
-      toast.success('Gasto aprobado exitosamente');
-    },
-    onError: () => {
-      toast.error('Error al aprobar el gasto');
-    },
+    onSuccess: () => { invalidate(); toast.success('Gasto aprobado exitosamente'); },
+    onError: () => toast.error('Error al aprobar el gasto'),
   });
 
   const rejectMutation = useMutation({
     mutationFn: (reason: string) => api.patch(`/expenses/${expenseId}/reject`, { reason }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['expense', expenseId] });
-      queryClient.invalidateQueries({ queryKey: ['expenses'] });
-      toast.success('Gasto rechazado');
-    },
-    onError: () => {
-      toast.error('Error al rechazar el gasto');
-    },
+    onSuccess: () => { invalidate(); toast.success('Gasto rechazado'); },
+    onError: () => toast.error('Error al rechazar el gasto'),
+  });
+
+  const markPaidMutation = useMutation({
+    mutationFn: () => api.patch(`/expenses/${expenseId}/mark-paid`),
+    onSuccess: () => { invalidate(); toast.success('Gasto marcado como pagado'); },
+    onError: () => toast.error('Error al marcar como pagado'),
+  });
+
+  const reopenMutation = useMutation({
+    mutationFn: () => api.patch(`/expenses/${expenseId}/reopen`),
+    onSuccess: () => { invalidate(); toast.success('Gasto reabierto como borrador'); },
+    onError: () => toast.error('Error al reabrir el gasto'),
   });
 
   const deleteMutation = useMutation({
@@ -132,7 +147,10 @@ export default function ExpenseDetailPage() {
 
   const canEdit = expense && !['APPROVED', 'PAID'].includes(expense.status);
   const canDelete = expense && expense.status === 'DRAFT';
+  const canSubmit = expense && expense.status === 'DRAFT';
   const canApprove = expense && expense.status === 'PENDING_APPROVAL';
+  const canMarkPaid = expense && expense.status === 'APPROVED';
+  const canReopen = expense && expense.status === 'REJECTED';
 
   if (isLoading) {
     return (
@@ -185,6 +203,18 @@ export default function ExpenseDetailPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          {canSubmit && (
+            <Button
+              variant="outline"
+              className="text-blue-600 border-blue-600 hover:bg-blue-50"
+              onClick={() => submitMutation.mutate()}
+              disabled={submitMutation.isPending}
+            >
+              <Send className="mr-2 h-4 w-4" />
+              Enviar a Aprobación
+            </Button>
+          )}
+
           {canApprove && (
             <>
               <Button
@@ -225,6 +255,29 @@ export default function ExpenseDetailPage() {
                 </AlertDialogContent>
               </AlertDialog>
             </>
+          )}
+
+          {canMarkPaid && (
+            <Button
+              variant="outline"
+              className="text-emerald-600 border-emerald-600 hover:bg-emerald-50"
+              onClick={() => markPaidMutation.mutate()}
+              disabled={markPaidMutation.isPending}
+            >
+              <Banknote className="mr-2 h-4 w-4" />
+              Marcar como Pagado
+            </Button>
+          )}
+
+          {canReopen && (
+            <Button
+              variant="outline"
+              onClick={() => reopenMutation.mutate()}
+              disabled={reopenMutation.isPending}
+            >
+              <RotateCcw className="mr-2 h-4 w-4" />
+              Reabrir
+            </Button>
           )}
 
           {canEdit && (
@@ -354,7 +407,7 @@ export default function ExpenseDetailPage() {
               <>
                 <Separator />
                 <div>
-                  <p className="text-sm text-muted-foreground">Etapa</p>
+                  <p className="text-sm text-muted-foreground">Rubro</p>
                   <p className="font-medium">{expense.stage.name}</p>
                 </div>
               </>
@@ -463,8 +516,8 @@ export default function ExpenseDetailPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-muted-foreground">
-                    <th className="text-left py-2 pr-4 font-medium">Ítem</th>
-                    <th className="text-left py-2 pr-4 font-medium">Descripción</th>
+                    <th className="text-left py-2 pr-4 font-medium">N°</th>
+                    <th className="text-left py-2 pr-4 font-medium">Tarea / Ítem</th>
                     <th className="text-left py-2 pr-4 font-medium">Nota</th>
                     <th className="text-right py-2 font-medium">Monto</th>
                   </tr>
@@ -476,14 +529,15 @@ export default function ExpenseDetailPage() {
                         {item.budgetItem?.number || '—'}
                       </td>
                       <td className="py-2 pr-4">
-                        {item.budgetItem?.description || '—'}
-                        {item.budgetItem?.unit && (
-                          <span className="text-muted-foreground text-xs ml-1">
-                            ({item.budgetItem.unit})
+                        <span className="font-medium">{item.task?.name || '—'}</span>
+                        {item.budgetItem?.description && item.budgetItem.description !== item.task?.name && (
+                          <span className="block text-xs text-muted-foreground">
+                            {item.budgetItem.description}
+                            {item.budgetItem.unit && ` (${item.budgetItem.unit})`}
                           </span>
                         )}
                       </td>
-                      <td className="py-2 pr-4 text-muted-foreground">
+                      <td className="py-2 pr-4 text-muted-foreground text-sm">
                         {item.description || '—'}
                       </td>
                       <td className="py-2 text-right font-medium">

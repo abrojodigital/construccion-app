@@ -15,6 +15,7 @@ interface ExpenseItem {
   id: string;
   description: string | null;
   amount: string;
+  taskId: string | null;
   budgetItemId: string | null;
 }
 
@@ -107,6 +108,7 @@ export default function EditExpensePage() {
     invoiceType: expense.invoiceType || undefined,
     dueDate: expense.dueDate ? expense.dueDate.split('T')[0] : undefined,
     items: expense.items.map(item => ({
+      taskId: item.taskId || undefined,
       budgetItemId: item.budgetItemId || undefined,
       description: item.description || undefined,
       amount: Number(item.amount),

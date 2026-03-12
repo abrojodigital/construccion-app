@@ -28,6 +28,7 @@ const taskInclude = {
   where: { deletedAt: null },
   orderBy: { plannedStartDate: 'asc' as const },
   include: {
+    budgetItem: { select: { id: true, number: true, description: true, unit: true } },
     _count: { select: { expenses: true } },
     expenses: {
       where: { deletedAt: null },

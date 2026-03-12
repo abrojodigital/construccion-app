@@ -379,6 +379,7 @@ model Task {
   assignments  TaskAssignment[]
   comments     Comment[]
   expenses     Expense[]
+  expenseItems ExpenseItem[]
 
   @@index([stageId])
   @@index([status])
@@ -536,8 +537,8 @@ model BudgetItem {
   itemProgress     ItemProgress[]
   certificateItems CertificateItem[]
   subcontractItems SubcontractItem[]
-  generatedTasks   Task[]
-  expenseItems     ExpenseItem[]
+  generatedTasks Task[]
+  expenseItems   ExpenseItem[]
 
   @@index([stageId])
   @@map("budget_items")
@@ -1128,12 +1129,16 @@ model ExpenseItem {
   expenseId String
   expense   Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
 
+  taskId String?
+  task   Task?   @relation(fields: [taskId], references: [id])
+
   budgetItemId String?
   budgetItem   BudgetItem? @relation(fields: [budgetItemId], references: [id])
 
   createdAt DateTime @default(now())
 
   @@index([expenseId])
+  @@index([taskId])
   @@index([budgetItemId])
   @@map("expense_items")
 }

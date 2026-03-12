@@ -1,15 +1,18 @@
 -- ============================================================
 -- Migración: Refactorización de imputación presupuestaria en gastos
--- Versión: 2025-03
+-- Versión: 2025-03 (rev 2: agrega task_id a expense_items)
 -- Descripción:
---   1. Agrega columna stage_id a expenses (vinculación con etapa)
+--   1. Agrega columna stage_id a expenses (vinculación con rubro)
 --   2. Crea tabla expense_items para detalle de ítems por gasto
+--      con task_id (vinculación a tarea) y budget_item_id
 --   3. Migra datos existentes de expenses.budget_item_id a expense_items
 --   4. Elimina columnas budget_item_id y budget_id de expenses
 --      (obsoletas luego de la migración)
 --
 -- Es seguro correr en una BD vacía y en una con datos.
 -- Idempotente: usa IF NOT EXISTS / IF EXISTS en cada paso.
+-- También cubre sistemas que ya corrieron la versión anterior
+-- del script (tabla existe pero sin task_id).
 -- ============================================================
 
 BEGIN;
@@ -39,21 +42,26 @@ CREATE INDEX IF NOT EXISTS expenses_stage_id_idx
   ON expenses(stage_id);
 
 -- ─────────────────────────────────────────────────────────────
--- 2. Crear tabla expense_items
+-- 2. Crear tabla expense_items (con task_id desde el inicio)
 -- ─────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS expense_items (
-  id             TEXT        NOT NULL DEFAULT gen_random_uuid()::text,
+  id             TEXT          NOT NULL DEFAULT gen_random_uuid()::text,
   description    TEXT,
   amount         DECIMAL(15,2) NOT NULL,
-  expense_id     TEXT        NOT NULL,
+  expense_id     TEXT          NOT NULL,
+  task_id        TEXT,
   budget_item_id TEXT,
-  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_at     TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
 
   CONSTRAINT expense_items_pkey PRIMARY KEY (id),
   CONSTRAINT fk_expense_items_expense
     FOREIGN KEY (expense_id)
     REFERENCES expenses(id)
     ON DELETE CASCADE,
+  CONSTRAINT fk_expense_items_task
+    FOREIGN KEY (task_id)
+    REFERENCES tasks(id)
+    ON DELETE SET NULL,
   CONSTRAINT fk_expense_items_budget_item
     FOREIGN KEY (budget_item_id)
     REFERENCES budget_items(id)
@@ -63,8 +71,36 @@ CREATE TABLE IF NOT EXISTS expense_items (
 CREATE INDEX IF NOT EXISTS expense_items_expense_id_idx
   ON expense_items(expense_id);
 
+CREATE INDEX IF NOT EXISTS expense_items_task_id_idx
+  ON expense_items(task_id);
+
 CREATE INDEX IF NOT EXISTS expense_items_budget_item_id_idx
   ON expense_items(budget_item_id);
+
+-- ─────────────────────────────────────────────────────────────
+-- 2b. Agregar task_id si la tabla ya existía de una versión
+--     anterior del script (sin esa columna)
+-- ─────────────────────────────────────────────────────────────
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'expense_items' AND column_name = 'task_id'
+  ) THEN
+    ALTER TABLE expense_items ADD COLUMN task_id TEXT;
+
+    ALTER TABLE expense_items
+      ADD CONSTRAINT fk_expense_items_task
+      FOREIGN KEY (task_id)
+      REFERENCES tasks(id)
+      ON DELETE SET NULL;
+
+    CREATE INDEX IF NOT EXISTS expense_items_task_id_idx
+      ON expense_items(task_id);
+
+    RAISE NOTICE 'Columna task_id agregada a expense_items (tabla preexistente).';
+  END IF;
+END $$;
 
 -- ─────────────────────────────────────────────────────────────
 -- 3. Migrar datos: expenses.budget_item_id → expense_items

@@ -99,6 +99,7 @@ router.get('/expenses/:id', requirePermission('expenses', 'read'), validateId, a
         attachments: true,
         items: {
           include: {
+            task: { select: { id: true, name: true } },
             budgetItem: { select: { id: true, number: true, description: true, unit: true } },
           },
         },
@@ -155,7 +156,10 @@ router.post(
           task: { select: { id: true, name: true } },
           category: { select: { id: true, name: true } },
           items: {
-            include: { budgetItem: { select: { id: true, number: true, description: true, unit: true } } },
+            include: {
+              task: { select: { id: true, name: true } },
+              budgetItem: { select: { id: true, number: true, description: true, unit: true } },
+            },
           },
         },
       });
@@ -215,6 +219,33 @@ router.put(
   }
 );
 
+// PATCH /api/v1/expenses/:id/submit  — DRAFT → PENDING_APPROVAL
+router.patch(
+  '/expenses/:id/submit',
+  requirePermission('expenses', 'write'),
+  validateId,
+  async (req, res, next) => {
+    try {
+      const existing = await prisma.expense.findFirst({
+        where: { id: req.params.id, deletedAt: null, project: { organizationId: req.user!.organizationId } },
+      });
+      if (!existing) throw new NotFoundError('Gasto', req.params.id);
+
+      if (existing.status !== 'DRAFT') {
+        throw new ValidationError('Solo se pueden enviar a aprobación gastos en borrador');
+      }
+
+      const expense = await prisma.expense.update({
+        where: { id: req.params.id },
+        data: { status: 'PENDING_APPROVAL' },
+      });
+      sendSuccess(res, expense);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 // PATCH /api/v1/expenses/:id/approve
 router.patch(
   '/expenses/:id/approve',
@@ -247,6 +278,60 @@ router.patch(
       // Update project spent amount
       await projectsService.recalculateSpent(existing.projectId);
 
+      sendSuccess(res, expense);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// PATCH /api/v1/expenses/:id/mark-paid  — APPROVED → PAID
+router.patch(
+  '/expenses/:id/mark-paid',
+  requirePermission('expenses', 'approve'),
+  validateId,
+  async (req, res, next) => {
+    try {
+      const existing = await prisma.expense.findFirst({
+        where: { id: req.params.id, deletedAt: null, project: { organizationId: req.user!.organizationId } },
+      });
+      if (!existing) throw new NotFoundError('Gasto', req.params.id);
+
+      if (existing.status !== 'APPROVED') {
+        throw new ValidationError('Solo se pueden marcar como pagados gastos aprobados');
+      }
+
+      const expense = await prisma.expense.update({
+        where: { id: req.params.id },
+        data: { status: 'PAID', paidDate: new Date() },
+      });
+      sendSuccess(res, expense);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// PATCH /api/v1/expenses/:id/reopen  — REJECTED → DRAFT
+router.patch(
+  '/expenses/:id/reopen',
+  requirePermission('expenses', 'write'),
+  validateId,
+  async (req, res, next) => {
+    try {
+      const existing = await prisma.expense.findFirst({
+        where: { id: req.params.id, deletedAt: null, project: { organizationId: req.user!.organizationId } },
+      });
+      if (!existing) throw new NotFoundError('Gasto', req.params.id);
+
+      if (existing.status !== 'REJECTED') {
+        throw new ValidationError('Solo se pueden reabrir gastos rechazados');
+      }
+
+      const expense = await prisma.expense.update({
+        where: { id: req.params.id },
+        data: { status: 'DRAFT', rejectionReason: null, approvedById: null, approvedAt: null },
+      });
       sendSuccess(res, expense);
     } catch (error) {
       next(error);

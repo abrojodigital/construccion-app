@@ -20,6 +20,7 @@ import { api } from '@/lib/api';
 import { INVOICE_TYPES } from '@construccion/shared';
 
 const expenseItemSchema = z.object({
+  taskId: z.string().optional(),
   budgetItemId: z.string().optional(),
   description: z.string().optional(),
   amount: z.coerce.number().positive('El monto debe ser mayor a 0'),
@@ -28,11 +29,10 @@ const expenseItemSchema = z.object({
 const expenseSchema = z.object({
   description: z.string().min(1, 'La descripción es requerida'),
   amount: z.coerce.number().positive('El monto debe ser mayor a 0'),
-  taxAmount: z.coerce.number().min(0, 'El IVA no puede ser negativo').default(0),
+  taxAmount: z.coerce.number().min(0).default(0),
   expenseDate: z.string().min(1, 'La fecha es requerida'),
   projectId: z.string().min(1, 'Debe seleccionar un proyecto'),
   stageId: z.string().optional(),
-  taskId: z.string().optional(),
   categoryId: z.string().min(1, 'Debe seleccionar una categoría'),
   supplierId: z.string().optional(),
   invoiceNumber: z.string().optional(),
@@ -43,43 +43,18 @@ const expenseSchema = z.object({
 
 type ExpenseFormValues = z.infer<typeof expenseSchema>;
 
-interface Task {
+interface TaskOption {
   id: string;
   name: string;
+  budgetItemId: string | null;
+  budgetItem: { id: string; number: string; description: string; unit: string } | null;
 }
 
 interface Stage {
   id: string;
   name: string;
-  tasks: Task[];
-  childStages?: Array<{ id: string; name: string; tasks: Task[] }>;
-}
-
-interface BudgetItemOption {
-  id: string;
-  number: string;
-  description: string;
-  unit: string;
-  stageName: string;
-  categoryName: string;
-}
-
-interface BudgetVersionListItem {
-  id: string;
-  name: string;
-  code: string;
-  status: string;
-}
-
-interface BudgetVersionWithItems {
-  id: string;
-  categories: Array<{
-    name: string;
-    stages: Array<{
-      description: string;
-      items: Array<{ id: string; number: string; description: string; unit: string }>;
-    }>;
-  }>;
+  tasks: TaskOption[];
+  childStages?: Array<{ id: string; name: string; tasks: TaskOption[] }>;
 }
 
 interface ExpenseFormProps {
@@ -132,21 +107,21 @@ export function ExpenseForm({ initialData, onSuccess, onCancel }: ExpenseFormPro
   const taxAmount = watch('taxAmount') || 0;
   const totalAmount = Number(amount) + Number(taxAmount);
 
-  // Cargar etapas del proyecto seleccionado
+  // Cargar rubros (etapas) del proyecto
   const { data: projectStages } = useQuery({
     queryKey: ['project-stages-tasks', selectedProjectId],
     queryFn: () => api.get<Stage[]>(`/projects/${selectedProjectId}/stages`),
     enabled: !!selectedProjectId,
   });
 
-  // Aplanar etapas (padre + hijas) para el selector
-  const stageOptions = projectStages?.flatMap(stage => [
+  // Aplanar rubros (padre + hijos)
+  const rubroOptions = projectStages?.flatMap(stage => [
     { id: stage.id, name: stage.name },
     ...(stage.childStages?.map(child => ({ id: child.id, name: `${stage.name} › ${child.name}` })) || []),
   ]) || [];
 
-  // Tareas de la etapa seleccionada
-  const taskOptions = (() => {
+  // Tareas del rubro seleccionado (son los ítems disponibles)
+  const taskOptionsForRubro: TaskOption[] = (() => {
     if (!selectedStageId || !projectStages) return [];
     for (const stage of projectStages) {
       if (stage.id === selectedStageId) return stage.tasks;
@@ -157,59 +132,17 @@ export function ExpenseForm({ initialData, onSuccess, onCancel }: ExpenseFormPro
     return [];
   })();
 
-  // Obtener ID de la versión aprobada
-  const { data: approvedVersionList } = useQuery({
-    queryKey: ['budget-version-approved-id', selectedProjectId],
-    queryFn: () =>
-      api.get<BudgetVersionListItem[]>(
-        `/projects/${selectedProjectId}/budget-versions?status=APPROVED&limit=1`
-      ),
-    enabled: !!selectedProjectId,
-  });
-
-  const approvedVersionId = approvedVersionList?.[0]?.id;
-
-  // Cargar ítems de la versión aprobada
-  const { data: budgetItems } = useQuery({
-    queryKey: ['budget-version-items', approvedVersionId],
-    queryFn: () => api.get<BudgetVersionWithItems>(`/budget-versions/${approvedVersionId}`),
-    enabled: !!approvedVersionId,
-    select: (version): BudgetItemOption[] => {
-      if (!version) return [];
-      const items: BudgetItemOption[] = [];
-      for (const cat of version.categories) {
-        for (const stage of cat.stages) {
-          for (const item of stage.items) {
-            items.push({
-              id: item.id,
-              number: item.number,
-              description: item.description,
-              unit: item.unit,
-              stageName: stage.description,
-              categoryName: cat.name,
-            });
-          }
-        }
-      }
-      return items;
-    },
-  });
-
-  const budgetItemOptions = budgetItems || [];
-
-  // Limpiar etapa/tarea/ítems cuando cambia el proyecto
+  // Limpiar items cuando cambia proyecto o rubro
   useEffect(() => {
     if (!isEditing) {
       setValue('stageId', undefined);
-      setValue('taskId', undefined);
       setValue('items', []);
     }
   }, [selectedProjectId, isEditing, setValue]);
 
-  // Limpiar tarea cuando cambia la etapa
   useEffect(() => {
     if (!isEditing) {
-      setValue('taskId', undefined);
+      setValue('items', []);
     }
   }, [selectedStageId, isEditing, setValue]);
 
@@ -219,12 +152,12 @@ export function ExpenseForm({ initialData, onSuccess, onCancel }: ExpenseFormPro
         ...data,
         totalAmount,
         stageId: data.stageId || undefined,
-        taskId: data.taskId || undefined,
         supplierId: data.supplierId || undefined,
         items: data.items.map(item => ({
-          ...item,
+          taskId: item.taskId || undefined,
           budgetItemId: item.budgetItemId || undefined,
           description: item.description || undefined,
+          amount: item.amount,
         })),
       };
 
@@ -240,9 +173,21 @@ export function ExpenseForm({ initialData, onSuccess, onCancel }: ExpenseFormPro
     }
   };
 
+  // Al agregar un ítem: precargar budgetItemId desde la tarea seleccionada
+  const handleTaskSelect = (index: number, taskId: string) => {
+    setValue(`items.${index}.taskId`, taskId === '_none' ? undefined : taskId);
+    if (taskId !== '_none') {
+      const task = taskOptionsForRubro.find(t => t.id === taskId);
+      setValue(`items.${index}.budgetItemId`, task?.budgetItemId || undefined);
+    } else {
+      setValue(`items.${index}.budgetItemId`, undefined);
+    }
+  };
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
         {/* Proyecto */}
         <div className="space-y-2">
           <label className="text-sm font-medium">Proyecto *</label>
@@ -266,9 +211,9 @@ export function ExpenseForm({ initialData, onSuccess, onCancel }: ExpenseFormPro
           )}
         </div>
 
-        {/* Etapa */}
+        {/* Rubro */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Etapa</label>
+          <label className="text-sm font-medium">Rubro</label>
           <Select
             value={watch('stageId') || ''}
             onValueChange={(value) => setValue('stageId', value === '_none' ? undefined : value)}
@@ -276,38 +221,14 @@ export function ExpenseForm({ initialData, onSuccess, onCancel }: ExpenseFormPro
           >
             <SelectTrigger>
               <SelectValue
-                placeholder={selectedProjectId ? 'Seleccionar etapa (opcional)' : 'Primero seleccione un proyecto'}
+                placeholder={selectedProjectId ? 'Seleccionar rubro (opcional)' : 'Primero seleccione un proyecto'}
               />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="_none">Sin etapa</SelectItem>
-              {stageOptions.map((stage) => (
-                <SelectItem key={stage.id} value={stage.id}>
-                  {stage.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Tarea */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Tarea</label>
-          <Select
-            value={watch('taskId') || ''}
-            onValueChange={(value) => setValue('taskId', value === '_none' ? undefined : value)}
-            disabled={!selectedStageId}
-          >
-            <SelectTrigger>
-              <SelectValue
-                placeholder={selectedStageId ? 'Seleccionar tarea (opcional)' : 'Primero seleccione una etapa'}
-              />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="_none">Sin tarea</SelectItem>
-              {taskOptions.map((task) => (
-                <SelectItem key={task.id} value={task.id}>
-                  {task.name}
+              <SelectItem value="_none">Sin rubro</SelectItem>
+              {rubroOptions.map((rubro) => (
+                <SelectItem key={rubro.id} value={rubro.id}>
+                  {rubro.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -367,7 +288,7 @@ export function ExpenseForm({ initialData, onSuccess, onCancel }: ExpenseFormPro
           )}
         </div>
 
-        {/* Fecha de gasto */}
+        {/* Fecha */}
         <div className="space-y-2">
           <label className="text-sm font-medium">Fecha del Gasto *</label>
           <Input type="date" {...register('expenseDate')} />
@@ -436,21 +357,23 @@ export function ExpenseForm({ initialData, onSuccess, onCancel }: ExpenseFormPro
         </div>
       </div>
 
-      {/* Ítems presupuestarios */}
+      {/* Detalle de ítems */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-medium">Ítems Presupuestarios</h3>
+            <h3 className="text-sm font-medium">Detalle de Ítems</h3>
             <p className="text-xs text-muted-foreground">
-              Detalle de ítems del presupuesto a los que se imputa este gasto
+              {selectedStageId
+                ? 'Seleccioná los ítems del rubro a los que se imputa este gasto'
+                : 'Seleccioná un Rubro para ver sus ítems disponibles'}
             </p>
           </div>
           <Button
             type="button"
             variant="outline"
             size="sm"
-            disabled={!selectedProjectId || budgetItemOptions.length === 0}
-            onClick={() => append({ budgetItemId: undefined, description: undefined, amount: 0 })}
+            disabled={!selectedStageId || taskOptionsForRubro.length === 0}
+            onClick={() => append({ taskId: undefined, budgetItemId: undefined, description: undefined, amount: 0 })}
           >
             <Plus className="h-4 w-4 mr-1" />
             Agregar ítem
@@ -458,40 +381,45 @@ export function ExpenseForm({ initialData, onSuccess, onCancel }: ExpenseFormPro
         </div>
 
         {fields.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-3 text-center border rounded-md bg-muted/30">
-            {!selectedProjectId
-              ? 'Seleccione un proyecto para agregar ítems'
-              : budgetItemOptions.length === 0
-              ? 'El proyecto no tiene presupuesto aprobado'
-              : 'Sin ítems presupuestarios. Use "Agregar ítem" para imputar.'}
+          <p className="text-sm text-muted-foreground py-4 text-center border rounded-md bg-muted/30">
+            {!selectedStageId
+              ? 'Seleccioná un Rubro para agregar ítems'
+              : taskOptionsForRubro.length === 0
+              ? 'El rubro seleccionado no tiene tareas/ítems'
+              : 'Sin ítems agregados. Usá "Agregar ítem" para imputar.'}
           </p>
         ) : (
           <div className="space-y-2">
-            {/* Encabezado */}
-            <div className="grid grid-cols-[2fr_1fr_1fr_auto] gap-2 px-2 text-xs text-muted-foreground font-medium">
-              <span>Ítem Presupuestario</span>
-              <span>Descripción / Nota</span>
+            <div className="grid grid-cols-[2fr_1fr_1fr_auto] gap-2 px-1 text-xs text-muted-foreground font-medium">
+              <span>Ítem / Tarea</span>
+              <span>Nota</span>
               <span>Monto</span>
               <span />
             </div>
             {fields.map((field, index) => (
               <div key={field.id} className="grid grid-cols-[2fr_1fr_1fr_auto] gap-2 items-center">
                 <Select
-                  value={watch(`items.${index}.budgetItemId`) || ''}
-                  onValueChange={(value) =>
-                    setValue(`items.${index}.budgetItemId`, value === '_none' ? undefined : value)
-                  }
+                  value={watch(`items.${index}.taskId`) || ''}
+                  onValueChange={(value) => handleTaskSelect(index, value)}
                 >
                   <SelectTrigger className="text-sm">
                     <SelectValue placeholder="Seleccionar ítem" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="_none">Sin ítem específico</SelectItem>
-                    {budgetItemOptions.map((item) => (
-                      <SelectItem key={item.id} value={item.id}>
-                        <span className="text-muted-foreground text-xs">{item.number}</span>{' '}
-                        {item.description}
-                        <span className="text-muted-foreground text-xs ml-1">({item.unit})</span>
+                    <SelectItem value="_none">— Sin ítem —</SelectItem>
+                    {taskOptionsForRubro.map((task) => (
+                      <SelectItem key={task.id} value={task.id}>
+                        {task.budgetItem && (
+                          <span className="text-muted-foreground text-xs mr-1">
+                            {task.budgetItem.number}
+                          </span>
+                        )}
+                        {task.name}
+                        {task.budgetItem?.unit && (
+                          <span className="text-muted-foreground text-xs ml-1">
+                            ({task.budgetItem.unit})
+                          </span>
+                        )}
                       </SelectItem>
                     ))}
                   </SelectContent>
