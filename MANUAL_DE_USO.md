@@ -282,12 +282,35 @@ Permite desglosar el costo unitario de cada ítem del presupuesto en 6 secciones
 | Equipos (F) | Equipos de movimiento |
 | Transporte | Fletes y acarreos |
 
+### Catálogos disponibles
+
+Al agregar componentes de Mano de Obra y Equipos, el sistema ofrece catálogos precargados:
+
+**Mano de Obra — tarifas MMO Feb-26**
+
+| Código | Categoría | $/h base | $/h total (con cargas) |
+|--------|-----------|----------|------------------------|
+| OF-ESP | Oficial Especializado | $6.071 | $12.499 |
+| OF | Oficial | $5.196 | $10.697 |
+| MO | Medio Oficial | $4.793 | $9.868 |
+| AY | Ayudante | $4.438 | $9.137 |
+
+*Cargas incluidas: presentismo 20% + cargas sociales 59% (UOCRA) + ART 7,9%*
+
+**Equipos — 65 ítems en catálogo**
+
+- `EQ-GEN-01` a `EQ-GEN-33`: catálogo genérico (aserradora, motoniveladora, retroexcavadora, terminadoras, planta asfáltica, etc.) — calculados con dólar $1.390 y gas oil $1.917
+- `EQ-PRY-01` a `EQ-PRY-27`: equipos del proyecto con marca/modelo (IVECO, Toyota Hilux, New Holland, John Deere, Case, Bob Cat, etc.) — calculados con dólar $1.450
+
+Cada equipo tiene precargados: HP, amortización/hora, reparaciones/hora, combustible/hora, lubricantes/hora y costo horario total.
+
 ### Agregar componentes
 
 1. En la sección correspondiente, click en **+ Agregar**
-2. Completar: descripción, unidad, cantidad y precio unitario
-3. El subtotal se calcula automáticamente
-4. El **Costo Directo Total** suma todas las secciones
+2. Para Mano de Obra o Equipos: seleccionar del catálogo o ingresar manualmente
+3. Completar: descripción, unidad, cantidad y precio unitario
+4. El subtotal se calcula automáticamente
+5. El **Costo Directo Total** suma todas las secciones
 
 ---
 

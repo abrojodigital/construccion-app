@@ -1,17 +1,23 @@
 #!/usr/bin/env bash
 # =============================================================================
-# db-sync.sh — Sincroniza el esquema Prisma con PostgreSQL (vía Docker)
+# db-sync.sh — Sincroniza el esquema Prisma y los catálogos con PostgreSQL
 #
 # Uso:
-#   ./scripts/db-sync.sh              # Sincroniza esquema + seed si está vacía
-#   ./scripts/db-sync.sh --no-seed    # Solo sincroniza esquema (no toca datos)
-#   ./scripts/db-sync.sh --force-seed # Sincroniza + re-seed (borra datos existentes)
+#   ./scripts/db-sync.sh              # Esquema + catálogos + seed si está vacía
+#   ./scripts/db-sync.sh --no-seed    # Solo esquema + catálogos (no seed completo)
+#   ./scripts/db-sync.sh --force-seed # Esquema + catálogos + re-seed completo
 #   ./scripts/db-sync.sh --dry-run    # Muestra qué haría, sin ejecutar nada
+#
+# Pasos que ejecuta:
+#   1. Verifica Docker y contenedor PostgreSQL
+#   2. Sincroniza esquema con prisma db push
+#   3. Actualiza catálogos de referencia (equipos, MdO) — siempre, con upsert
+#   4. Carga seed completo si la base está vacía (o --force-seed)
 #
 # Casos de uso:
 #   - Primera vez en una máquina nueva con Docker instalado
-#   - Luego de hacer git pull con cambios en el schema.prisma
-#   - Para restablecer datos de demo
+#   - Luego de hacer git pull con cambios en schema.prisma o catálogos
+#   - Para restablecer datos de demo (--force-seed)
 # =============================================================================
 
 set -euo pipefail
@@ -55,15 +61,15 @@ for arg in "$@"; do
       echo "  Uso: ./scripts/db-sync.sh [opciones]"
       echo ""
       echo "  Opciones:"
-      printf "    %-20s %s\n" "--no-seed"    "Solo sincroniza el esquema, no toca datos"
-      printf "    %-20s %s\n" "--force-seed" "Sincroniza + re-seed completo (borra datos)"
+      printf "    %-20s %s\n" "--no-seed"    "Esquema + catálogos, sin seed completo"
+      printf "    %-20s %s\n" "--force-seed" "Esquema + catálogos + re-seed completo (borra datos)"
       printf "    %-20s %s\n" "--dry-run"    "Muestra qué haría sin ejecutar nada"
       printf "    %-20s %s\n" "--help"       "Muestra esta ayuda"
       echo ""
       echo "  Ejemplos:"
-      echo "    ./scripts/db-sync.sh               # Primera vez en máquina nueva"
-      echo "    ./scripts/db-sync.sh --no-seed     # Solo actualizar esquema"
-      echo "    ./scripts/db-sync.sh --force-seed  # Reset de datos de demo"
+      echo "    ./scripts/db-sync.sh               # Primera vez o luego de git pull"
+      echo "    ./scripts/db-sync.sh --no-seed     # Solo esquema + catálogos"
+      echo "    ./scripts/db-sync.sh --force-seed  # Reset completo de datos de demo"
       echo ""
       exit 0
       ;;
@@ -238,7 +244,56 @@ fi
 log "Esquema sincronizado correctamente"
 
 # ---------------------------------------------------------------------------
-# Paso 4: Verificar si la base tiene datos
+# Paso 4: Actualizar catálogos de referencia (siempre, con upsert)
+# ---------------------------------------------------------------------------
+# Los catálogos son datos de referencia global (equipos, categorías MdO) que
+# deben estar actualizados en cualquier ambiente, sin importar si la base ya
+# tiene datos. Se usa upsert para que sea 100% idempotente.
+# ---------------------------------------------------------------------------
+step "Actualizando catálogos de referencia"
+
+info "Script: scripts/import-mmo-equipos.ts"
+info "Actualiza: categorías de Mano de Obra (MMO Feb-26) + 65 equipos (EQ-GEN/EQ-PRY)"
+echo ""
+
+run_catalog_update() {
+  if [[ "$DRY_RUN" = true ]]; then
+    dryrun "npx tsx scripts/import-mmo-equipos.ts"
+    return
+  fi
+
+  API_RUNNING=$(docker ps --filter "name=^${API_CONTAINER}$" --filter "status=running" -q 2>/dev/null || true)
+
+  if [[ -n "$API_RUNNING" ]]; then
+    info "Usando contenedor API para actualizar catálogos..."
+    docker exec "$API_CONTAINER" sh -c "cd /app && npx tsx scripts/import-mmo-equipos.ts"
+
+  elif docker images --format '{{.Repository}}:{{.Tag}}' 2>/dev/null | grep -q "construccion"; then
+    info "Ejecutando actualización de catálogos vía docker compose run..."
+    cd "$ROOT_DIR"
+    $COMPOSE_CMD run --rm --no-deps \
+      -e DATABASE_URL="postgresql://${DB_USER}:${DB_PASS}@postgres:5432/${DB_NAME}" \
+      api sh -c "cd /app && npx tsx scripts/import-mmo-equipos.ts"
+
+  elif command -v npx &>/dev/null; then
+    info "Ejecutando actualización de catálogos localmente..."
+    cd "$ROOT_DIR"
+    DATABASE_URL="postgresql://${DB_USER}:${DB_PASS}@localhost:5432/${DB_NAME}" \
+      npx tsx scripts/import-mmo-equipos.ts
+
+  else
+    warn "No se pudo actualizar catálogos automáticamente."
+    warn "Ejecutá manualmente: DATABASE_URL=... npx tsx scripts/import-mmo-equipos.ts"
+    return
+  fi
+
+  log "Catálogos actualizados"
+}
+
+run_catalog_update
+
+# ---------------------------------------------------------------------------
+# Paso 5: Verificar si la base tiene datos
 # ---------------------------------------------------------------------------
 step "Verificando datos existentes"
 
@@ -299,7 +354,7 @@ run_seed() {
   log "Seed completado"
 }
 
-step "Carga de datos (seed)"
+step "Carga de datos de demo (seed)"
 
 case "$SEED_MODE" in
   skip)

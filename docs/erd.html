@@ -1,0 +1,1220 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ERD — Sistema de Gestión de Construcción</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #222536;
+      --border: #2e3250;
+      --accent: #6c8ef7;
+      --accent2: #a78bfa;
+      --text: #e2e6f3;
+      --text2: #8b92b8;
+      --green: #4ade80;
+      --yellow: #fbbf24;
+      --red: #f87171;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    header h1 { font-size: 1.4rem; font-weight: 600; }
+    header p { font-size: 0.85rem; color: var(--text2); margin-top: 2px; }
+    .badge {
+      background: var(--border);
+      color: var(--accent);
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      letter-spacing: .03em;
+    }
+
+    nav {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      display: flex;
+      gap: 0;
+      overflow-x: auto;
+    }
+    nav button {
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--text2);
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-weight: 500;
+      padding: 12px 18px;
+      white-space: nowrap;
+      transition: color .15s, border-color .15s;
+    }
+    nav button:hover { color: var(--text); }
+    nav button.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    main { padding: 32px; max-width: 1600px; margin: 0 auto; }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .section-header {
+      margin-bottom: 20px;
+    }
+    .section-header h2 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .section-header p {
+      font-size: 0.83rem;
+      color: var(--text2);
+      margin-top: 4px;
+    }
+
+    .diagram-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 24px;
+      margin-bottom: 28px;
+      overflow-x: auto;
+    }
+    .diagram-card h3 {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--accent2);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: 16px;
+    }
+    .mermaid { min-height: 80px; }
+
+    /* overview grid */
+    .overview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 16px;
+      margin-top: 24px;
+    }
+    .module-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .module-card h4 { font-size: 0.88rem; font-weight: 600; color: var(--accent); margin-bottom: 6px; }
+    .module-card ul { list-style: none; }
+    .module-card ul li {
+      font-size: 0.78rem;
+      color: var(--text2);
+      padding: 2px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .module-card ul li:last-child { border-bottom: none; }
+    .module-card .count {
+      float: right;
+      color: var(--text2);
+      font-size: 0.75rem;
+    }
+
+    .stats-row {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 28px;
+    }
+    .stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 20px;
+      text-align: center;
+      min-width: 110px;
+    }
+    .stat .num { font-size: 1.6rem; font-weight: 700; color: var(--accent); }
+    .stat .lbl { font-size: 0.75rem; color: var(--text2); margin-top: 2px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Entity Relationship Diagram</h1>
+    <p>Sistema de Gestión de Construcción · Argentina · PostgreSQL + Prisma ORM</p>
+  </div>
+  <span class="badge">51 modelos</span>
+</header>
+
+<nav>
+  <button class="active" onclick="showTab('overview', this)">Resumen</button>
+  <button onclick="showTab('core', this)">Core</button>
+  <button onclick="showTab('budget', this)">Presupuesto</button>
+  <button onclick="showTab('apu', this)">APU</button>
+  <button onclick="showTab('cert', this)">Certificaciones</button>
+  <button onclick="showTab('subcontracts', this)">Subcontratos</button>
+  <button onclick="showTab('adjustments', this)">Redeterminación</button>
+  <button onclick="showTab('expenses', this)">Gastos</button>
+  <button onclick="showTab('suppliers', this)">Proveedores</button>
+  <button onclick="showTab('employees', this)">Empleados</button>
+  <button onclick="showTab('catalogs', this)">Catálogos</button>
+  <button onclick="showTab('finance', this)">Plan Financiero</button>
+  <button onclick="showTab('support', this)">Soporte</button>
+</nav>
+
+<main>
+
+<!-- ══════════════════════════════════════════════════════ OVERVIEW -->
+<div id="tab-overview" class="tab-content active">
+  <div class="section-header">
+    <h2>Resumen del modelo de datos</h2>
+    <p>51 modelos Prisma organizados en 12 módulos funcionales</p>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat"><div class="num">51</div><div class="lbl">Modelos</div></div>
+    <div class="stat"><div class="num">18</div><div class="lbl">Módulos API</div></div>
+    <div class="stat"><div class="num">15</div><div class="lbl">Enums</div></div>
+    <div class="stat"><div class="num">5</div><div class="lbl">Roles RBAC</div></div>
+    <div class="stat"><div class="num">65</div><div class="lbl">Equipos catálogo</div></div>
+    <div class="stat"><div class="num">4</div><div class="lbl">Categorías MdO</div></div>
+  </div>
+
+  <div class="diagram-card">
+    <h3>Mapa de relaciones principales</h3>
+    <div class="mermaid">
+erDiagram
+    Organization ||--o{ User : "tiene"
+    Organization ||--o{ Project : "tiene"
+    Organization ||--o{ Supplier : "tiene"
+    Organization ||--o{ Material : "tiene"
+    Organization ||--o{ Employee : "tiene"
+    Organization ||--o{ BudgetVersion : "tiene"
+    Organization ||--o{ LaborCategory : "catálogo"
+    Organization ||--o{ EquipmentCatalogItem : "catálogo"
+    Organization ||--o{ Currency : "tiene"
+    Organization ||--o{ PriceIndex : "tiene"
+
+    Project ||--o{ Stage : "tiene"
+    Project ||--o{ BudgetVersion : "versiones"
+    Project ||--o{ Certificate : "certifica"
+    Project ||--o{ Subcontract : "subcontrata"
+    Project ||--o{ Expense : "gasta"
+    Project ||--o{ FinancialPlan : "planifica"
+
+    Stage ||--o{ Task : "tiene"
+    BudgetVersion ||--o{ BudgetCategory : "tiene"
+    BudgetCategory ||--o{ BudgetStage : "tiene"
+    BudgetStage ||--o{ BudgetItem : "tiene"
+    BudgetItem ||--o| PriceAnalysis : "APU"
+    BudgetItem ||--o{ ItemProgress : "avance"
+    BudgetItem ||--o{ CertificateItem : "certifica"
+
+    Certificate ||--o{ CertificateItem : "items"
+    Subcontract ||--o{ SubcontractItem : "items"
+    Subcontract ||--o{ SubcontractCertificate : "certifica"
+
+    PriceAnalysis ||--o{ AnalysisMaterial : "sect A"
+    PriceAnalysis ||--o{ AnalysisLabor : "sect B"
+    PriceAnalysis ||--o{ AnalysisEquipment : "sect D-F"
+    PriceAnalysis ||--o{ AnalysisTransport : "sect C"
+
+    AdjustmentFormula ||--o{ AdjustmentWeight : "pesos"
+    PriceIndex ||--o{ PriceIndexValue : "historial"
+    </div>
+  </div>
+
+  <div class="overview-grid">
+    <div class="module-card">
+      <h4>Core</h4>
+      <ul>
+        <li>Organization <span class="count">multi-tenant</span></li>
+        <li>User <span class="count">5 roles</span></li>
+        <li>RefreshToken</li>
+        <li>Project <span class="count">obra</span></li>
+        <li>Stage <span class="count">etapa</span></li>
+        <li>Task <span class="count">tarea</span></li>
+        <li>TaskDependency</li>
+        <li>TaskAssignment</li>
+      </ul>
+    </div>
+    <div class="module-card">
+      <h4>Presupuesto Versionado</h4>
+      <ul>
+        <li>BudgetVersion <span class="count">coef K</span></li>
+        <li>BudgetCategory</li>
+        <li>BudgetStage</li>
+        <li>BudgetItem</li>
+      </ul>
+    </div>
+    <div class="module-card">
+      <h4>APU</h4>
+      <ul>
+        <li>PriceAnalysis</li>
+        <li>AnalysisMaterial</li>
+        <li>AnalysisLabor</li>
+        <li>AnalysisEquipment</li>
+        <li>AnalysisTransport</li>
+      </ul>
+    </div>
+    <div class="module-card">
+      <h4>Certificaciones</h4>
+      <ul>
+        <li>Certificate <span class="count">6 estados</span></li>
+        <li>CertificateItem</li>
+      </ul>
+    </div>
+    <div class="module-card">
+      <h4>Subcontratos</h4>
+      <ul>
+        <li>Subcontract</li>
+        <li>SubcontractItem</li>
+        <li>SubcontractCertificate</li>
+        <li>SubcontractCertificateItem</li>
+      </ul>
+    </div>
+    <div class="module-card">
+      <h4>Redeterminación</h4>
+      <ul>
+        <li>PriceIndex <span class="count">INDEC/UOCRA</span></li>
+        <li>PriceIndexValue</li>
+        <li>AdjustmentFormula</li>
+        <li>AdjustmentWeight</li>
+      </ul>
+    </div>
+    <div class="module-card">
+      <h4>Gastos & Compras</h4>
+      <ul>
+        <li>ExpenseCategory</li>
+        <li>Expense <span class="count">fact. A/B/C</span></li>
+        <li>ExpenseItem</li>
+        <li>PurchaseOrder</li>
+        <li>PurchaseOrderItem</li>
+      </ul>
+    </div>
+    <div class="module-card">
+      <h4>Proveedores & Materiales</h4>
+      <ul>
+        <li>Supplier <span class="count">CUIT/CBU</span></li>
+        <li>MaterialCategory</li>
+        <li>Material <span class="count">stock</span></li>
+        <li>SupplierMaterial</li>
+        <li>StockMovement</li>
+        <li>Quote / QuoteItem</li>
+      </ul>
+    </div>
+    <div class="module-card">
+      <h4>Empleados</h4>
+      <ul>
+        <li>Employee <span class="count">DNI/CUIL</span></li>
+        <li>EmployeeProjectAssignment</li>
+        <li>Attendance</li>
+      </ul>
+    </div>
+    <div class="module-card">
+      <h4>Catálogos Globales</h4>
+      <ul>
+        <li>LaborCategory <span class="count">MMO Feb-26</span></li>
+        <li>EquipmentCatalogItem <span class="count">65 items</span></li>
+      </ul>
+    </div>
+    <div class="module-card">
+      <h4>Multi-moneda</h4>
+      <ul>
+        <li>Currency <span class="count">ARS/USD/EUR</span></li>
+        <li>ExchangeRate <span class="count">BCRA</span></li>
+      </ul>
+    </div>
+    <div class="module-card">
+      <h4>Soporte</h4>
+      <ul>
+        <li>Budget <span class="count">legado</span></li>
+        <li>Notification</li>
+        <li>EmailQueue</li>
+        <li>Document / Attachment</li>
+        <li>Comment</li>
+        <li>AuditLog</li>
+        <li>FinancialPlan / Period</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ CORE -->
+<div id="tab-core" class="tab-content">
+  <div class="section-header">
+    <h2>Core — Organización, Usuarios, Proyectos y Plan de Trabajo</h2>
+    <p>Entidades base del sistema. Todos los modelos pertenecen a una Organization (multi-tenant).</p>
+  </div>
+  <div class="diagram-card">
+    <h3>Organización, Usuarios y Autenticación</h3>
+    <div class="mermaid">
+erDiagram
+    Organization {
+      string id PK
+      string name
+      string cuit UK
+      string province
+      bool   isActive
+    }
+    User {
+      string   id PK
+      string   email UK
+      string   firstName
+      string   lastName
+      UserRole role
+      bool     isActive
+      string   organizationId FK
+    }
+    RefreshToken {
+      string   id PK
+      string   token UK
+      string   userId FK
+      datetime expiresAt
+      datetime revokedAt
+    }
+    Organization ||--o{ User : "tiene"
+    User ||--o{ RefreshToken : "tokens"
+    </div>
+  </div>
+  <div class="diagram-card">
+    <h3>Proyectos, Etapas y Tareas</h3>
+    <div class="mermaid">
+erDiagram
+    Project {
+      string        id PK
+      string        code UK
+      string        name
+      ProjectStatus status
+      decimal       estimatedBudget
+      decimal       currentSpent
+      int           progress
+      string        organizationId FK
+      string        managerId FK
+    }
+    Stage {
+      string   id PK
+      string   name
+      int      order
+      int      progress
+      string   projectId FK
+      string   parentStageId FK
+      string   budgetVersionId FK
+    }
+    Task {
+      string       id PK
+      string       name
+      TaskStatus   status
+      TaskPriority priority
+      int          progress
+      string       stageId FK
+      string       parentTaskId FK
+      string       budgetItemId FK
+    }
+    TaskDependency {
+      string         id PK
+      string         taskId FK
+      string         dependsOnId FK
+      DependencyType dependencyType
+      int            lagDays
+    }
+    TaskAssignment {
+      string id PK
+      string taskId FK
+      string userId FK
+      string employeeId FK
+    }
+    Project ||--o{ Stage : "etapas"
+    Stage ||--o{ Task : "tareas"
+    Stage |o--o{ Stage : "sub-etapas"
+    Task |o--o{ Task : "sub-tareas"
+    Task ||--o{ TaskDependency : "depende de"
+    Task ||--o{ TaskAssignment : "asignada a"
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ BUDGET -->
+<div id="tab-budget" class="tab-content">
+  <div class="section-header">
+    <h2>Presupuesto Versionado</h2>
+    <p>Estructura jerárquica: Versión → Capítulo → Etapa → Ítem. Coeficiente K = (1+GG)×(1+B)×(1+GF)×(1+IVA).</p>
+  </div>
+  <div class="diagram-card">
+    <h3>Árbol presupuestario</h3>
+    <div class="mermaid">
+erDiagram
+    BudgetVersion {
+      string              id PK
+      string              code UK
+      int                 version
+      BudgetVersionStatus status
+      decimal             gastosGeneralesPct
+      decimal             beneficioPct
+      decimal             gastosFinancierosPct
+      decimal             ivaPct
+      decimal             coeficienteK
+      decimal             totalCostoCosto
+      decimal             totalPrecio
+      string              projectId FK
+      string              organizationId FK
+    }
+    BudgetCategory {
+      string  id PK
+      int     number
+      string  name
+      int     order
+      decimal subtotalCostoCosto
+      string  budgetVersionId FK
+    }
+    BudgetStage {
+      string  id PK
+      string  number
+      string  description
+      string  unit
+      decimal quantity
+      decimal unitPrice
+      decimal totalPrice
+      string  categoryId FK
+    }
+    BudgetItem {
+      string  id PK
+      string  number
+      string  description
+      string  unit
+      decimal quantity
+      decimal unitPrice
+      decimal totalPrice
+      string  stageId FK
+    }
+    ItemProgress {
+      string  id PK
+      date    date
+      decimal advance
+      string  budgetItemId FK
+    }
+    BudgetVersion ||--o{ BudgetCategory : "capítulos"
+    BudgetCategory ||--o{ BudgetStage : "etapas"
+    BudgetStage ||--o{ BudgetItem : "ítems"
+    BudgetItem ||--o{ ItemProgress : "avance físico"
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ APU -->
+<div id="tab-apu" class="tab-content">
+  <div class="section-header">
+    <h2>APU — Análisis de Precios Unitarios</h2>
+    <p>Desglose de costos por ítem presupuestario en 4 secciones. Referencia a catálogos globales de MdO y equipos.</p>
+  </div>
+  <div class="diagram-card">
+    <h3>Estructura APU y catálogos</h3>
+    <div class="mermaid">
+erDiagram
+    PriceAnalysis {
+      string  id PK
+      string  code UK
+      decimal totalMaterials
+      decimal totalLabor
+      decimal totalTransport
+      decimal totalEquipAmort
+      decimal totalRepairs
+      decimal totalFuel
+      decimal totalDirect
+      string  budgetItemId FK
+      string  organizationId FK
+    }
+    AnalysisMaterial {
+      string  id PK
+      string  description
+      string  unit
+      decimal quantity
+      decimal unitCost
+      decimal wastePct
+      decimal totalCost
+      string  priceAnalysisId FK
+    }
+    AnalysisLabor {
+      string  id PK
+      string  category
+      decimal quantity
+      decimal hourlyRate
+      decimal totalCost
+      decimal socialChargesPct
+      string  laborCategoryId FK
+      string  priceAnalysisId FK
+    }
+    AnalysisEquipment {
+      string  id PK
+      string  description
+      string  section
+      decimal amortInterest
+      decimal repairsCost
+      decimal fuelCost
+      decimal hourlyTotal
+      decimal hoursUsed
+      decimal totalCost
+      string  equipmentCatalogId FK
+      string  priceAnalysisId FK
+    }
+    AnalysisTransport {
+      string  id PK
+      string  description
+      string  unit
+      decimal quantity
+      decimal unitCost
+      decimal totalCost
+      string  priceAnalysisId FK
+    }
+    LaborCategory {
+      string  id PK
+      string  code UK
+      string  name
+      decimal baseSalaryPerHour
+      decimal socialChargesPct
+      decimal totalHourlyCost
+      string  organizationId FK
+    }
+    EquipmentCatalogItem {
+      string  id PK
+      string  code UK
+      string  name
+      decimal newValue
+      decimal amortPerHour
+      decimal repairsPerHour
+      decimal fuelPerHour
+      decimal totalHourlyCost
+      string  organizationId FK
+    }
+    PriceAnalysis ||--o{ AnalysisMaterial : "sect. A materiales"
+    PriceAnalysis ||--o{ AnalysisLabor : "sect. B mano de obra"
+    PriceAnalysis ||--o{ AnalysisEquipment : "sect. D/E/F equipos"
+    PriceAnalysis ||--o{ AnalysisTransport : "sect. C transporte"
+    AnalysisLabor }o--o| LaborCategory : "catálogo MdO"
+    AnalysisEquipment }o--o| EquipmentCatalogItem : "catálogo equipos"
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ CERT -->
+<div id="tab-cert" class="tab-content">
+  <div class="section-header">
+    <h2>Certificaciones de Obra</h2>
+    <p>Certificados periódicos con deducciones: Acopio, Anticipo, Fondo de Reparo, IVA. Estados: DRAFT → SUBMITTED → APPROVED → PAID.</p>
+  </div>
+  <div class="diagram-card">
+    <h3>Certificado y sus ítems</h3>
+    <div class="mermaid">
+erDiagram
+    Certificate {
+      string            id PK
+      string            code UK
+      int               number
+      CertificateStatus status
+      date              periodStart
+      date              periodEnd
+      decimal           subtotal
+      decimal           acopioPct
+      decimal           acopioAmount
+      decimal           anticipoPct
+      decimal           anticipoAmount
+      decimal           fondoReparoPct
+      decimal           fondoReparoAmount
+      decimal           adjustmentFactor
+      decimal           ivaPct
+      decimal           ivaAmount
+      decimal           totalAmount
+      string            budgetVersionId FK
+      string            projectId FK
+      string            organizationId FK
+    }
+    CertificateItem {
+      string  id PK
+      string  itemNumber
+      string  description
+      string  unit
+      decimal previousAdvance
+      decimal previousAmount
+      decimal currentAdvance
+      decimal currentAmount
+      decimal totalAdvance
+      decimal totalAmount
+      string  certificateId FK
+      string  budgetItemId FK
+    }
+    BudgetItem {
+      string id PK
+      string number
+      string description
+    }
+    BudgetVersion {
+      string id PK
+      string code
+    }
+    Certificate ||--o{ CertificateItem : "ítems certificados"
+    CertificateItem }o--|| BudgetItem : "ítem presupuestario"
+    Certificate }o--|| BudgetVersion : "versión"
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ SUBCONTRACTS -->
+<div id="tab-subcontracts" class="tab-content">
+  <div class="section-header">
+    <h2>Subcontrataciones</h2>
+    <p>Gestión de subcontratistas con workflow de certificación propio.</p>
+  </div>
+  <div class="diagram-card">
+    <h3>Subcontratos y certificaciones de subcontratos</h3>
+    <div class="mermaid">
+erDiagram
+    Subcontract {
+      string            id PK
+      string            code UK
+      string            name
+      SubcontractStatus status
+      string            contractorName
+      string            contractorCuit
+      decimal           totalAmount
+      string            projectId FK
+      string            organizationId FK
+    }
+    SubcontractItem {
+      string  id PK
+      string  description
+      string  unit
+      decimal quantity
+      decimal unitPrice
+      decimal totalPrice
+      string  subcontractId FK
+      string  budgetItemId FK
+    }
+    SubcontractCertificate {
+      string            id PK
+      string            code UK
+      int               number
+      CertificateStatus status
+      date              periodStart
+      date              periodEnd
+      decimal           totalAmount
+      string            subcontractId FK
+      string            organizationId FK
+    }
+    SubcontractCertificateItem {
+      string  id PK
+      decimal currentAdvance
+      decimal currentAmount
+      decimal totalAdvance
+      decimal totalAmount
+      string  certificateId FK
+      string  subcontractItemId FK
+    }
+    Subcontract ||--o{ SubcontractItem : "ítems"
+    Subcontract ||--o{ SubcontractCertificate : "certificados"
+    SubcontractCertificate ||--o{ SubcontractCertificateItem : "ítems cert."
+    SubcontractCertificateItem }o--|| SubcontractItem : "item sub."
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ ADJUSTMENTS -->
+<div id="tab-adjustments" class="tab-content">
+  <div class="section-header">
+    <h2>Redeterminación de Precios</h2>
+    <p>Sistema argentino de ajuste de precios (Decreto 1295/2002). Fórmula polinómica con índices INDEC/UOCRA/CAC.</p>
+  </div>
+  <div class="diagram-card">
+    <h3>Índices, fórmulas y ponderaciones</h3>
+    <div class="mermaid">
+erDiagram
+    PriceIndex {
+      string id PK
+      string name
+      string code UK
+      string source
+      string organizationId FK
+    }
+    PriceIndexValue {
+      string  id PK
+      date    date
+      decimal value
+      string  priceIndexId FK
+    }
+    AdjustmentFormula {
+      string id PK
+      string name
+      string budgetVersionId FK
+      string organizationId FK
+    }
+    AdjustmentWeight {
+      string  id PK
+      string  component
+      decimal weight
+      string  priceIndexId FK
+      string  formulaId FK
+    }
+    Currency {
+      string id PK
+      string code UK
+      string name
+      string symbol
+      string organizationId FK
+    }
+    ExchangeRate {
+      string  id PK
+      date    date
+      decimal rate
+      string  fromCurrencyId FK
+      string  toCurrencyId FK
+      string  source
+    }
+    PriceIndex ||--o{ PriceIndexValue : "valores históricos"
+    AdjustmentFormula ||--o{ AdjustmentWeight : "ponderaciones"
+    AdjustmentWeight }o--|| PriceIndex : "índice referenciado"
+    Currency ||--o{ ExchangeRate : "desde"
+    Currency ||--o{ ExchangeRate : "hacia"
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ EXPENSES -->
+<div id="tab-expenses" class="tab-content">
+  <div class="section-header">
+    <h2>Gastos y Órdenes de Compra</h2>
+    <p>Registro de gastos con facturas A/B/C y órdenes de compra a proveedores.</p>
+  </div>
+  <div class="diagram-card">
+    <h3>Gastos, ítems y compras</h3>
+    <div class="mermaid">
+erDiagram
+    ExpenseCategory {
+      string id PK
+      string name
+      string code UK
+      string color
+      string organizationId FK
+    }
+    Expense {
+      string        id PK
+      string        reference UK
+      string        description
+      decimal       amount
+      decimal       taxAmount
+      decimal       totalAmount
+      ExpenseStatus status
+      datetime      expenseDate
+      string        invoiceNumber
+      string        invoiceType
+      string        projectId FK
+      string        stageId FK
+      string        taskId FK
+      string        categoryId FK
+      string        supplierId FK
+      string        createdById FK
+    }
+    ExpenseItem {
+      string  id PK
+      string  description
+      decimal amount
+      string  expenseId FK
+      string  taskId FK
+      string  budgetItemId FK
+    }
+    PurchaseOrder {
+      string              id PK
+      string              orderNumber UK
+      PurchaseOrderStatus status
+      decimal             subtotal
+      decimal             totalAmount
+      string              projectId FK
+      string              supplierId FK
+      string              createdById FK
+    }
+    PurchaseOrderItem {
+      string  id PK
+      decimal quantity
+      decimal unitPrice
+      decimal totalPrice
+      string  purchaseOrderId FK
+      string  materialId FK
+    }
+    Expense ||--o{ ExpenseItem : "ítems"
+    Expense }o--|| ExpenseCategory : "categoría"
+    PurchaseOrder ||--o{ PurchaseOrderItem : "ítems"
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ SUPPLIERS -->
+<div id="tab-suppliers" class="tab-content">
+  <div class="section-header">
+    <h2>Proveedores, Materiales y Stock</h2>
+    <p>Gestión de proveedores con CUIT/CBU, catálogo de materiales con stock, cotizaciones y movimientos.</p>
+  </div>
+  <div class="diagram-card">
+    <h3>Proveedor–Material–Stock</h3>
+    <div class="mermaid">
+erDiagram
+    Supplier {
+      string id PK
+      string code UK
+      string name
+      string cuit UK
+      string cbu
+      string organizationId FK
+    }
+    MaterialCategory {
+      string id PK
+      string name
+      string code UK
+      string parentId FK
+      string organizationId FK
+    }
+    Material {
+      string  id PK
+      string  code UK
+      string  name
+      string  unit
+      decimal currentStock
+      decimal minimumStock
+      decimal lastPurchasePrice
+      string  categoryId FK
+      string  organizationId FK
+    }
+    SupplierMaterial {
+      string  id PK
+      decimal unitPrice
+      bool    isPreferred
+      string  supplierId FK
+      string  materialId FK
+    }
+    StockMovement {
+      string  id PK
+      decimal quantity
+      string  movementType
+      decimal unitCost
+      string  materialId FK
+      string  projectId FK
+    }
+    Quote {
+      string      id PK
+      string      quoteNumber UK
+      QuoteStatus status
+      decimal     totalAmount
+      string      supplierId FK
+    }
+    QuoteItem {
+      string  id PK
+      decimal quantity
+      decimal unitPrice
+      string  quoteId FK
+      string  materialId FK
+    }
+    Supplier }o--o{ Material : "SupplierMaterial"
+    Material ||--o{ StockMovement : "movimientos"
+    Supplier ||--o{ Quote : "cotizaciones"
+    Quote ||--o{ QuoteItem : "ítems"
+    QuoteItem }o--|| Material : "material"
+    MaterialCategory |o--o{ MaterialCategory : "jerarquía"
+    MaterialCategory ||--o{ Material : "categoriza"
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ EMPLOYEES -->
+<div id="tab-employees" class="tab-content">
+  <div class="section-header">
+    <h2>Empleados y Asistencia</h2>
+    <p>Personal con DNI/CUIL argentino, asignación a proyectos y control de asistencia.</p>
+  </div>
+  <div class="diagram-card">
+    <h3>Empleado, proyectos y asistencia</h3>
+    <div class="mermaid">
+erDiagram
+    Employee {
+      string   id PK
+      string   legajo UK
+      string   firstName
+      string   lastName
+      string   dni UK
+      string   cuil UK
+      string   gender
+      string   position
+      string   specialty
+      decimal  baseSalary
+      datetime hireDate
+      string   organizationId FK
+    }
+    EmployeeProjectAssignment {
+      string  id PK
+      string  employeeId FK
+      string  projectId FK
+      string  role
+      date    startDate
+      date    endDate
+      decimal hourlyRateOverride
+    }
+    Attendance {
+      string         id PK
+      date           date
+      datetime       checkIn
+      datetime       checkOut
+      AttendanceType type
+      decimal        hoursWorked
+      decimal        overtimeHours
+      string         employeeId FK
+    }
+    Employee }o--o{ Project : "asignado a"
+    Employee ||--o{ Attendance : "asistencia"
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ CATALOGS -->
+<div id="tab-catalogs" class="tab-content">
+  <div class="section-header">
+    <h2>Catálogos Globales</h2>
+    <p>Catálogo de categorías de Mano de Obra (MMO Feb-26) y equipos (65 ítems EQ-GEN + EQ-PRY).</p>
+  </div>
+  <div class="diagram-card">
+    <h3>LaborCategory y EquipmentCatalogItem</h3>
+    <div class="mermaid">
+erDiagram
+    LaborCategory {
+      string  id PK
+      string  code UK
+      string  name
+      decimal baseSalaryPerHour
+      decimal attendancePct
+      decimal socialChargesPct
+      decimal artPct
+      decimal totalHourlyCost
+      bool    isActive
+      string  organizationId FK
+    }
+    EquipmentCatalogItem {
+      string  id PK
+      string  code UK
+      string  name
+      decimal powerHp
+      decimal newValue
+      decimal residualPct
+      decimal usefulLifeHours
+      decimal amortPerHour
+      decimal repairsPerHour
+      decimal fuelPerHour
+      decimal lubricantsPerHour
+      decimal totalHourlyCost
+      bool    isActive
+      string  organizationId FK
+    }
+    AnalysisLabor {
+      string  id PK
+      string  category
+      decimal quantity
+      decimal hourlyRate
+      decimal totalCost
+      string  laborCategoryId FK
+    }
+    AnalysisEquipment {
+      string  id PK
+      string  description
+      decimal hoursUsed
+      decimal totalCost
+      string  equipmentCatalogId FK
+    }
+    LaborCategory ||--o{ AnalysisLabor : "referenciado en APU"
+    EquipmentCatalogItem ||--o{ AnalysisEquipment : "referenciado en APU"
+    </div>
+  </div>
+
+  <div class="diagram-card">
+    <h3>Datos del catálogo — MMO Feb-2026</h3>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
+        <thead>
+          <tr style="background:var(--surface2);color:var(--accent)">
+            <th style="padding:10px 14px;text-align:left;border-bottom:1px solid var(--border)">Código</th>
+            <th style="padding:10px 14px;text-align:left;border-bottom:1px solid var(--border)">Categoría</th>
+            <th style="padding:10px 14px;text-align:right;border-bottom:1px solid var(--border)">Base $/h</th>
+            <th style="padding:10px 14px;text-align:right;border-bottom:1px solid var(--border)">Total c/ cargas</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td style="padding:8px 14px;border-bottom:1px solid var(--border)">OF-ESP</td><td style="padding:8px 14px;border-bottom:1px solid var(--border)">Oficial Especializado</td><td style="padding:8px 14px;text-align:right;border-bottom:1px solid var(--border)">$6.071</td><td style="padding:8px 14px;text-align:right;border-bottom:1px solid var(--border);color:var(--green)">~$11.560</td></tr>
+          <tr><td style="padding:8px 14px;border-bottom:1px solid var(--border)">OF</td><td style="padding:8px 14px;border-bottom:1px solid var(--border)">Oficial</td><td style="padding:8px 14px;text-align:right;border-bottom:1px solid var(--border)">$5.196</td><td style="padding:8px 14px;text-align:right;border-bottom:1px solid var(--border);color:var(--green)">~$9.893</td></tr>
+          <tr><td style="padding:8px 14px;border-bottom:1px solid var(--border)">MO</td><td style="padding:8px 14px;border-bottom:1px solid var(--border)">Medio Oficial</td><td style="padding:8px 14px;text-align:right;border-bottom:1px solid var(--border)">$4.793</td><td style="padding:8px 14px;text-align:right;border-bottom:1px solid var(--border);color:var(--green)">~$9.126</td></tr>
+          <tr><td style="padding:8px 14px">AY</td><td style="padding:8px 14px">Ayudante</td><td style="padding:8px 14px;text-align:right">$4.438</td><td style="padding:8px 14px;text-align:right;color:var(--green)">~$8.450</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ FINANCE -->
+<div id="tab-finance" class="tab-content">
+  <div class="section-header">
+    <h2>Plan Financiero (Cash Flow)</h2>
+    <p>Planificación mensual de ingresos y egresos por proyecto, vinculada con versiones de presupuesto.</p>
+  </div>
+  <div class="diagram-card">
+    <h3>FinancialPlan y períodos</h3>
+    <div class="mermaid">
+erDiagram
+    FinancialPlan {
+      string              id PK
+      string              name
+      FinancialPlanStatus status
+      string              projectId FK
+      string              budgetVersionId FK
+      string              organizationId FK
+    }
+    FinancialPeriod {
+      string  id PK
+      int     month
+      int     year
+      string  label
+      decimal projectedAmount
+      decimal projectedMaterials
+      decimal projectedLabor
+      decimal projectedEquipment
+      decimal projectedSubcontracts
+      decimal certifiedAmount
+      decimal executedAmount
+      decimal projectedProgress
+      decimal actualProgress
+      string  financialPlanId FK
+    }
+    FinancialPlan ||--o{ FinancialPeriod : "períodos mensuales"
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ SUPPORT -->
+<div id="tab-support" class="tab-content">
+  <div class="section-header">
+    <h2>Soporte — Notificaciones, Documentos y Auditoría</h2>
+    <p>Entidades de soporte transversal al sistema.</p>
+  </div>
+  <div class="diagram-card">
+    <h3>Notificaciones, documentos y auditoría</h3>
+    <div class="mermaid">
+erDiagram
+    Notification {
+      string           id PK
+      NotificationType type
+      string           title
+      string           message
+      bool             isRead
+      string           entityType
+      string           entityId
+      string           userId FK
+    }
+    EmailQueue {
+      string   id PK
+      string   to
+      string   subject
+      string   body
+      datetime sentAt
+      int      retryCount
+    }
+    Document {
+      string id PK
+      string name
+      string filePath
+      int    fileSize
+      string mimeType
+      string category
+      string projectId FK
+    }
+    Attachment {
+      string id PK
+      string name
+      string filePath
+      string expenseId FK
+      string purchaseOrderId FK
+      string quoteId FK
+    }
+    Comment {
+      string id PK
+      string content
+      string userId FK
+      string projectId FK
+      string taskId FK
+    }
+    AuditLog {
+      string      id PK
+      AuditAction action
+      string      entityType
+      string      entityId
+      json        oldValues
+      json        newValues
+      string      userId FK
+    }
+    Budget {
+      string  id PK
+      string  name
+      decimal materialsBudget
+      decimal laborBudget
+      decimal equipmentBudget
+      string  projectId FK
+    }
+    User ||--o{ Notification : "recibe"
+    User ||--o{ AuditLog : "genera"
+    User ||--o{ Comment : "escribe"
+    </div>
+  </div>
+</div>
+
+</main>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+      primaryColor: '#222536',
+      primaryTextColor: '#e2e6f3',
+      primaryBorderColor: '#6c8ef7',
+      lineColor: '#6c8ef7',
+      secondaryColor: '#1a1d27',
+      tertiaryColor: '#2e3250',
+      edgeLabelBackground: '#1a1d27',
+      attributeBackgroundColorEven: '#1a1d27',
+      attributeBackgroundColorOdd: '#222536',
+    },
+    er: {
+      diagramPadding: 20,
+      layoutDirection: 'TB',
+      minEntityWidth: 100,
+      minEntityHeight: 75,
+      entityPadding: 15,
+      useMaxWidth: true,
+    }
+  });
+
+  function showTab(name, btn) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    btn.classList.add('active');
+  }
+</script>
+</body>
+</html>

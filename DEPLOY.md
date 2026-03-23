@@ -209,7 +209,7 @@ Para mas trafico, considerar:
 
 ## Actualizaciones futuras
 
-Para deployar cambios:
+### En Vercel + Railway (cloud)
 
 1. Hacer commit y push a GitHub:
    ```bash
@@ -217,8 +217,38 @@ Para deployar cambios:
    git commit -m "feat: nueva funcionalidad"
    git push origin main
    ```
+2. Vercel y Railway detectarán los cambios y desplegarán automáticamente.
 
-2. Vercel y Railway detectaran los cambios y desplegaran automaticamente
+### En Docker local (otra computadora)
+
+Luego de `git pull`:
+
+```bash
+# Sincroniza schema + actualiza catálogos + seed si vacía
+./scripts/db-sync.sh
+
+# Si hubo cambios de código
+docker compose build api web --no-cache && docker compose up -d api web
+```
+
+**Flujo interno de `db-sync.sh`:**
+
+| Paso | Acción |
+|------|--------|
+| 1 | Verifica Docker y levanta PostgreSQL si está detenido |
+| 2 | `prisma db push` — sincroniza el schema |
+| 3 | Upsert de catálogos — 4 categorías MdO (MMO Feb-26) + 65 equipos (EQ-GEN/EQ-PRY) |
+| 4 | Seed completo solo si la base está vacía (o con `--force-seed`) |
+
+La actualización de catálogos es **idempotente** — se puede ejecutar múltiples veces sin riesgo.
+
+```bash
+# Opciones disponibles
+./scripts/db-sync.sh               # Esquema + catálogos + seed si vacía
+./scripts/db-sync.sh --no-seed     # Solo esquema + catálogos
+./scripts/db-sync.sh --force-seed  # Esquema + catálogos + re-seed completo
+./scripts/db-sync.sh --dry-run     # Ver qué haría sin ejecutar nada
+```
 
 ---
 

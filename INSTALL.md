@@ -40,19 +40,18 @@ El script automaticamente:
 
 | Rol | Email | Password |
 |-----|-------|----------|
-| Administrador | admin@constructorademo.com.ar | password123 |
-| Jefe de Obra | jefe@constructorademo.com.ar | password123 |
-| Project Manager | andres.pm@constructorademo.com.ar | password123 |
-| Supervisor | supervisor@constructorademo.com.ar | password123 |
-| Contable | admin.contable@constructorademo.com.ar | password123 |
-| Cliente (Solo lectura) | cliente@ejemplo.com.ar | password123 |
+| ADMIN | admin@constructorademo.com.ar | password123 |
+| PROJECT_MANAGER | jefe@constructorademo.com.ar | password123 |
+| SUPERVISOR | supervisor@constructorademo.com.ar | password123 |
+| ADMINISTRATIVE | admin2@constructorademo.com.ar | password123 |
+| READ_ONLY | lector@constructorademo.com.ar | password123 |
 
-### Proyectos de demo
+### Datos de demo incluidos
 
-1. **Casa Familia Rodriguez - Nordelta** - En progreso (65%)
-2. **Edificio Mirador del Parque** - En progreso (28%)
-3. **Remodelacion Local Comercial - Florida** - En planificacion
-4. **Duplex Familia Lopez - Escobar** - Completado (100%)
+- **Organización:** Constructora Patagonia S.A.
+- **3 proyectos** con presupuestos, APUs, certificaciones y avance físico
+- **65 equipos** en el catálogo (EQ-GEN y EQ-PRY) con costos horarios calculados
+- **4 categorías de Mano de Obra** con tarifas MMO Feb-26
 
 ---
 
@@ -80,12 +79,28 @@ docker compose restart
 docker compose restart api
 
 # Reconstruir y reiniciar (despues de cambios en el codigo)
-docker compose up -d --build
+docker compose build api web --no-cache && docker compose up -d api web
 
 # Reset completo (borra la base de datos y vuelve a cargar datos de demo)
 docker compose down -v
 docker compose up -d --build
 ```
+
+---
+
+## Actualizar a una version nueva
+
+Luego de hacer `git pull` con cambios en el schema o los catálogos:
+
+```bash
+# 1. Sincronizar esquema + actualizar catálogos (siempre seguro, usa upsert)
+./scripts/db-sync.sh
+
+# 2. Si hubo cambios de código, reconstruir las imágenes
+docker compose build api web --no-cache && docker compose up -d api web
+```
+
+`db-sync.sh` ejecuta en orden: `prisma db push` → upsert de catálogos (4 MdO + 65 equipos) → seed si la base está vacía.
 
 ---
 
