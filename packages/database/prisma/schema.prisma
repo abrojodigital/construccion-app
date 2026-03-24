@@ -198,6 +198,9 @@ model User {
   isActive    Boolean   @default(true)
   lastLoginAt DateTime?
 
+  // Preferencias de notificaciones (JSON flexible)
+  notificationPreferences Json?
+
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
 
@@ -216,8 +219,16 @@ model User {
   comments         Comment[]
   refreshTokens    RefreshToken[]
 
+  // Relaciones de auditoría
+  itemProgressRegistered          ItemProgress[]           @relation("ItemProgressRegisteredBy")
+  certificatesApproved            Certificate[]            @relation("CertificateApprovedBy")
+  certificatesRejected            Certificate[]            @relation("CertificateRejectedBy")
+  certificatesAnnulled            Certificate[]            @relation("CertificateAnnulledBy")
+  subcontractCertificatesApproved SubcontractCertificate[] @relation("SubcontractCertificateApprovedBy")
+
   @@index([email])
   @@index([organizationId])
+  @@index([isActive])
   @@map("users")
 }
 
@@ -288,6 +299,7 @@ model Project {
   @@index([organizationId])
   @@index([managerId])
   @@index([status])
+  @@index([startDate])
   @@map("projects")
 }
 
@@ -452,7 +464,7 @@ model BudgetVersion {
   totalPrecio     Decimal @default(0) @db.Decimal(15, 2)
 
   projectId String
-  project   Project @relation(fields: [projectId], references: [id])
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
@@ -592,7 +604,8 @@ model AnalysisMaterial {
 
   // Multi-moneda (Fase 7)
   currencyId   String?
-  exchangeRate Decimal? @db.Decimal(15, 4)
+  currency     Currency? @relation("AnalysisMaterialCurrency", fields: [currencyId], references: [id])
+  exchangeRate Decimal?  @db.Decimal(15, 4)
 
   priceAnalysisId String
   priceAnalysis   PriceAnalysis @relation(fields: [priceAnalysisId], references: [id], onDelete: Cascade)
@@ -645,7 +658,8 @@ model AnalysisEquipment {
 
   // Multi-moneda (Fase 7)
   currencyId   String?
-  exchangeRate Decimal? @db.Decimal(15, 4)
+  currency     Currency? @relation("AnalysisEquipmentCurrency", fields: [currencyId], references: [id])
+  exchangeRate Decimal?  @db.Decimal(15, 4)
 
   // Referencia al catálogo global de equipos
   equipmentCatalogId String?
@@ -686,6 +700,7 @@ model ItemProgress {
   budgetItem   BudgetItem @relation(fields: [budgetItemId], references: [id])
 
   registeredById String
+  registeredBy   User   @relation("ItemProgressRegisteredBy", fields: [registeredById], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -724,14 +739,17 @@ model Certificate {
   submittedAt  DateTime?
   approvedAt   DateTime?
   approvedById String?
+  approvedBy   User?  @relation("CertificateApprovedBy", fields: [approvedById], references: [id])
 
-  rejectedAt     DateTime?
-  rejectedById   String?
+  rejectedAt      DateTime?
+  rejectedById    String?
   rejectionReason String?
+  rejectedBy      User?  @relation("CertificateRejectedBy", fields: [rejectedById], references: [id])
 
-  annulledAt     DateTime?
-  annulledById   String?
+  annulledAt      DateTime?
+  annulledById    String?
   annulmentReason String?
+  annulledBy      User?  @relation("CertificateAnnulledBy", fields: [annulledById], references: [id])
 
   budgetVersionId String
   budgetVersion   BudgetVersion @relation(fields: [budgetVersionId], references: [id])
@@ -859,6 +877,7 @@ model SubcontractCertificate {
 
   approvedAt   DateTime?
   approvedById String?
+  approvedBy   User?  @relation("SubcontractCertificateApprovedBy", fields: [approvedById], references: [id])
 
   subcontractId String
   subcontract   Subcontract @relation(fields: [subcontractId], references: [id], onDelete: Cascade)
@@ -982,8 +1001,10 @@ model Currency {
   organizationId String
   organization   Organization @relation("OrganizationCurrencies", fields: [organizationId], references: [id])
 
-  ratesFrom ExchangeRate[] @relation("ExchangeRateFrom")
-  ratesTo   ExchangeRate[] @relation("ExchangeRateTo")
+  ratesFrom          ExchangeRate[]     @relation("ExchangeRateFrom")
+  ratesTo            ExchangeRate[]     @relation("ExchangeRateTo")
+  analysisMaterials  AnalysisMaterial[] @relation("AnalysisMaterialCurrency")
+  analysisEquipments AnalysisEquipment[] @relation("AnalysisEquipmentCurrency")
 
   @@index([organizationId])
   @@map("currencies")
@@ -1250,6 +1271,7 @@ model Supplier {
 
   @@index([organizationId])
   @@index([cuit])
+  @@index([isActive])
   @@map("suppliers")
 }
 
@@ -1316,6 +1338,7 @@ model Material {
   @@index([code])
   @@index([organizationId])
   @@index([categoryId])
+  @@index([isActive])
   @@map("materials")
 }
 
@@ -1674,7 +1697,7 @@ model AuditLog {
 
 model LaborCategory {
   id          String  @id @default(cuid())
-  code        String  @unique // "OF-ESP", "OF", "MO", "AY"
+  code        String // "OF-ESP", "OF", "MO", "AY"
   name        String // "Oficial Especializado", "Oficial", "Medio Oficial", "Ayudante"
   description String?
 
@@ -1700,8 +1723,8 @@ model LaborCategory {
 
   analysisLabor AnalysisLabor[]
 
+  @@unique([organizationId, code])
   @@index([organizationId])
-  @@index([code])
   @@map("labor_categories")
 }
 
@@ -1711,7 +1734,7 @@ model LaborCategory {
 
 model EquipmentCatalogItem {
   id          String  @id @default(cuid())
-  code        String  @unique // "EQ-RET-01", "EQ-COMP-01"
+  code        String // "EQ-RET-01", "EQ-COMP-01"
   name        String // "Retroexcavadora CAT 416E"
   description String?
 
@@ -1739,8 +1762,8 @@ model EquipmentCatalogItem {
 
   analysisEquipment AnalysisEquipment[]
 
+  @@unique([organizationId, code])
   @@index([organizationId])
-  @@index([code])
   @@map("equipment_catalog")
 }
 
@@ -1754,9 +1777,9 @@ model FinancialPlan {
   status FinancialPlanStatus @default(DRAFT)
 
   projectId       String
-  project         Project       @relation(fields: [projectId], references: [id])
+  project         Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
   budgetVersionId String
-  budgetVersion   BudgetVersion @relation(fields: [budgetVersionId], references: [id])
+  budgetVersion   BudgetVersion @relation(fields: [budgetVersionId], references: [id], onDelete: Cascade)
   organizationId  String
   organization    Organization  @relation(fields: [organizationId], references: [id])
 

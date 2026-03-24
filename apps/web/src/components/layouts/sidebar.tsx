@@ -19,44 +19,71 @@ import {
   HardHat,
   Cog,
   ChevronRight,
+  Database,
+  Bell,
+  ShoppingCart,
+  FileText,
+  CalendarCheck,
+  Shield,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth.store';
 import { useRouter } from 'next/navigation';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api';
 
-const navGroups = [
-  {
-    label: 'Principal',
-    items: [
-      { name: 'Tablero', href: '/dashboard', icon: LayoutDashboard },
-      { name: 'Proyectos', href: '/projects', icon: FolderKanban },
-      { name: 'Reportes', href: '/reports', icon: BarChart3 },
-    ],
-  },
-  {
-    label: 'Recursos',
-    items: [
-      { name: 'Gastos', href: '/expenses', icon: Receipt },
-      { name: 'Proveedores', href: '/suppliers', icon: Truck },
-      { name: 'Materiales', href: '/materials', icon: Package },
-      { name: 'Empleados', href: '/employees', icon: Users },
-      { name: 'Mano de Obra', href: '/labor-categories', icon: HardHat },
-      { name: 'Equipos', href: '/equipment-catalog', icon: Cog },
-    ],
-  },
-  {
-    label: 'Finanzas',
-    items: [
-      { name: 'Monedas', href: '/currencies', icon: Coins },
-      { name: 'Redeterminacion', href: '/adjustments', icon: TrendingUp },
-    ],
-  },
-  {
-    label: 'Sistema',
-    items: [{ name: 'Configuracion', href: '/settings', icon: Settings }],
-  },
-];
+function buildNavGroups(role?: string) {
+  return [
+    {
+      label: 'Principal',
+      items: [
+        { name: 'Tablero', href: '/dashboard', icon: LayoutDashboard },
+        { name: 'Proyectos', href: '/projects', icon: FolderKanban },
+        { name: 'Reportes', href: '/reports', icon: BarChart3 },
+      ],
+    },
+    {
+      label: 'Compras',
+      items: [
+        { name: 'Gastos', href: '/expenses', icon: Receipt },
+        { name: 'Ordenes de Compra', href: '/purchase-orders', icon: ShoppingCart },
+        { name: 'Cotizaciones', href: '/quotes', icon: FileText },
+        { name: 'Proveedores', href: '/suppliers', icon: Truck },
+      ],
+    },
+    {
+      label: 'Recursos',
+      items: [
+        { name: 'Materiales', href: '/materials', icon: Package },
+        { name: 'Empleados', href: '/employees', icon: Users },
+        { name: 'Asistencia', href: '/attendance', icon: CalendarCheck },
+        { name: 'Mano de Obra', href: '/labor-categories', icon: HardHat },
+        { name: 'Equipos', href: '/equipment-catalog', icon: Cog },
+      ],
+    },
+    {
+      label: 'Finanzas',
+      items: [
+        { name: 'Monedas', href: '/currencies', icon: Coins },
+        { name: 'Redeterminacion', href: '/adjustments', icon: TrendingUp },
+      ],
+    },
+    {
+      label: 'Sistema',
+      items: [
+        { name: 'Notificaciones', href: '/notifications', icon: Bell },
+        { name: 'Configuracion', href: '/settings', icon: Settings },
+        ...(role === 'ADMIN'
+          ? [
+              { name: 'Backups', href: '/settings/backups', icon: Database },
+              { name: 'Auditoria', href: '/audit-log', icon: Shield },
+            ]
+          : []),
+      ],
+    },
+  ];
+}
 
 interface SidebarProps {
   collapsed: boolean;
@@ -68,6 +95,15 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const router = useRouter();
   const logout = useAuthStore((state) => state.logout);
   const user = useAuthStore((state) => state.user);
+  const navGroups = buildNavGroups(user?.role);
+
+  const { data: unreadData } = useQuery({
+    queryKey: ['notifications-unread-count'],
+    queryFn: () => api.get<{ count: number }>('/notifications/unread-count'),
+    refetchInterval: 60_000, // Refresca cada minuto
+    enabled: !!user,
+  });
+  const unreadCount = (unreadData as any)?.count ?? 0;
 
   const handleLogout = () => {
     logout();
@@ -159,7 +195,14 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                         isActive ? 'text-primary' : 'text-[hsl(var(--sidebar-muted))]'
                       )}
                     />
-                    {!collapsed && <span>{item.name}</span>}
+                    {!collapsed && (
+                      <span className="flex-1">{item.name}</span>
+                    )}
+                    {!collapsed && item.href === '/notifications' && unreadCount > 0 && (
+                      <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </span>
+                    )}
                   </Link>
                 );
               })}

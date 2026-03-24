@@ -10,9 +10,9 @@ class AdjustmentsService {
     data: { name: string; code: string; source?: string },
     organizationId: string
   ) {
-    // Verificar que no exista un índice con el mismo código
-    const existing = await prisma.priceIndex.findUnique({
-      where: { code: data.code },
+    // Verificar que no exista un índice con el mismo código en la organización
+    const existing = await prisma.priceIndex.findFirst({
+      where: { code: data.code, organizationId },
     });
     if (existing) {
       throw new ValidationError(`Ya existe un índice con el código "${data.code}"`);
@@ -119,9 +119,9 @@ class AdjustmentsService {
     },
     organizationId: string
   ) {
-    // Verificar que la versión de presupuesto pertenece a la organización
+    // Verificar que la versión de presupuesto pertenece a la organización y no está eliminada
     const budgetVersion = await prisma.budgetVersion.findFirst({
-      where: { id: data.budgetVersionId, organizationId },
+      where: { id: data.budgetVersionId, organizationId, deletedAt: null },
     });
     if (!budgetVersion) {
       throw new NotFoundError('Versión de presupuesto no encontrada');

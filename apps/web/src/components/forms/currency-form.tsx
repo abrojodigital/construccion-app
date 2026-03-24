@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { api } from '@/lib/api';
 import { createCurrencySchema } from '@construccion/shared/validators';
+import { toast } from 'sonner';
 
 type CurrencyFormValues = z.infer<typeof createCurrencySchema>;
 
@@ -36,8 +37,10 @@ export function CurrencyForm({ initialData, onSuccess, onCancel }: CurrencyFormP
         await api.post('/currencies', data);
       }
       onSuccess?.();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Error al guardar la moneda';
       console.error('Error saving currency:', error);
+      toast.error(message);
       throw error;
     }
   };

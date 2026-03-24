@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuthStore } from '@/store/auth.store';
 import { api } from '@/lib/api';
-import { loginSchema, type LoginInput } from '@construccion/shared';
+import { loginSchema, type LoginInput, type UserPayload } from '@construccion/shared';
 import { cn } from '@/lib/utils';
 
 export default function LoginPage() {
@@ -30,7 +30,7 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       const response = await api.post<{
-        user: any;
+        user: UserPayload;
         tokens: { accessToken: string; refreshToken: string };
       }>('/auth/login', data);
 
@@ -209,14 +209,16 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          {/* Demo credentials */}
-          <div className="mt-8 rounded-lg border border-border bg-muted/30 px-4 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">
-              Acceso demo
-            </p>
-            <p className="font-mono text-xs text-muted-foreground">admin@constructorademo.com.ar</p>
-            <p className="font-mono text-xs text-muted-foreground">password123</p>
-          </div>
+          {/* Demo credentials — solo visible en desarrollo */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mt-8 rounded-lg border border-border bg-muted/30 px-4 py-3">
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">
+                Acceso demo
+              </p>
+              <p className="font-mono text-xs text-muted-foreground">admin@constructorademo.com.ar</p>
+              <p className="font-mono text-xs text-muted-foreground">password123</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

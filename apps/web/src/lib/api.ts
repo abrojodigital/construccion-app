@@ -12,6 +12,7 @@ interface ApiOptions {
 
 class ApiClient {
   private baseUrl: string;
+  private refreshPromise: Promise<boolean> | null = null;
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
@@ -116,6 +117,17 @@ class ApiClient {
   }
 
   private async refreshToken(): Promise<boolean> {
+    // Deduplica llamadas concurrentes: si ya hay un refresh en curso, reutiliza la misma promesa
+    if (this.refreshPromise) {
+      return this.refreshPromise;
+    }
+    this.refreshPromise = this._doRefresh().finally(() => {
+      this.refreshPromise = null;
+    });
+    return this.refreshPromise;
+  }
+
+  private async _doRefresh(): Promise<boolean> {
     const refreshToken = useAuthStore.getState().refreshToken;
 
     if (!refreshToken) {

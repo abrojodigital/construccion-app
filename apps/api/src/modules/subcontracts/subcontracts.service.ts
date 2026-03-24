@@ -110,11 +110,16 @@ export class SubcontractsService {
     const {
       page = 1,
       limit = 20,
-      sortBy = 'createdAt',
       sortOrder = 'desc',
       status,
       search,
     } = filters;
+
+    const ALLOWED_SORT_FIELDS = ['code', 'contractorName', 'status', 'totalAmount', 'startDate', 'createdAt'];
+    const sortBy = ALLOWED_SORT_FIELDS.includes(filters.sortBy as string)
+      ? (filters.sortBy as string)
+      : 'createdAt';
+    const safeSortOrder = sortOrder === 'asc' ? 'asc' : ('desc' as const);
 
     const where: Prisma.SubcontractWhereInput = {
       projectId,
@@ -135,7 +140,7 @@ export class SubcontractsService {
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { [sortBy]: sortOrder },
+        orderBy: { [sortBy]: safeSortOrder },
         include: {
           project: { select: { id: true, code: true, name: true } },
           _count: { select: { items: true, certificates: true } },

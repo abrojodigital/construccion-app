@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/select';
 import { api } from '@/lib/api';
 import { createExchangeRateSchema } from '@construccion/shared/validators';
+import { toast } from 'sonner';
 
 type ExchangeRateFormValues = z.infer<typeof createExchangeRateSchema>;
 
@@ -59,8 +60,10 @@ export function ExchangeRateForm({
     try {
       await api.post('/currencies/exchange-rates', data);
       onSuccess?.();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Error al guardar la cotizacion';
       console.error('Error saving exchange rate:', error);
+      toast.error(message);
       throw error;
     }
   };

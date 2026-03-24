@@ -77,7 +77,7 @@ RUN node -e "\
 
 # Stage 3: Runner
 FROM node:20-alpine AS runner
-RUN apk add --no-cache libc6-compat openssl
+RUN apk add --no-cache libc6-compat openssl postgresql16-client
 WORKDIR /app
 
 ENV NODE_ENV=production
@@ -102,8 +102,8 @@ COPY --from=builder /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
 COPY scripts/docker-entrypoint-api.sh /app/docker-entrypoint-api.sh
 RUN chmod +x /app/docker-entrypoint-api.sh
 
-# Create uploads directory
-RUN mkdir -p /app/uploads && chown -R expressjs:nodejs /app/uploads
+# Create uploads and backups directories
+RUN mkdir -p /app/uploads /app/backups && chown -R expressjs:nodejs /app/uploads /app/backups
 
 # Ensure expressjs can write to database package (for migrations) and prisma engines
 RUN chown -R expressjs:nodejs /app/packages/database

@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/select';
 import { api } from '@/lib/api';
 import { EMPLOYMENT_TYPES, EMPLOYEE_SPECIALTIES, ARGENTINE_PROVINCES, generateCuil } from '@construccion/shared';
+import { toast } from 'sonner';
 
 const employeeSchema = z.object({
   firstName: z.string().min(1, 'El nombre es requerido'),
@@ -107,11 +108,10 @@ export function EmployeeForm({ initialData, onSuccess, onCancel }: EmployeeFormP
         await api.post('/employees', cleanData);
       }
       onSuccess?.();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Error al guardar el empleado';
       console.error('Error saving employee:', error);
-      // Show error message to user
-      const message = error?.message || 'Error al guardar el empleado';
-      alert(message);
+      toast.error(message);
     }
   };
 

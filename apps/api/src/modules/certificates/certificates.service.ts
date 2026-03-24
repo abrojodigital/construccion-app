@@ -172,10 +172,15 @@ export class CertificatesService {
     const {
       page = 1,
       limit = 20,
-      sortBy = 'number',
       sortOrder = 'desc',
       status,
     } = filters;
+
+    const ALLOWED_SORT_FIELDS = ['number', 'periodStart', 'totalAmount', 'status', 'createdAt'];
+    const sortBy = ALLOWED_SORT_FIELDS.includes(filters.sortBy as string)
+      ? (filters.sortBy as string)
+      : 'number';
+    const safeSortOrder = sortOrder === 'asc' ? 'asc' : ('desc' as const);
 
     const where: Prisma.CertificateWhereInput = {
       projectId,
@@ -189,7 +194,7 @@ export class CertificatesService {
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { [sortBy]: sortOrder },
+        orderBy: { [sortBy]: safeSortOrder },
         include: {
           budgetVersion: { select: { id: true, code: true, name: true } },
           _count: { select: { items: true } },

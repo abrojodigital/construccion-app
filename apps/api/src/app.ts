@@ -27,6 +27,13 @@ import { currenciesRoutes } from './modules/currencies/currencies.routes';
 import { laborCategoriesRoutes } from './modules/labor-categories/labor-categories.routes';
 import { equipmentCatalogRoutes } from './modules/equipment-catalog/equipment-catalog.routes';
 import { financialPlansRoutes } from './modules/financial-plans/financial-plans.routes';
+import { backupsRoutes } from './modules/backups/backups.routes';
+import { settingsRoutes } from './modules/settings/settings.routes';
+import { notificationsRoutes } from './modules/notifications/notifications.routes';
+import { purchaseOrdersRoutes } from './modules/purchase-orders/purchase-orders.routes';
+import { quotesRoutes } from './modules/quotes/quotes.routes';
+import { attendanceRoutes } from './modules/attendance/attendance.routes';
+import { auditLogRoutes } from './modules/audit-log/audit-log.routes';
 
 export function createApp(): Express {
   const app = express();
@@ -106,6 +113,13 @@ export function createApp(): Express {
   apiRouter.use('/equipment-catalog', equipmentCatalogRoutes); // Catálogo de equipos
   apiRouter.use('/projects/:projectId/financial-plans', financialPlansRoutes); // Plan financiero por proyecto
   apiRouter.use('/financial-plans', financialPlansRoutes); // Plan financiero acceso directo
+  apiRouter.use('/settings', settingsRoutes); // Configuración de la organización
+  apiRouter.use('/backups', backupsRoutes); // Gestión de backups (solo ADMIN)
+  apiRouter.use('/notifications', notificationsRoutes); // Centro de notificaciones
+  apiRouter.use('/purchase-orders', purchaseOrdersRoutes); // Órdenes de compra
+  apiRouter.use('/quotes', quotesRoutes); // Cotizaciones
+  apiRouter.use('/attendance', attendanceRoutes); // Control de asistencia
+  apiRouter.use('/audit-log', auditLogRoutes); // Registro de auditoría
   apiRouter.use('/', costsRoutes); // Handles /expenses and /expense-categories (must be before stages/tasks)
 
   // Generic routes last (these have /:id patterns that can match anything)

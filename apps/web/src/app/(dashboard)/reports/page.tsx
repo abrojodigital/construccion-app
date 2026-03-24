@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useQuery } from '@tanstack/react-query';
+import { useAuthStore } from '@/store/auth.store';
+import { toast } from 'sonner';
 
 const InvestmentCurve = dynamic(
   () => import('@/components/charts/investment-curve').then((m) => m.InvestmentCurve),
@@ -66,7 +68,11 @@ export default function ReportsPage() {
   const handleExportPDF = async () => {
     setExportingPdf(true);
     try {
-      const token = (await import('@/store/auth.store')).useAuthStore.getState().accessToken;
+      const token = useAuthStore.getState().accessToken;
+      if (!token) {
+        toast.error('No autenticado');
+        return;
+      }
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
       const response = await fetch(`${apiUrl}/reports/export/pdf`, {
         method: 'POST',
@@ -93,7 +99,11 @@ export default function ReportsPage() {
   const handleExportExcel = async () => {
     setExportingExcel(true);
     try {
-      const token = (await import('@/store/auth.store')).useAuthStore.getState().accessToken;
+      const token = useAuthStore.getState().accessToken;
+      if (!token) {
+        toast.error('No autenticado');
+        return;
+      }
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
       const response = await fetch(`${apiUrl}/reports/export/excel`, {
         method: 'POST',

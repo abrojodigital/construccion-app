@@ -122,7 +122,7 @@ export default function ExpensesPage() {
     [tasksData]
   );
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['expenses', page, search, statusFilter, projectFilter, taskFilter],
     queryFn: () =>
       api.get<ExpensesResponse>('/expenses', {
@@ -373,6 +373,11 @@ export default function ExpensesPage() {
       {/* Table */}
       <Card>
         <CardContent className="p-0">
+          {isError && (
+            <p className="p-4 text-sm text-destructive">
+              Error al cargar los gastos. Por favor recarga la pagina.
+            </p>
+          )}
           <DataTable
             columns={columns}
             data={data?.data || []}

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
@@ -35,6 +36,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { api } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { EXPENSE_STATUS_LABELS } from '@construccion/shared';
@@ -78,6 +80,7 @@ export default function ExpenseDetailPage() {
   const params = useParams();
   const queryClient = useQueryClient();
   const expenseId = params.id as string;
+  const [rejectionReason, setRejectionReason] = useState('');
 
   const { data: expense, isLoading } = useQuery({
     queryKey: ['expense', expenseId],
@@ -243,11 +246,21 @@ export default function ExpenseDetailPage() {
                       Esta accion rechazara el gasto. Por favor, ingrese el motivo del rechazo.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
+                  <div className="px-1 py-2">
+                    <label className="text-sm font-medium">Motivo del rechazo</label>
+                    <Textarea
+                      value={rejectionReason}
+                      onChange={(e) => setRejectionReason(e.target.value)}
+                      placeholder="Describe el motivo del rechazo..."
+                      className="mt-1"
+                      rows={3}
+                    />
+                  </div>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogCancel onClick={() => setRejectionReason('')}>Cancelar</AlertDialogCancel>
                     <AlertDialogAction
                       className="bg-red-600 hover:bg-red-700"
-                      onClick={() => rejectMutation.mutate('Rechazado por el administrador')}
+                      onClick={() => rejectMutation.mutate(rejectionReason || 'Sin motivo especificado')}
                     >
                       Rechazar
                     </AlertDialogAction>

@@ -34,9 +34,14 @@ export class ProjectsService {
       search,
       startDateFrom,
       startDateTo,
-      sortBy = 'createdAt',
       sortOrder = 'desc',
     } = filters;
+
+    const ALLOWED_SORT_FIELDS = ['name', 'code', 'status', 'startDate', 'estimatedEndDate', 'createdAt'];
+    const sortBy = ALLOWED_SORT_FIELDS.includes(filters.sortBy as string)
+      ? (filters.sortBy as string)
+      : 'createdAt';
+    const safeSortOrder = sortOrder === 'asc' ? 'asc' : ('desc' as const);
 
     const where: Prisma.ProjectWhereInput = {
       organizationId,
@@ -63,7 +68,7 @@ export class ProjectsService {
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { [sortBy]: sortOrder },
+        orderBy: { [sortBy]: safeSortOrder },
         include: {
           manager: {
             select: { id: true, firstName: true, lastName: true, email: true },

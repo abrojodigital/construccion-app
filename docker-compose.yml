@@ -55,6 +55,7 @@ services:
       - "3001:3001"
     volumes:
       - uploads_data:/app/uploads
+      - backups_data:/app/backups
     depends_on:
       postgres:
         condition: service_healthy
@@ -123,4 +124,6 @@ volumes:
   postgres_data:
     driver: local
   uploads_data:
+    driver: local
+  backups_data:
     driver: local

@@ -217,11 +217,16 @@ export class BudgetVersionsService {
     const {
       page = 1,
       limit = 20,
-      sortBy = 'createdAt',
       sortOrder = 'desc',
       status,
       search,
     } = filters;
+
+    const ALLOWED_SORT_FIELDS = ['name', 'code', 'version', 'status', 'totalPrecio', 'createdAt', 'approvedAt'];
+    const sortBy = ALLOWED_SORT_FIELDS.includes(filters.sortBy as string)
+      ? (filters.sortBy as string)
+      : 'createdAt';
+    const safeSortOrder = sortOrder === 'asc' ? 'asc' : ('desc' as const);
 
     const where: Prisma.BudgetVersionWhereInput = {
       projectId,
@@ -241,7 +246,7 @@ export class BudgetVersionsService {
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { [sortBy]: sortOrder },
+        orderBy: { [sortBy]: safeSortOrder },
         include: {
           _count: { select: { categories: true } },
         },

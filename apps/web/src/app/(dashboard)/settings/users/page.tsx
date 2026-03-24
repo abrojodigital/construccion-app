@@ -14,6 +14,16 @@ import {
   UserCheck,
   UserX,
 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -82,6 +92,8 @@ export default function UsersSettingsPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<User | null>(null);
   const [newUser, setNewUser] = useState({
     email: '',
     firstName: '',
@@ -124,6 +136,32 @@ export default function UsersSettingsPage() {
     },
     onError: () => {
       toast.error('Error al actualizar el usuario');
+    },
+  });
+
+  const editMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<User> }) =>
+      api.patch(`/users/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      toast.success('Usuario actualizado');
+      setEditingUser(null);
+    },
+    onError: () => {
+      toast.error('Error al actualizar el usuario');
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/users/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      toast.success('Usuario eliminado');
+      setConfirmDelete(null);
+    },
+    onError: () => {
+      toast.error('Error al eliminar el usuario');
+      setConfirmDelete(null);
     },
   });
 
@@ -367,7 +405,7 @@ export default function UsersSettingsPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setEditingUser(user)}>
                             <Edit className="mr-2 h-4 w-4" />
                             Editar
                           </DropdownMenuItem>
@@ -393,7 +431,10 @@ export default function UsersSettingsPage() {
                               Activar
                             </DropdownMenuItem>
                           )}
-                          <DropdownMenuItem className="text-red-600">
+                          <DropdownMenuItem
+                            className="text-red-600"
+                            onClick={() => setConfirmDelete(user)}
+                          >
                             <Trash2 className="mr-2 h-4 w-4" />
                             Eliminar
                           </DropdownMenuItem>
@@ -432,6 +473,106 @@ export default function UsersSettingsPage() {
           </Button>
         </div>
       )}
+
+      {/* Edit dialog */}
+      {editingUser && (
+        <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Editar Usuario</DialogTitle>
+              <DialogDescription>Modifica los datos del usuario.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Nombre</label>
+                  <Input
+                    value={editingUser.firstName}
+                    onChange={(e) => setEditingUser({ ...editingUser, firstName: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Apellido</label>
+                  <Input
+                    value={editingUser.lastName}
+                    onChange={(e) => setEditingUser({ ...editingUser, lastName: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Email</label>
+                <Input
+                  type="email"
+                  value={editingUser.email}
+                  onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Rol</label>
+                <Select
+                  value={editingUser.role}
+                  onValueChange={(value) => setEditingUser({ ...editingUser, role: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(ROLE_LABELS).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditingUser(null)}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={() =>
+                  editMutation.mutate({
+                    id: editingUser.id,
+                    data: {
+                      firstName: editingUser.firstName,
+                      lastName: editingUser.lastName,
+                      email: editingUser.email,
+                      role: editingUser.role,
+                    },
+                  })
+                }
+                disabled={editMutation.isPending}
+              >
+                {editMutation.isPending ? 'Guardando...' : 'Guardar Cambios'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Delete confirmation */}
+      <AlertDialog open={!!confirmDelete} onOpenChange={() => setConfirmDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar usuario</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Eliminar a <strong>{confirmDelete?.firstName} {confirmDelete?.lastName}</strong>?
+              Esta accion no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
+              onClick={() => confirmDelete && deleteMutation.mutate(confirmDelete.id)}
+              disabled={deleteMutation.isPending}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

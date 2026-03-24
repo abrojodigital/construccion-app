@@ -37,7 +37,7 @@ async function main() {
       (lc.baseSalaryPerHour * (1 + attendancePct) * (1 + socialChargesPct) * (1 + artPct)).toFixed(2),
     );
     await prisma.laborCategory.upsert({
-      where: { code: lc.code },
+      where: { organizationId_code: { organizationId: org.id, code: lc.code } },
       create: {
         code: lc.code,
         name: lc.name,
@@ -106,7 +106,7 @@ async function main() {
 
   for (const eq of genericEquipment) {
     await prisma.equipmentCatalogItem.upsert({
-      where: { code: eq.code },
+      where: { organizationId_code: { organizationId: org.id, code: eq.code } },
       create: {
         code: eq.code,
         name: eq.name,
@@ -176,7 +176,7 @@ async function main() {
 
   for (const eq of projectEquipment) {
     await prisma.equipmentCatalogItem.upsert({
-      where: { code: eq.code },
+      where: { organizationId_code: { organizationId: org.id, code: eq.code } },
       create: {
         code: eq.code,
         name: eq.name,
