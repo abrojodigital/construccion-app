@@ -882,3 +882,85 @@ export type CreateFinancialPlanInput = z.infer<typeof createFinancialPlanSchema>
 export type UpdateFinancialPlanInput = z.infer<typeof updateFinancialPlanSchema>;
 export type CreateFinancialPeriodInput = z.infer<typeof createFinancialPeriodSchema>;
 export type UpdateFinancialPeriodInput = z.infer<typeof updateFinancialPeriodSchema>;
+
+// ============================================
+// IMPORTACIÓN DESDE EXCEL
+// ============================================
+
+export const parsedAnalysisMaterialSchema = z.object({
+  description: z.string().min(1),
+  unit: z.string().default('gl'),
+  quantity: z.number().nonnegative(),
+  unitCost: z.number().nonnegative(),
+});
+
+export const parsedAnalysisLaborSchema = z.object({
+  category: z.string().min(1),
+  quantity: z.number().nonnegative(),
+  hourlyRate: z.number().nonnegative(),
+});
+
+export const parsedAnalysisTransportSchema = z.object({
+  description: z.string().min(1),
+  unit: z.string().default('gl'),
+  quantity: z.number().nonnegative(),
+  unitCost: z.number().nonnegative(),
+});
+
+export const parsedPriceAnalysisSchema = z.object({
+  materials: z.array(parsedAnalysisMaterialSchema),
+  labor: z.array(parsedAnalysisLaborSchema),
+  transport: z.array(parsedAnalysisTransportSchema),
+});
+
+export const parsedBudgetItemSchema = z.object({
+  number: z.string().min(1),
+  description: z.string().min(1),
+  unit: z.string().default('gl'),
+  quantity: z.number().nonnegative(),
+  unitPrice: z.number().nonnegative(),
+  priceAnalysis: parsedPriceAnalysisSchema.optional(),
+});
+
+export const parsedBudgetStageSchema = z.object({
+  number: z.string().min(1),
+  description: z.string().min(1),
+  unit: z.string().default('gl'),
+  quantity: z.number().nonnegative(),
+  unitPrice: z.number().nonnegative(),
+  items: z.array(parsedBudgetItemSchema),
+  priceAnalysis: parsedPriceAnalysisSchema.optional(),
+});
+
+export const parsedBudgetCategorySchema = z.object({
+  number: z.number().int().positive(),
+  name: z.string().min(1),
+  stages: z.array(parsedBudgetStageSchema),
+});
+
+export const parsedCoeficienteKSchema = z.object({
+  gastosGeneralesPct: z.number().min(0).max(1),
+  beneficioPct: z.number().min(0).max(1),
+  gastosFinancierosPct: z.number().min(0).max(1),
+  ivaPct: z.number().min(0).max(1),
+});
+
+export const parsedBudgetSchema = z.object({
+  coeficienteK: parsedCoeficienteKSchema,
+  categories: z.array(parsedBudgetCategorySchema),
+  advertencias: z.array(z.string()),
+});
+
+export const confirmImportSchema = z.object({
+  name: z.string().min(1, 'El nombre es requerido').max(200),
+  description: z.string().max(500).optional(),
+  parsedBudget: parsedBudgetSchema,
+});
+
+export type ParsedBudget = z.infer<typeof parsedBudgetSchema>;
+export type ParsedBudgetCategory = z.infer<typeof parsedBudgetCategorySchema>;
+export type ParsedBudgetStage = z.infer<typeof parsedBudgetStageSchema>;
+export type ParsedBudgetItem = z.infer<typeof parsedBudgetItemSchema>;
+export type ParsedPriceAnalysis = z.infer<typeof parsedPriceAnalysisSchema>;
+export type ParsedCoeficienteK = z.infer<typeof parsedCoeficienteKSchema>;
+export type ConfirmImportInput = z.infer<typeof confirmImportSchema>;
