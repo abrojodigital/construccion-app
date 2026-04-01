@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { ValidationError } from '../../shared/utils/errors';
 import type {
   ParsedBudget,
   ParsedBudgetCategory,
@@ -344,7 +345,7 @@ export function parseBuffer(buffer: Buffer): ParsedBudget {
 
   const itemsSheet = findItemsSheet(wb);
   if (!itemsSheet) {
-    throw new Error('No se encontró una planilla de ítems válida en el archivo');
+    throw new ValidationError('No se encontró una planilla de ítems válida en el archivo');
   }
 
   const { categories, advertencias: itemAdv } = parseItemsSheet(itemsSheet, apuMap);
@@ -364,7 +365,7 @@ export function parseBuffer(buffer: Buffer): ParsedBudget {
     .reduce((sum, s) => sum + Math.max(1, s.items.length), 0);
 
   if (totalItems > MAX_ITEMS) {
-    throw new Error(`El archivo tiene ${totalItems} ítems. El límite es ${MAX_ITEMS}.`);
+    throw new ValidationError(`El archivo tiene ${totalItems} ítems. El límite es ${MAX_ITEMS}.`);
   }
 
   return { coeficienteK, categories, advertencias };
