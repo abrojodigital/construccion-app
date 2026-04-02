@@ -597,7 +597,7 @@ model AnalysisMaterial {
   description String
   indecCode   String? // Código INDEC para redeterminación
   unit        String
-  quantity    Decimal @db.Decimal(12, 4)
+  quantity    Decimal @db.Decimal(15, 2)
   unitCost    Decimal @db.Decimal(15, 2)
   wastePct    Decimal @default(0) @db.Decimal(6, 4)
   totalCost   Decimal @db.Decimal(15, 2)
@@ -616,7 +616,7 @@ model AnalysisMaterial {
 model AnalysisLabor {
   id         String  @id @default(cuid())
   category   String // "Oficial Especializado", "Oficial", "Medio Oficial", "Ayudante"
-  quantity   Decimal @db.Decimal(8, 4) // horas/hombre
+  quantity   Decimal @db.Decimal(15, 2) // horas/hombre
   hourlyRate Decimal @db.Decimal(15, 2) // incluye cargas sociales
   totalCost  Decimal @db.Decimal(15, 2)
 
@@ -676,7 +676,7 @@ model AnalysisTransport {
   id          String  @id @default(cuid())
   description String
   unit        String
-  quantity    Decimal @db.Decimal(12, 4)
+  quantity    Decimal @db.Decimal(15, 2)
   unitCost    Decimal @db.Decimal(15, 2)
   totalCost   Decimal @db.Decimal(15, 2)
 
