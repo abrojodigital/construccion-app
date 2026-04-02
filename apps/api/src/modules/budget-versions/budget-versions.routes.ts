@@ -29,7 +29,9 @@ const uploadExcel = multer({
     if (ext === '.xlsx' || ext === '.xls') {
       cb(null, true);
     } else {
-      cb(new Error('Formato no soportado. Solo se aceptan archivos .xlsx y .xls'));
+      const err = new multer.MulterError('LIMIT_UNEXPECTED_FILE');
+      err.message = 'Formato no soportado. Solo se aceptan archivos .xlsx y .xls';
+      cb(err);
     }
   },
 });

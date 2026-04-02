@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { Prisma } from '@construccion/database';
+import multer from 'multer';
 import { AppError } from '../shared/utils/errors';
 import { sendError } from '../shared/utils/response';
 import { config } from '../config';
@@ -59,6 +60,18 @@ export function errorMiddleware(
     return sendError(res, 400, {
       code: 'INVALID_JSON',
       message: 'JSON malformado en el cuerpo de la solicitud',
+    });
+  }
+
+  // Handle multer errors (file upload)
+  if (error instanceof multer.MulterError) {
+    const message =
+      error.code === 'LIMIT_FILE_SIZE'
+        ? 'El archivo supera el límite de 10 MB'
+        : error.message || 'Error al procesar el archivo';
+    return sendError(res, 400, {
+      code: 'FILE_UPLOAD_ERROR',
+      message,
     });
   }
 
