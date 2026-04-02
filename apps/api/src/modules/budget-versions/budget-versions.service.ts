@@ -494,7 +494,11 @@ export class BudgetVersionsService {
       return await this.findById(version.id, organizationId);
     } catch (error) {
       // Rollback: eliminar la versión (cascade elimina categorías, etapas, ítems, APUs)
-      await prisma.budgetVersion.delete({ where: { id: version.id } });
+      try {
+        await prisma.budgetVersion.delete({ where: { id: version.id } });
+      } catch {
+        // ignorar error de rollback; el error original se propaga
+      }
       throw error;
     }
   }
