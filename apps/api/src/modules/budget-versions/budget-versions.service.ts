@@ -1,7 +1,7 @@
 import { prisma, Prisma } from '@construccion/database';
 import { NotFoundError, ValidationError, ConflictError } from '../../shared/utils/errors';
-import { generateCode } from '../../shared/utils/code-generator';
-import type { BudgetVersionStatus } from '@construccion/shared';
+import { generateCode, generateSimpleCode } from '../../shared/utils/code-generator';
+import type { BudgetVersionStatus, ParsedBudget, ParsedPriceAnalysis } from '@construccion/shared';
 
 // ============================================
 // Interfaces
@@ -209,6 +209,56 @@ export class BudgetVersionsService {
     });
   }
 
+  private async createPriceAnalysisFromParsed(
+    data: ParsedPriceAnalysis,
+    budgetItemId: string,
+    organizationId: string
+  ): Promise<void> {
+    const code = await generateSimpleCode('priceAnalysis', organizationId);
+    const pa = await prisma.priceAnalysis.create({
+      data: { code, budgetItemId, organizationId },
+    });
+
+    for (const mat of data.materials) {
+      await prisma.analysisMaterial.create({
+        data: {
+          description: mat.description,
+          unit: mat.unit,
+          quantity: mat.quantity,
+          unitCost: mat.unitCost,
+          wastePct: 0,
+          totalCost: new Prisma.Decimal(mat.quantity * mat.unitCost),
+          priceAnalysisId: pa.id,
+        },
+      });
+    }
+
+    for (const lab of data.labor) {
+      await prisma.analysisLabor.create({
+        data: {
+          category: lab.category,
+          quantity: lab.quantity,
+          hourlyRate: lab.hourlyRate,
+          totalCost: new Prisma.Decimal(lab.quantity * lab.hourlyRate),
+          priceAnalysisId: pa.id,
+        },
+      });
+    }
+
+    for (const tr of data.transport) {
+      await prisma.analysisTransport.create({
+        data: {
+          description: tr.description,
+          unit: tr.unit,
+          quantity: tr.quantity,
+          unitCost: tr.unitCost,
+          totalCost: new Prisma.Decimal(tr.quantity * tr.unitCost),
+          priceAnalysisId: pa.id,
+        },
+      });
+    }
+  }
+
   // ============================================
   // CRUD Versiones de Presupuesto
   // ============================================
@@ -326,6 +376,127 @@ export class BudgetVersionsService {
     });
 
     return version;
+  }
+
+  async importFromParsed(
+    data: { projectId: string; name: string; description?: string; parsedBudget: ParsedBudget },
+    organizationId: string
+  ) {
+    // Validar límite de ítems
+    const totalItems = data.parsedBudget.categories
+      .flatMap((c) => c.stages)
+      .reduce((sum, s) => sum + Math.max(1, s.items.length), 0);
+    if (totalItems > 500) {
+      throw new ValidationError(`El archivo tiene ${totalItems} ítems. El límite es 500.`);
+    }
+
+    // Verificar que el proyecto existe
+    const project = await prisma.project.findFirst({
+      where: { id: data.projectId, organizationId, deletedAt: null },
+    });
+    if (!project) throw new NotFoundError('Proyecto', data.projectId);
+
+    // Calcular número de versión y código
+    const lastVersion = await prisma.budgetVersion.findFirst({
+      where: { projectId: data.projectId, deletedAt: null },
+      orderBy: { version: 'desc' },
+      select: { version: true },
+    });
+    const nextVersion = (lastVersion?.version ?? 0) + 1;
+    const code = await generateCode('budgetVersion', organizationId);
+    const codeWithVersion = `${code}-v${nextVersion}`;
+
+    const { gastosGeneralesPct, beneficioPct, gastosFinancierosPct, ivaPct } =
+      data.parsedBudget.coeficienteK;
+    const k = this.calculateK(gastosGeneralesPct, beneficioPct, gastosFinancierosPct, ivaPct);
+
+    // Crear BudgetVersion
+    const version = await prisma.budgetVersion.create({
+      data: {
+        code: codeWithVersion,
+        version: nextVersion,
+        name: data.name,
+        description: data.description,
+        gastosGeneralesPct,
+        beneficioPct,
+        gastosFinancierosPct,
+        ivaPct,
+        coeficienteK: k,
+        projectId: data.projectId,
+        organizationId,
+      },
+    });
+
+    try {
+      for (let catIdx = 0; catIdx < data.parsedBudget.categories.length; catIdx++) {
+        const cat = data.parsedBudget.categories[catIdx];
+        const category = await prisma.budgetCategory.create({
+          data: {
+            number: cat.number,
+            name: cat.name,
+            order: catIdx + 1,
+            budgetVersionId: version.id,
+          },
+        });
+
+        for (const stage of cat.stages) {
+          const hasSubItems = stage.items.length > 0;
+          const createdStage = await prisma.budgetStage.create({
+            data: {
+              number: stage.number,
+              description: stage.description,
+              unit: stage.unit || 'gl',
+              quantity: hasSubItems ? 1 : stage.quantity,
+              unitPrice: hasSubItems ? 0 : stage.unitPrice,
+              totalPrice: hasSubItems ? 0 : new Prisma.Decimal(stage.quantity * stage.unitPrice),
+              categoryId: category.id,
+            },
+          });
+
+          if (hasSubItems) {
+            for (const item of stage.items) {
+              const createdItem = await prisma.budgetItem.create({
+                data: {
+                  number: item.number,
+                  description: item.description,
+                  unit: item.unit || 'gl',
+                  quantity: item.quantity,
+                  unitPrice: item.unitPrice,
+                  totalPrice: new Prisma.Decimal(item.quantity * item.unitPrice),
+                  stageId: createdStage.id,
+                },
+              });
+              if (item.priceAnalysis) {
+                await this.createPriceAnalysisFromParsed(item.priceAnalysis, createdItem.id, organizationId);
+              }
+            }
+          } else {
+            // Etapa hoja: crear un BudgetItem espejo
+            const createdItem = await prisma.budgetItem.create({
+              data: {
+                number: stage.number,
+                description: stage.description,
+                unit: stage.unit || 'gl',
+                quantity: stage.quantity,
+                unitPrice: stage.unitPrice,
+                totalPrice: new Prisma.Decimal(stage.quantity * stage.unitPrice),
+                stageId: createdStage.id,
+              },
+            });
+            if (stage.priceAnalysis) {
+              await this.createPriceAnalysisFromParsed(stage.priceAnalysis, createdItem.id, organizationId);
+            }
+          }
+        }
+      }
+
+      await this.recalculateTotals(version.id);
+      return await this.findById(version.id, organizationId);
+    } catch (error) {
+      // Rollback: eliminar la versión (cascade elimina categorías, etapas, ítems, APUs)
+      await prisma.budgetVersion.delete({ where: { id: version.id } });
+      throw error;
+    }
   }
 
   async update(id: string, data: UpdateBudgetVersionInput, organizationId: string) {
