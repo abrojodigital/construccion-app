@@ -6,6 +6,8 @@ import {
   sendCreated,
   sendNoContent,
 } from '../../shared/utils/response';
+import { parseBuffer } from './excel-parser';
+import { ValidationError } from '../../shared/utils/errors';
 
 export class BudgetVersionsController {
   // ============================================
@@ -224,6 +226,39 @@ export class BudgetVersionsController {
     try {
       await budgetVersionsService.deleteItem(req.params.itemId, req.user!.organizationId);
       sendNoContent(res);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ============================================
+  // Importación desde Excel
+  // ============================================
+
+  async parseImport(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.file) {
+        throw new ValidationError('Se requiere un archivo Excel (.xlsx o .xls)');
+      }
+      const result = parseBuffer(req.file.buffer);
+      sendSuccess(res, result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async confirmImport(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const version = await budgetVersionsService.importFromParsed(
+        {
+          projectId: req.params.projectId,
+          name: req.body.name,
+          description: req.body.description,
+          parsedBudget: req.body.parsedBudget,
+        },
+        req.user!.organizationId
+      );
+      sendCreated(res, version);
     } catch (error) {
       next(error);
     }

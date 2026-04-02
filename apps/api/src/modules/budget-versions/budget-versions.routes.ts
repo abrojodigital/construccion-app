@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import multer from 'multer';
+import path from 'path';
 import { budgetVersionsController } from './budget-versions.controller';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { requirePermission } from '../../middleware/rbac.middleware';
@@ -14,12 +16,42 @@ import {
   updateBudgetItemSchema,
   budgetVersionQuerySchema,
   generateScheduleSchema,
+  confirmImportSchema,
 } from '@construccion/shared';
 
 const router: Router = Router({ mergeParams: true });
 
+const uploadExcel = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+  fileFilter: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (ext === '.xlsx' || ext === '.xls') {
+      cb(null, true);
+    } else {
+      cb(new Error('Formato no soportado. Solo se aceptan archivos .xlsx y .xls'));
+    }
+  },
+});
+
 // Todas las rutas requieren autenticación
 router.use(authMiddleware);
+
+// POST /projects/:projectId/budget-versions/import/parse — Parsear Excel (preview)
+router.post(
+  '/import/parse',
+  requirePermission('budget_versions', 'write'),
+  uploadExcel.single('file'),
+  budgetVersionsController.parseImport.bind(budgetVersionsController)
+);
+
+// POST /projects/:projectId/budget-versions/import/confirm — Confirmar importación
+router.post(
+  '/import/confirm',
+  requirePermission('budget_versions', 'write'),
+  validateBody(confirmImportSchema),
+  budgetVersionsController.confirmImport.bind(budgetVersionsController)
+);
 
 // ============================================
 // Versiones de Presupuesto
