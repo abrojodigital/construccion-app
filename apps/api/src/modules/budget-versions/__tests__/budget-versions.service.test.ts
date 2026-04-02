@@ -24,9 +24,13 @@ const { mockPrisma } = vi.hoisted(() => ({
       update: vi.fn(),
       updateMany: vi.fn(),
     },
-    budgetCategory: { findMany: vi.fn(), update: vi.fn() },
-    budgetStage: { findUnique: vi.fn(), update: vi.fn() },
-    budgetItem: { update: vi.fn() },
+    budgetCategory: { findMany: vi.fn(), create: vi.fn(), update: vi.fn() },
+    budgetStage: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
+    budgetItem: { create: vi.fn(), update: vi.fn() },
+    priceAnalysis: { create: vi.fn() },
+    analysisMaterial: { create: vi.fn() },
+    analysisLabor: { create: vi.fn() },
+    analysisTransport: { create: vi.fn() },
     project: { findFirst: vi.fn() },
     stage: { findMany: vi.fn(), findFirst: vi.fn(), create: vi.fn(), updateMany: vi.fn() },
     task: { updateMany: vi.fn(), create: vi.fn() },
@@ -54,6 +58,7 @@ vi.mock('@construccion/database', () => ({
 // Also mock code-generator to avoid its DB calls
 vi.mock('../../../shared/utils/code-generator', () => ({
   generateCode: vi.fn().mockResolvedValue('PRES-2025-00001'),
+  generateSimpleCode: vi.fn().mockResolvedValue('APU-00001'),
 }));
 
 // ---------------------------------------------------------------------------
@@ -293,5 +298,129 @@ describe('BudgetVersionsService.findById()', () => {
     mockPrisma.budgetVersion.findFirst.mockResolvedValue(null);
 
     await expect(service.findById(VERSION_ID, 'other-org')).rejects.toThrow(NotFoundError);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// importFromParsed
+// ---------------------------------------------------------------------------
+
+describe('BudgetVersionsService.importFromParsed', () => {
+  const orgId = 'org-1';
+  const projectId = 'proj-1';
+
+  const minimalParsed = {
+    coeficienteK: { gastosGeneralesPct: 0.10, beneficioPct: 0.08, gastosFinancierosPct: 0, ivaPct: 0.21 },
+    categories: [
+      {
+        number: 1,
+        name: 'TRABAJOS PRELIMINARES',
+        stages: [
+          {
+            number: 'A.1',
+            description: 'Cartel de obra',
+            unit: 'gl',
+            quantity: 1,
+            unitPrice: 100000,
+            items: [],
+            priceAnalysis: undefined,
+          },
+        ],
+      },
+    ],
+    advertencias: [],
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Reset mock implementations that accumulate across tests
+    mockPrisma.budgetVersion.findFirst.mockReset();
+    mockPrisma.project.findFirst.mockReset();
+    // Mock project exists
+    mockPrisma.project.findFirst.mockResolvedValue({ id: projectId });
+    // Mock version create
+    mockPrisma.budgetVersion.create.mockResolvedValue({ id: 'ver-1', code: 'PRES-2025-00001-v1' });
+    // Mock category create
+    mockPrisma.budgetCategory.create.mockResolvedValue({ id: 'cat-1' });
+    // Mock stage create
+    mockPrisma.budgetStage.create.mockResolvedValue({ id: 'stage-1' });
+    // Mock item create
+    mockPrisma.budgetItem.create.mockResolvedValue({ id: 'item-1' });
+    // Mock recalculate internals
+    mockPrisma.budgetCategory.findMany.mockResolvedValue([
+      { id: 'cat-1', stages: [{ id: 'stage-1', items: [{ id: 'item-1', quantity: 1, unitPrice: 100000 }], quantity: 1, unitPrice: 100000 }] },
+    ]);
+    mockPrisma.budgetItem.update.mockResolvedValue({});
+    mockPrisma.budgetStage.update.mockResolvedValue({});
+    mockPrisma.budgetCategory.update.mockResolvedValue({});
+    mockPrisma.budgetVersion.update.mockResolvedValue({});
+    mockPrisma.budgetStage.findUnique.mockResolvedValue({ totalPrice: 100000 });
+    mockPrisma.budgetVersion.findUnique.mockResolvedValue(null);
+    // Mock findById (used at the end of importFromParsed)
+    // The service calls budgetVersion.findFirst twice:
+    // 1) lastVersion check → null (no previous version)
+    // 2) findById at the end → full version object
+    mockPrisma.budgetVersion.findFirst
+      .mockResolvedValueOnce(null)  // lastVersion check → no previous version
+      .mockResolvedValue({          // findById → return full version
+        id: 'ver-1',
+        categories: [],
+        project: { id: projectId, code: 'OBR-001', name: 'Test' },
+      });
+  });
+
+  it('lanza ValidationError si hay más de 500 ítems', async () => {
+    const service = new BudgetVersionsService();
+    const manyItems = Array.from({ length: 502 }, (_, i) => ({
+      number: `A.${i + 1}`,
+      description: `Ítem ${i + 1}`,
+      unit: 'gl',
+      quantity: 1,
+      unitPrice: 1000,
+      items: [],
+    }));
+    const bigParsed = {
+      ...minimalParsed,
+      categories: [{ number: 1, name: 'CAP', stages: manyItems }],
+    };
+
+    await expect(
+      service.importFromParsed({ projectId, name: 'Test', parsedBudget: bigParsed }, orgId)
+    ).rejects.toThrow(ValidationError);
+  });
+
+  it('lanza NotFoundError si el proyecto no existe', async () => {
+    mockPrisma.project.findFirst.mockResolvedValue(null);
+    const service = new BudgetVersionsService();
+    await expect(
+      service.importFromParsed({ projectId, name: 'Test', parsedBudget: minimalParsed }, orgId)
+    ).rejects.toThrow(NotFoundError);
+  });
+
+  it('crea BudgetVersion con los datos de K correctos', async () => {
+    const service = new BudgetVersionsService();
+    await service.importFromParsed({ projectId, name: 'Importado', parsedBudget: minimalParsed }, orgId);
+
+    expect(mockPrisma.budgetVersion.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          name: 'Importado',
+          gastosGeneralesPct: 0.10,
+          beneficioPct: 0.08,
+          ivaPct: 0.21,
+          projectId,
+          organizationId: orgId,
+        }),
+      })
+    );
+  });
+
+  it('crea categorías, etapas e ítems', async () => {
+    const service = new BudgetVersionsService();
+    await service.importFromParsed({ projectId, name: 'Test', parsedBudget: minimalParsed }, orgId);
+
+    expect(mockPrisma.budgetCategory.create).toHaveBeenCalledTimes(1);
+    expect(mockPrisma.budgetStage.create).toHaveBeenCalledTimes(1);
+    expect(mockPrisma.budgetItem.create).toHaveBeenCalledTimes(1);
   });
 });
