@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Plus,
@@ -50,6 +51,8 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { api } from '@/lib/api';
 import { BudgetVersionForm } from '@/components/forms/budget-version-form';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ImportBudgetVersionDialog } from '@/components/forms/import-budget-version-dialog';
 import { formatCurrency } from '@/lib/utils';
 import { BUDGET_VERSION_STATUS_LABELS, BUDGET_VERSION_STATUS_COLORS } from '@construccion/shared';
 import { toast } from 'sonner';
@@ -93,6 +96,7 @@ export default function BudgetVersionsPage() {
   const params = useParams();
   const projectId = params.id as string;
   const queryClient = useQueryClient();
+  const router = useRouter();
   const [page, setPage] = useState(1);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -279,19 +283,43 @@ export default function BudgetVersionsPage() {
 
       {/* Create Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Nueva Version de Presupuesto</DialogTitle>
+            <DialogTitle>Nueva Versión de Presupuesto</DialogTitle>
           </DialogHeader>
-          <BudgetVersionForm
-            projectId={projectId}
-            onSuccess={() => {
-              setCreateDialogOpen(false);
-              queryClient.invalidateQueries({ queryKey: ['budget-versions', projectId] });
-              toast.success('Version creada correctamente');
-            }}
-            onCancel={() => setCreateDialogOpen(false)}
-          />
+          <Tabs defaultValue="manual">
+            <TabsList className="w-full mb-4">
+              <TabsTrigger value="manual" className="flex-1">
+                Crear manualmente
+              </TabsTrigger>
+              <TabsTrigger value="import" className="flex-1">
+                Importar desde Excel
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="manual">
+              <BudgetVersionForm
+                projectId={projectId}
+                onSuccess={() => {
+                  setCreateDialogOpen(false);
+                  queryClient.invalidateQueries({ queryKey: ['budget-versions', projectId] });
+                  toast.success('Versión creada correctamente');
+                }}
+                onCancel={() => setCreateDialogOpen(false)}
+              />
+            </TabsContent>
+            <TabsContent value="import">
+              <ImportBudgetVersionDialog
+                projectId={projectId}
+                onSuccess={(versionId) => {
+                  setCreateDialogOpen(false);
+                  queryClient.invalidateQueries({ queryKey: ['budget-versions', projectId] });
+                  toast.success('Presupuesto importado correctamente');
+                  router.push(`/projects/${projectId}/budget-versions/${versionId}`);
+                }}
+                onCancel={() => setCreateDialogOpen(false)}
+              />
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
 
