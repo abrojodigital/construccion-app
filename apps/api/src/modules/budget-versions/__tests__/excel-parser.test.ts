@@ -69,6 +69,7 @@ describe('findHeaderRow', () => {
     ];
     const result = findHeaderRow(rows);
     expect(result).not.toBeNull();
+    expect(result!.rowIdx).toBe(0);
     expect(result!.cols.priceCol).toBe(5);
   });
 
@@ -151,19 +152,18 @@ describe('parseApuSheet', () => {
 // ============================================
 
 describe('parseItemsSheet — 3 niveles', () => {
-  const apuMap = new Map();
-  const ws = makeSheet([
-    ['', '', 'ITEM', 'DESCRIPCIÓN', 'Unidad', 'Cantidad', 'Precio Unitario', 'Importe'],
-    ['', '', 'RUBRO A: TRABAJOS PRELIMINARES'],
-    ['', 1, 'A.1', 'Cartel de obra', 'gl', 1, 3290527, 3290527],
-    ['', '', 'RUBRO B: COLECTOR CLOACAL'],
-    ['', '', 'B.1', 'Excavación de zanja'],
-    ['', 2, 'B.1.1', 'A cielo abierto hasta 2,5m', 'm3', 100, 50000, 5000000],
-    ['', 3, 'B.1.2', 'Entre 2,5 y 4m', 'm3', 200, 60000, 12000000],
-    ['', '', 'SUBTOTAL RUBRO B', '', '', '', '', 17000000],
-  ]);
-
   it('crea categorías correctamente', () => {
+    const apuMap = new Map();
+    const ws = makeSheet([
+      ['', '', 'ITEM', 'DESCRIPCIÓN', 'Unidad', 'Cantidad', 'Precio Unitario', 'Importe'],
+      ['', '', 'RUBRO A: TRABAJOS PRELIMINARES'],
+      ['', 1, 'A.1', 'Cartel de obra', 'gl', 1, 3290527, 3290527],
+      ['', '', 'RUBRO B: COLECTOR CLOACAL'],
+      ['', '', 'B.1', 'Excavación de zanja'],
+      ['', 2, 'B.1.1', 'A cielo abierto hasta 2,5m', 'm3', 100, 50000, 5000000],
+      ['', 3, 'B.1.2', 'Entre 2,5 y 4m', 'm3', 200, 60000, 12000000],
+      ['', '', 'SUBTOTAL RUBRO B', '', '', '', '', 17000000],
+    ]);
     const { categories } = parseItemsSheet(ws, apuMap);
     expect(categories).toHaveLength(2);
     expect(categories[0].name).toBe('RUBRO A: TRABAJOS PRELIMINARES');
@@ -171,6 +171,17 @@ describe('parseItemsSheet — 3 niveles', () => {
   });
 
   it('crea etapa hoja (leaf stage) para ítems directos', () => {
+    const apuMap = new Map();
+    const ws = makeSheet([
+      ['', '', 'ITEM', 'DESCRIPCIÓN', 'Unidad', 'Cantidad', 'Precio Unitario', 'Importe'],
+      ['', '', 'RUBRO A: TRABAJOS PRELIMINARES'],
+      ['', 1, 'A.1', 'Cartel de obra', 'gl', 1, 3290527, 3290527],
+      ['', '', 'RUBRO B: COLECTOR CLOACAL'],
+      ['', '', 'B.1', 'Excavación de zanja'],
+      ['', 2, 'B.1.1', 'A cielo abierto hasta 2,5m', 'm3', 100, 50000, 5000000],
+      ['', 3, 'B.1.2', 'Entre 2,5 y 4m', 'm3', 200, 60000, 12000000],
+      ['', '', 'SUBTOTAL RUBRO B', '', '', '', '', 17000000],
+    ]);
     const { categories } = parseItemsSheet(ws, apuMap);
     const stageA1 = categories[0].stages[0];
     expect(stageA1.number).toBe('A.1');
@@ -180,6 +191,17 @@ describe('parseItemsSheet — 3 niveles', () => {
   });
 
   it('crea etapa grupo con sub-ítems para ítems de 2 niveles', () => {
+    const apuMap = new Map();
+    const ws = makeSheet([
+      ['', '', 'ITEM', 'DESCRIPCIÓN', 'Unidad', 'Cantidad', 'Precio Unitario', 'Importe'],
+      ['', '', 'RUBRO A: TRABAJOS PRELIMINARES'],
+      ['', 1, 'A.1', 'Cartel de obra', 'gl', 1, 3290527, 3290527],
+      ['', '', 'RUBRO B: COLECTOR CLOACAL'],
+      ['', '', 'B.1', 'Excavación de zanja'],
+      ['', 2, 'B.1.1', 'A cielo abierto hasta 2,5m', 'm3', 100, 50000, 5000000],
+      ['', 3, 'B.1.2', 'Entre 2,5 y 4m', 'm3', 200, 60000, 12000000],
+      ['', '', 'SUBTOTAL RUBRO B', '', '', '', '', 17000000],
+    ]);
     const { categories } = parseItemsSheet(ws, apuMap);
     const stageB1 = categories[1].stages[0];
     expect(stageB1.number).toBe('B.1');
@@ -189,6 +211,17 @@ describe('parseItemsSheet — 3 niveles', () => {
   });
 
   it('ignora filas de subtotal', () => {
+    const apuMap = new Map();
+    const ws = makeSheet([
+      ['', '', 'ITEM', 'DESCRIPCIÓN', 'Unidad', 'Cantidad', 'Precio Unitario', 'Importe'],
+      ['', '', 'RUBRO A: TRABAJOS PRELIMINARES'],
+      ['', 1, 'A.1', 'Cartel de obra', 'gl', 1, 3290527, 3290527],
+      ['', '', 'RUBRO B: COLECTOR CLOACAL'],
+      ['', '', 'B.1', 'Excavación de zanja'],
+      ['', 2, 'B.1.1', 'A cielo abierto hasta 2,5m', 'm3', 100, 50000, 5000000],
+      ['', 3, 'B.1.2', 'Entre 2,5 y 4m', 'm3', 200, 60000, 12000000],
+      ['', '', 'SUBTOTAL RUBRO B', '', '', '', '', 17000000],
+    ]);
     const { categories } = parseItemsSheet(ws, apuMap);
     const allStages = categories.flatMap((c) => c.stages);
     expect(allStages.every((s) => !s.description.toLowerCase().includes('subtotal'))).toBe(true);
@@ -200,24 +233,33 @@ describe('parseItemsSheet — 3 niveles', () => {
 // ============================================
 
 describe('parseItemsSheet — 2 niveles', () => {
-  const apuMap = new Map();
-  const ws = makeSheet([
-    ['', 'N° Item', 'Designación', 'Unidad', 'Cantidad', 'Precio', '', '$'],
-    ['', '', '', '', '', 'Unitario', 'Parcial', 'item'],
-    ['', '10', 'TAREAS PRELIMINARES', '', '', '', '', 14266],
-    ['', '10,1', 'Replanteo platea', 'm2', 44.6, 319.88, 14266, ''],
-    ['', '20', 'FUNDACIONES', '', '', '', '', 1011035],
-    ['', '20,1', 'Excavacion para zanjas', 'm3', 5.29, 7031.77, 37198, ''],
-    ['', '20,2', 'Film de polietileno', 'm2', 57, 311.52, 17756, ''],
-  ]);
-
   it('crea 2 categorías', () => {
+    const apuMap = new Map();
+    const ws = makeSheet([
+      ['', 'N° Item', 'Designación', 'Unidad', 'Cantidad', 'Precio', '', '$'],
+      ['', '', '', '', '', 'Unitario', 'Parcial', 'item'],
+      ['', '10', 'TAREAS PRELIMINARES', '', '', '', '', 14266],
+      ['', '10,1', 'Replanteo platea', 'm2', 44.6, 319.88, 14266, ''],
+      ['', '20', 'FUNDACIONES', '', '', '', '', 1011035],
+      ['', '20,1', 'Excavacion para zanjas', 'm3', 5.29, 7031.77, 37198, ''],
+      ['', '20,2', 'Film de polietileno', 'm2', 57, 311.52, 17756, ''],
+    ]);
     const { categories } = parseItemsSheet(ws, apuMap);
     expect(categories).toHaveLength(2);
     expect(categories[0].name).toBe('TAREAS PRELIMINARES');
   });
 
   it('crea ítems como leaf stages', () => {
+    const apuMap = new Map();
+    const ws = makeSheet([
+      ['', 'N° Item', 'Designación', 'Unidad', 'Cantidad', 'Precio', '', '$'],
+      ['', '', '', '', '', 'Unitario', 'Parcial', 'item'],
+      ['', '10', 'TAREAS PRELIMINARES', '', '', '', '', 14266],
+      ['', '10,1', 'Replanteo platea', 'm2', 44.6, 319.88, 14266, ''],
+      ['', '20', 'FUNDACIONES', '', '', '', '', 1011035],
+      ['', '20,1', 'Excavacion para zanjas', 'm3', 5.29, 7031.77, 37198, ''],
+      ['', '20,2', 'Film de polietileno', 'm2', 57, 311.52, 17756, ''],
+    ]);
     const { categories } = parseItemsSheet(ws, apuMap);
     expect(categories[0].stages).toHaveLength(1);
     expect(categories[0].stages[0].number).toBe('10,1');
