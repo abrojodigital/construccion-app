@@ -9,7 +9,7 @@ import { api } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
 import type { ParsedBudget, ParsedCoeficienteK } from '@construccion/shared';
 
-type Step = 'upload' | 'parsing' | 'preview' | 'confirming';
+type Step = 'upload' | 'parsing' | 'preview';
 
 interface ImportBudgetVersionDialogProps {
   projectId: string;
@@ -73,6 +73,11 @@ export function ImportBudgetVersionDialog({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (f) {
+      const ext = f.name.split('.').pop()?.toLowerCase();
+      if (ext !== 'xlsx' && ext !== 'xls') {
+        setError('Formato no soportado. Solo se aceptan archivos .xlsx y .xls');
+        return;
+      }
       setFile(f);
       setVersionName(f.name.replace(/\.(xlsx?|xls)$/i, ''));
       setError(null);
@@ -432,10 +437,7 @@ export function ImportBudgetVersionDialog({
             Volver
           </Button>
           <Button
-            onClick={() => {
-              setStep('confirming');
-              confirmMutation.mutate();
-            }}
+            onClick={() => confirmMutation.mutate()}
             disabled={confirmMutation.isPending}
           >
             {confirmMutation.isPending ? (
@@ -452,11 +454,5 @@ export function ImportBudgetVersionDialog({
     );
   }
 
-  // step === 'confirming' — spinner de espera mientras la mutación termina
-  return (
-    <div className="flex flex-col items-center justify-center py-12 gap-3">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      <p className="text-sm text-muted-foreground">Creando versión de presupuesto...</p>
-    </div>
-  );
+  return null;
 }

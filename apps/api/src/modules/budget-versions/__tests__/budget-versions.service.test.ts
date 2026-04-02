@@ -353,6 +353,10 @@ describe('BudgetVersionsService.importFromParsed', () => {
     mockPrisma.budgetVersion.update.mockResolvedValue({});
     mockPrisma.budgetStage.findUnique.mockResolvedValue({ totalPrice: 100000 });
     mockPrisma.budgetVersion.findUnique.mockResolvedValue(null);
+    // Mock $transaction: execute the callback with mockPrisma as tx and return its result
+    mockPrisma.$transaction.mockImplementation((fn: (tx: typeof mockPrisma) => Promise<any>) =>
+      fn(mockPrisma)
+    );
     // Mock findById (used at the end of importFromParsed)
     // The service calls budgetVersion.findFirst twice:
     // 1) lastVersion check → null (no previous version)

@@ -574,7 +574,7 @@ model PriceAnalysis {
   totalDirect     Decimal @default(0) @db.Decimal(15, 2) // A+B+C+D+E+F
 
   budgetItemId String     @unique
-  budgetItem   BudgetItem @relation(fields: [budgetItemId], references: [id])
+  budgetItem   BudgetItem @relation(fields: [budgetItemId], references: [id], onDelete: Cascade)
 
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])

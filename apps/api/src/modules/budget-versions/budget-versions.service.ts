@@ -212,15 +212,16 @@ export class BudgetVersionsService {
   private async createPriceAnalysisFromParsed(
     data: ParsedPriceAnalysis,
     budgetItemId: string,
-    organizationId: string
+    organizationId: string,
+    code: string,
+    tx: Prisma.TransactionClient
   ): Promise<void> {
-    const code = await generateSimpleCode('priceAnalysis', organizationId);
-    const pa = await prisma.priceAnalysis.create({
+    const pa = await tx.priceAnalysis.create({
       data: { code, budgetItemId, organizationId },
     });
 
     for (const mat of data.materials) {
-      await prisma.analysisMaterial.create({
+      await tx.analysisMaterial.create({
         data: {
           description: mat.description,
           unit: mat.unit,
@@ -234,7 +235,7 @@ export class BudgetVersionsService {
     }
 
     for (const lab of data.labor) {
-      await prisma.analysisLabor.create({
+      await tx.analysisLabor.create({
         data: {
           category: lab.category,
           quantity: lab.quantity,
@@ -246,7 +247,7 @@ export class BudgetVersionsService {
     }
 
     for (const tr of data.transport) {
-      await prisma.analysisTransport.create({
+      await tx.analysisTransport.create({
         data: {
           description: tr.description,
           unit: tr.unit,
@@ -406,42 +407,56 @@ export class BudgetVersionsService {
     const code = await generateCode('budgetVersion', organizationId);
     const codeWithVersion = `${code}-v${nextVersion}`;
 
+    // Pre-generar códigos APU fuera de la transacción
+    const apuCount = data.parsedBudget.categories
+      .flatMap((c) => c.stages)
+      .reduce((sum, s) => {
+        const stageApu = s.priceAnalysis && s.items.length === 0 ? 1 : 0;
+        const itemApus = s.items.filter((i) => i.priceAnalysis).length;
+        return sum + stageApu + itemApus;
+      }, 0);
+    const apuCodes: string[] = [];
+    for (let i = 0; i < apuCount; i++) {
+      apuCodes.push(await generateSimpleCode('priceAnalysis', organizationId));
+    }
+    let apuCodeIdx = 0;
+
     const { gastosGeneralesPct, beneficioPct, gastosFinancierosPct, ivaPct } =
       data.parsedBudget.coeficienteK;
     const k = this.calculateK(gastosGeneralesPct, beneficioPct, gastosFinancierosPct, ivaPct);
 
-    // Crear BudgetVersion
-    const version = await prisma.budgetVersion.create({
-      data: {
-        code: codeWithVersion,
-        version: nextVersion,
-        name: data.name,
-        description: data.description,
-        gastosGeneralesPct,
-        beneficioPct,
-        gastosFinancierosPct,
-        ivaPct,
-        coeficienteK: k,
-        projectId: data.projectId,
-        organizationId,
-      },
-    });
+    // Ejecutar toda la creación en una sola transacción
+    const version = await prisma.$transaction(async (tx) => {
+      const ver = await tx.budgetVersion.create({
+        data: {
+          code: codeWithVersion,
+          version: nextVersion,
+          name: data.name,
+          description: data.description,
+          gastosGeneralesPct,
+          beneficioPct,
+          gastosFinancierosPct,
+          ivaPct,
+          coeficienteK: k,
+          projectId: data.projectId,
+          organizationId,
+        },
+      });
 
-    try {
       for (let catIdx = 0; catIdx < data.parsedBudget.categories.length; catIdx++) {
         const cat = data.parsedBudget.categories[catIdx];
-        const category = await prisma.budgetCategory.create({
+        const category = await tx.budgetCategory.create({
           data: {
             number: cat.number,
             name: cat.name,
             order: catIdx + 1,
-            budgetVersionId: version.id,
+            budgetVersionId: ver.id,
           },
         });
 
         for (const stage of cat.stages) {
           const hasSubItems = stage.items.length > 0;
-          const createdStage = await prisma.budgetStage.create({
+          const createdStage = await tx.budgetStage.create({
             data: {
               number: stage.number,
               description: stage.description,
@@ -455,7 +470,7 @@ export class BudgetVersionsService {
 
           if (hasSubItems) {
             for (const item of stage.items) {
-              const createdItem = await prisma.budgetItem.create({
+              const createdItem = await tx.budgetItem.create({
                 data: {
                   number: item.number,
                   description: item.description,
@@ -467,12 +482,18 @@ export class BudgetVersionsService {
                 },
               });
               if (item.priceAnalysis) {
-                await this.createPriceAnalysisFromParsed(item.priceAnalysis, createdItem.id, organizationId);
+                await this.createPriceAnalysisFromParsed(
+                  item.priceAnalysis,
+                  createdItem.id,
+                  organizationId,
+                  apuCodes[apuCodeIdx++],
+                  tx
+                );
               }
             }
           } else {
             // Etapa hoja: crear un BudgetItem espejo
-            const createdItem = await prisma.budgetItem.create({
+            const createdItem = await tx.budgetItem.create({
               data: {
                 number: stage.number,
                 description: stage.description,
@@ -484,23 +505,23 @@ export class BudgetVersionsService {
               },
             });
             if (stage.priceAnalysis) {
-              await this.createPriceAnalysisFromParsed(stage.priceAnalysis, createdItem.id, organizationId);
+              await this.createPriceAnalysisFromParsed(
+                stage.priceAnalysis,
+                createdItem.id,
+                organizationId,
+                apuCodes[apuCodeIdx++],
+                tx
+              );
             }
           }
         }
       }
 
-      await this.recalculateTotals(version.id);
-      return await this.findById(version.id, organizationId);
-    } catch (error) {
-      // Rollback: eliminar la versión (cascade elimina categorías, etapas, ítems, APUs)
-      try {
-        await prisma.budgetVersion.delete({ where: { id: version.id } });
-      } catch {
-        // ignorar error de rollback; el error original se propaga
-      }
-      throw error;
-    }
+      return ver;
+    }, { timeout: 30000 });
+
+    await this.recalculateTotals(version.id);
+    return await this.findById(version.id, organizationId);
   }
 
   async update(id: string, data: UpdateBudgetVersionInput, organizationId: string) {

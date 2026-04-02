@@ -65,6 +65,12 @@ export function errorMiddleware(
 
   // Handle multer errors (file upload)
   if (error instanceof multer.MulterError) {
+    if (error.code === 'LIMIT_UNEXPECTED_FILE') {
+      return sendError(res, 415, {
+        code: 'UNSUPPORTED_MEDIA_TYPE',
+        message: error.message || 'Formato no soportado. Solo se aceptan archivos .xlsx y .xls',
+      });
+    }
     const message =
       error.code === 'LIMIT_FILE_SIZE'
         ? 'El archivo supera el límite de 10 MB'
