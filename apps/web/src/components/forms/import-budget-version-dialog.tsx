@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, Fragment } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
 import { Upload, AlertTriangle, Loader2, FileSpreadsheet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -82,6 +81,10 @@ export function ImportBudgetVersionDialog({
 
   const handleAnalyze = () => {
     if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      setError('El archivo supera el límite de 10 MB');
+      return;
+    }
     setError(null);
     setStep('parsing');
     parseMutation.mutate(file);
@@ -154,7 +157,10 @@ export function ImportBudgetVersionDialog({
 
         <div
           className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
+          role="button"
+          tabIndex={0}
           onClick={() => fileInputRef.current?.click()}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click(); }}
         >
           <FileSpreadsheet className="h-10 w-10 mx-auto mb-2 text-muted-foreground" />
           <p className="text-sm font-medium">
@@ -172,8 +178,9 @@ export function ImportBudgetVersionDialog({
 
         {file && (
           <div className="space-y-2">
-            <label className="text-sm font-medium">Nombre de la versión</label>
+            <label htmlFor="version-name" className="text-sm font-medium">Nombre de la versión</label>
             <Input
+              id="version-name"
               value={versionName}
               onChange={(e) => setVersionName(e.target.value)}
               placeholder="Presupuesto Base v1"
@@ -241,8 +248,9 @@ export function ImportBudgetVersionDialog({
               ] as [keyof ParsedCoeficienteK, string][]
             ).map(([field, label]) => (
               <div key={field} className="space-y-1">
-                <label className="text-xs text-muted-foreground">{label}</label>
+                <label htmlFor={`k-field-${field}`} className="text-xs text-muted-foreground">{label}</label>
                 <Input
+                  id={`k-field-${field}`}
                   type="number"
                   step="0.0001"
                   min="0"
@@ -276,9 +284,9 @@ export function ImportBudgetVersionDialog({
               </thead>
               <tbody>
                 {parsedBudget.categories.map((cat, catIdx) => (
-                  <>
+                  <Fragment key={`cat-${catIdx}`}>
                     {/* Fila categoría */}
-                    <tr key={`cat-${catIdx}`} className="bg-slate-100 font-medium">
+                    <tr className="bg-slate-100 font-medium">
                       <td className="p-2 text-slate-600">{cat.number}</td>
                       <td className="p-2 uppercase text-slate-700" colSpan={5}>
                         {cat.name}
@@ -286,11 +294,11 @@ export function ImportBudgetVersionDialog({
                     </tr>
 
                     {cat.stages.map((stage, stageIdx) => (
-                      <>
+                      <Fragment key={`stage-${catIdx}-${stageIdx}`}>
                         {stage.items.length > 0 ? (
                           /* Fila de etapa grupo (sin precio) */
                           <>
-                            <tr key={`stage-${catIdx}-${stageIdx}`} className="bg-slate-50">
+                            <tr className="bg-slate-50">
                               <td className="p-2 font-medium text-slate-600">{stage.number}</td>
                               <td className="p-2 font-medium text-slate-600" colSpan={5}>
                                 {stage.description}
@@ -304,6 +312,7 @@ export function ImportBudgetVersionDialog({
                                 <td className="p-1 pl-6 text-slate-500">{item.number}</td>
                                 <td className="p-1">
                                   <input
+                                    aria-label={`Descripción de ${item.number}`}
                                     className="w-full bg-transparent outline-none focus:bg-white focus:border focus:border-primary rounded px-1"
                                     value={item.description}
                                     onChange={(e) => updateItem(catIdx, stageIdx, itemIdx, 'description', e.target.value)}
@@ -311,6 +320,7 @@ export function ImportBudgetVersionDialog({
                                 </td>
                                 <td className="p-1">
                                   <input
+                                    aria-label={`Unidad de ${item.number}`}
                                     className="w-full bg-transparent outline-none focus:bg-white focus:border focus:border-primary rounded px-1 text-center"
                                     value={item.unit}
                                     onChange={(e) => updateItem(catIdx, stageIdx, itemIdx, 'unit', e.target.value)}
@@ -319,6 +329,7 @@ export function ImportBudgetVersionDialog({
                                 <td className="p-1 text-right">
                                   <input
                                     type="number"
+                                    aria-label={`Cantidad de ${item.number}`}
                                     className="w-full bg-transparent outline-none focus:bg-white focus:border focus:border-primary rounded px-1 text-right"
                                     value={item.quantity}
                                     onChange={(e) => updateItem(catIdx, stageIdx, itemIdx, 'quantity', parseFloat(e.target.value) || 0)}
@@ -327,6 +338,7 @@ export function ImportBudgetVersionDialog({
                                 <td className="p-1 text-right">
                                   <input
                                     type="number"
+                                    aria-label={`Precio unitario de ${item.number}`}
                                     className="w-full bg-transparent outline-none focus:bg-white focus:border focus:border-primary rounded px-1 text-right"
                                     value={item.unitPrice}
                                     onChange={(e) => updateItem(catIdx, stageIdx, itemIdx, 'unitPrice', parseFloat(e.target.value) || 0)}
@@ -340,10 +352,11 @@ export function ImportBudgetVersionDialog({
                           </>
                         ) : (
                           /* Fila etapa hoja (leaf) */
-                          <tr key={`stage-${catIdx}-${stageIdx}`} className="border-t hover:bg-muted/30">
+                          <tr className="border-t hover:bg-muted/30">
                             <td className="p-1">{stage.number}</td>
                             <td className="p-1">
                               <input
+                                aria-label={`Descripción de ${stage.number}`}
                                 className="w-full bg-transparent outline-none focus:bg-white focus:border focus:border-primary rounded px-1"
                                 value={stage.description}
                                 onChange={(e) => updateStage(catIdx, stageIdx, 'description', e.target.value)}
@@ -351,6 +364,7 @@ export function ImportBudgetVersionDialog({
                             </td>
                             <td className="p-1">
                               <input
+                                aria-label={`Unidad de ${stage.number}`}
                                 className="w-full bg-transparent outline-none focus:bg-white focus:border focus:border-primary rounded px-1 text-center"
                                 value={stage.unit}
                                 onChange={(e) => updateStage(catIdx, stageIdx, 'unit', e.target.value)}
@@ -359,6 +373,7 @@ export function ImportBudgetVersionDialog({
                             <td className="p-1 text-right">
                               <input
                                 type="number"
+                                aria-label={`Cantidad de ${stage.number}`}
                                 className="w-full bg-transparent outline-none focus:bg-white focus:border focus:border-primary rounded px-1 text-right"
                                 value={stage.quantity}
                                 onChange={(e) => updateStage(catIdx, stageIdx, 'quantity', parseFloat(e.target.value) || 0)}
@@ -367,6 +382,7 @@ export function ImportBudgetVersionDialog({
                             <td className="p-1 text-right">
                               <input
                                 type="number"
+                                aria-label={`Precio unitario de ${stage.number}`}
                                 className="w-full bg-transparent outline-none focus:bg-white focus:border focus:border-primary rounded px-1 text-right"
                                 value={stage.unitPrice}
                                 onChange={(e) => updateStage(catIdx, stageIdx, 'unitPrice', parseFloat(e.target.value) || 0)}
@@ -377,9 +393,9 @@ export function ImportBudgetVersionDialog({
                             </td>
                           </tr>
                         )}
-                      </>
+                      </Fragment>
                     ))}
-                  </>
+                  </Fragment>
                 ))}
               </tbody>
             </table>
