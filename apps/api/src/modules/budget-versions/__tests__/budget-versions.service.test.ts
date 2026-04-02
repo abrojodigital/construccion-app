@@ -332,10 +332,7 @@ describe('BudgetVersionsService.importFromParsed', () => {
   };
 
   beforeEach(() => {
-    vi.clearAllMocks();
-    // Reset mock implementations that accumulate across tests
-    mockPrisma.budgetVersion.findFirst.mockReset();
-    mockPrisma.project.findFirst.mockReset();
+    vi.resetAllMocks();
     // Mock project exists
     mockPrisma.project.findFirst.mockResolvedValue({ id: projectId });
     // Mock version create
@@ -422,5 +419,16 @@ describe('BudgetVersionsService.importFromParsed', () => {
     expect(mockPrisma.budgetCategory.create).toHaveBeenCalledTimes(1);
     expect(mockPrisma.budgetStage.create).toHaveBeenCalledTimes(1);
     expect(mockPrisma.budgetItem.create).toHaveBeenCalledTimes(1);
+
+    expect(mockPrisma.budgetCategory.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ name: 'TRABAJOS PRELIMINARES', budgetVersionId: 'ver-1' }),
+      })
+    );
+    expect(mockPrisma.budgetStage.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ number: 'A.1', description: 'Cartel de obra', categoryId: 'cat-1' }),
+      })
+    );
   });
 });
