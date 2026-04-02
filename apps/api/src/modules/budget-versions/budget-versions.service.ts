@@ -416,8 +416,14 @@ export class BudgetVersionsService {
         return sum + stageApu + itemApus;
       }, 0);
     const apuCodes: string[] = [];
-    for (let i = 0; i < apuCount; i++) {
-      apuCodes.push(await generateSimpleCode('priceAnalysis', organizationId));
+    if (apuCount > 0) {
+      const firstApuCode = await generateSimpleCode('priceAnalysis', organizationId);
+      apuCodes.push(firstApuCode);
+      const prefix = firstApuCode.replace(/\d+$/, '');
+      const baseNum = parseInt(firstApuCode.match(/\d+$/)?.[0] ?? '1', 10);
+      for (let i = 1; i < apuCount; i++) {
+        apuCodes.push(`${prefix}${String(baseNum + i).padStart(5, '0')}`);
+      }
     }
     let apuCodeIdx = 0;
 
