@@ -39,7 +39,7 @@ Turborepo monorepo with pnpm workspaces. Four packages:
 
 - **`apps/api`** (`@construccion/api`) — Express 4.18 REST API on port 3001
 - **`apps/web`** (`@construccion/web`) — Next.js 14 App Router on port 3000
-- **`packages/database`** (`@construccion/database`) — Prisma schema (51 models), client export, seed script (2300+ LOC)
+- **`packages/database`** (`@construccion/database`) — Prisma schema (57 models), client export, seed script (2300+ LOC)
 - **`packages/shared`** (`@construccion/shared`) — Zod validators (64 schemas), TypeScript types, constants, utils
 
 ### Project Metrics
@@ -47,7 +47,7 @@ Turborepo monorepo with pnpm workspaces. Four packages:
 | Metric | Count |
 |--------|-------|
 | Total LOC (apps) | ~30,500 |
-| Prisma Models | 51 |
+| Prisma Models | 57 |
 | Zod Validators | 64 |
 | Frontend Pages | 48 |
 | Frontend Forms | 24 |
@@ -157,7 +157,7 @@ Validators are shared between frontend (form validation) and backend (request va
 
 ### Database (packages/database)
 
-Schema at `prisma/schema.prisma` (51 models, 1580 LOC).
+Schema at `prisma/schema.prisma` (57 models, 1845 LOC).
 
 **Core entities:** Organization → User → Project → Stage → Task
 

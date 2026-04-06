@@ -64,29 +64,30 @@
 | 31 | `Budget` | Gastos | Presupuesto operativo por categoría |
 | 32 | `ExpenseCategory` | Gastos | Categoría de gasto |
 | 33 | `Expense` | Gastos | Gasto registrado |
-| 34 | `PurchaseOrder` | Compras | Orden de compra |
-| 35 | `PurchaseOrderItem` | Compras | Línea de OC |
-| 36 | `Supplier` | Proveedores | Proveedor con datos fiscales argentinos |
-| 37 | `MaterialCategory` | Materiales | Categoría de material (árbol) |
-| 38 | `Material` | Materiales | Material con stock |
-| 39 | `SupplierMaterial` | Materiales | Precio de material por proveedor |
-| 40 | `StockMovement` | Materiales | Movimiento de stock |
-| 41 | `Quote` | Cotizaciones | Cotización a proveedor |
-| 42 | `QuoteItem` | Cotizaciones | Línea de cotización |
-| 43 | `Employee` | Empleados | Empleado con datos argentinos (CUIL, DNI) |
-| 44 | `EmployeeProjectAssignment` | Empleados | Asignación de empleado a proyecto |
-| 45 | `Attendance` | Empleados | Registro de asistencia |
-| 46 | `LaborCategory` | Catálogos | Categoría de mano de obra con cargas sociales |
-| 47 | `EquipmentCatalogItem` | Catálogos | Equipo del catálogo con costos horarios |
-| 48 | `FinancialPlan` | Plan Financiero | Plan financiero del proyecto |
-| 49 | `FinancialPeriod` | Plan Financiero | Período mensual del plan financiero |
-| 50 | `Notification` | Soporte | Notificación al usuario |
-| 51 | `EmailQueue` | Soporte | Cola de emails pendientes |
-| 52 | `Document` | Soporte | Documento adjunto al proyecto |
-| 53 | `Attachment` | Soporte | Adjunto de gasto/OC/cotización |
-| 54 | `Comment` | Soporte | Comentario en proyecto/tarea |
-| 55 | `AuditLog` | Soporte | Log de auditoría de acciones |
-| 56 | `SystemConfig` | Soporte | Configuración de sistema clave-valor |
+| 34 | `ExpenseItem` | Gastos | Línea de detalle de gasto |
+| 35 | `PurchaseOrder` | Compras | Orden de compra |
+| 36 | `PurchaseOrderItem` | Compras | Línea de OC |
+| 37 | `Supplier` | Proveedores | Proveedor con datos fiscales argentinos |
+| 38 | `MaterialCategory` | Materiales | Categoría de material (árbol) |
+| 39 | `Material` | Materiales | Material con stock |
+| 40 | `SupplierMaterial` | Materiales | Precio de material por proveedor |
+| 41 | `StockMovement` | Materiales | Movimiento de stock |
+| 42 | `Quote` | Cotizaciones | Cotización a proveedor |
+| 43 | `QuoteItem` | Cotizaciones | Línea de cotización |
+| 44 | `Employee` | Empleados | Empleado con datos argentinos (CUIL, DNI) |
+| 45 | `EmployeeProjectAssignment` | Empleados | Asignación de empleado a proyecto |
+| 46 | `Attendance` | Empleados | Registro de asistencia |
+| 47 | `LaborCategory` | Catálogos | Categoría de mano de obra con cargas sociales |
+| 48 | `EquipmentCatalogItem` | Catálogos | Equipo del catálogo con costos horarios |
+| 49 | `FinancialPlan` | Plan Financiero | Plan financiero del proyecto |
+| 50 | `FinancialPeriod` | Plan Financiero | Período mensual del plan financiero |
+| 51 | `Notification` | Soporte | Notificación al usuario |
+| 52 | `EmailQueue` | Soporte | Cola de emails pendientes |
+| 53 | `Document` | Soporte | Documento adjunto al proyecto |
+| 54 | `Attachment` | Soporte | Adjunto de gasto/OC/cotización |
+| 55 | `Comment` | Soporte | Comentario en proyecto/tarea |
+| 56 | `AuditLog` | Soporte | Log de auditoría de acciones |
+| 57 | `SystemConfig` | Soporte | Configuración de sistema clave-valor |
 
 ---
 
@@ -1279,4 +1280,4 @@ erDiagram
 | **CUIT** | Formato XX-XXXXXXXX-X con validación de dígito verificador en capa de aplicación |
 | **CUIL** | Igual que CUIT pero para personas físicas |
 | **CBU** | 22 dígitos con dígito verificador de banco y cuenta |
-| **Cascada** | `onDelete: Cascade` en relaciones padre→hijo (BudgetCategory→Stage→Item, Stage→Task, Subcontract→Items, etc.) |
+| **Cascada** | `onDelete: Cascade` en relaciones padre→hijo (BudgetCategory→Stage→Item, BudgetItem→PriceAnalysis, Stage→Task, Subcontract→Items, etc.) |
