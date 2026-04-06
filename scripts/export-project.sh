@@ -37,7 +37,6 @@ EXCLUDES=(
   ".DS_Store"
   "*.DS_Store"
   "*.tsbuildinfo"
-  "*/.env"
   "coverage"
   "*/coverage"
 )
